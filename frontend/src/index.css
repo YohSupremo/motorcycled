@@ -1,0 +1,31 @@
+@import "tailwindcss";
+
+@layer base {
+  label {
+    @apply my-2;
+  }
+
+  input[type="text"],
+  input[type="password"],
+  input[type="email"] {
+    @apply h-10;
+  }
+
+  /* Prevent browser native password reveal eye from colliding or disappearing custom icons */
+  input::-ms-reveal,
+  input::-ms-clear {
+    display: none;
+  }
+}
+
+@utility center-xy {
+  @apply justify-center items-center;
+}
+
+@utility flex-temp {
+  @apply flex flex-col;
+}
+
+@utility hover-color {
+  @apply transition duration-200 ease-in;
+}
