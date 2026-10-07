@@ -1,5 +1,5 @@
 import { useState } from "react";
-
+import { Link } from "react-router-dom";
 export const Login = ({ onNavigate }) => {
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
@@ -21,7 +21,6 @@ export const Login = ({ onNavigate }) => {
   return (
     <div className="min-h-screen bg-zinc-50/60 text-zinc-900 flex flex-col justify-center items-center px-4 py-8 antialiased selection:bg-emerald-100 selection:text-emerald-900">
       <div className="w-full max-w-sm">
-        
         {/* Brand Header */}
         <div className="mb-5 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
@@ -34,9 +33,7 @@ export const Login = ({ onNavigate }) => {
               Motorcycled
             </span>
           </div>
-          <span className="text-xs text-zinc-500">
-            Account Portal
-          </span>
+          <span className="text-xs text-zinc-500">Account Portal</span>
         </div>
 
         {/* Card Container */}
@@ -95,14 +92,30 @@ export const Login = ({ onNavigate }) => {
                   aria-label={showPassword ? "Hide password" : "Show password"}
                 >
                   {showPassword ? (
-                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <svg
+                      className="w-4 h-4"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
                       <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24" />
                       <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68" />
                       <path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61" />
                       <line x1="2" x2="22" y1="2" y2="22" />
                     </svg>
                   ) : (
-                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <svg
+                      className="w-4 h-4"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
                       <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
                       <circle cx="12" cy="12" r="3" />
                     </svg>
@@ -152,13 +165,12 @@ export const Login = ({ onNavigate }) => {
           <div className="mt-6 pt-5 border-t border-zinc-100 text-center">
             <p className="text-xs text-zinc-500">
               Don't have an account?{" "}
-              <button
-                type="button"
-                onClick={() => onNavigate ? onNavigate("register") : null}
+              <Link
+                to="/register"
                 className="font-medium text-emerald-700 hover:text-emerald-800 hover:underline cursor-pointer"
               >
                 Register
-              </button>
+              </Link>
             </p>
           </div>
         </div>
@@ -167,7 +179,6 @@ export const Login = ({ onNavigate }) => {
         <p className="text-center text-[11px] text-zinc-400 mt-4">
           Motorcycled Service & Account Management System
         </p>
-
       </div>
     </div>
   );

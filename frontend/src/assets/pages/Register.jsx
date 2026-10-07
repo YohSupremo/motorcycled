@@ -1,51 +1,97 @@
 import { useState } from "react";
+import { ErrorMessage, useForm } from "react-hook-form";
+import { Link } from "react-router-dom";
+import { zodResolver } from "@hookform/resolvers/zod";
+import registerSchema from "../schema/registerSchema.js";
 
-export const Register = ({ onNavigate }) => {
+export const Register = () => {
   const [step, setStep] = useState(0);
 
   // Form field state for review step
-  const [formData, setFormData] = useState({
-    profilePicName: "",
-    firstName: "",
-    lastName: "",
-    contactNumber: "",
-    validIdName: "",
-    proofIncomeName: "",
-    street: "",
-    barangay: "",
-    city: "",
-    postalCode: "",
-    email: "",
-    password: "",
-    confirmPassword: "",
+  // const [formData, setFormData] = useState({
+  //   profilePicName: "",
+  //   firstName: "",
+  //   lastName: "",
+  //   contactNumber: "",
+  //   validIdName: "",
+  //   proofIncomeName: "",
+  //   street: "",
+  //   barangay: "",
+  //   city: "",
+  //   postalCode: "",
+  //   email: "",
+  //   password: "",
+  //   confirmPassword: "",
+  // });
+
+  const {
+    handleSubmit,
+    register,
+    clearErrors,
+    watch,
+    formState: { errors },
+  } = useForm({
+    resolver: zodResolver(registerSchema),
+    mode: "onChange",
   });
+
+  const onSubmit = async (data) => {
+    try {
+      const formData = new FormData();
+      formData.append("firstName", data.firstName);
+      formData.append("lastName", data.lastName);
+      formData.append("contactNumber", data.contactNumber);
+      formData.append("street", data.street);
+      formData.append("barangay", data.barangay);
+      formData.append("postalCode", data.postalCode);
+      formData.append("email", data.email);
+      formData.append("password", data.password);
+
+      const response = await fetch("https://localhost:4001/api/v1/register", {
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: { data },
+      });
+
+      const res = response.json();
+
+      if (!response.ok) {
+        console.log(res.errors);
+      }
+    } catch (error) {}
+  };
 
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [submitted, setSubmitted] = useState(false);
-  const [passwordError, setPasswordError] = useState("");
+  // const [passwordError, setPasswordError] = useState("");
 
-  const handleInputChange = (field, value) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
-    if (field === "password" || field === "confirmPassword") {
-      setPasswordError("");
-    }
-  };
+  // const handleInputChange = (field, value) => {
+  //   setFormData((prev) => ({ ...prev, [field]: value }));
+  //   if (field === "password" || field === "confirmPassword") {
+  //     setPasswordError("");
+  //   }
+  // };
 
-  const handleFileChange = (field, file) => {
-    setFormData((prev) => ({
-      ...prev,
-      [field]: file ? file.name : "",
-    }));
-  };
+  // const handleFileChange = (field, file) => {
+  //   setFormData((prev) => ({
+  //     ...prev,
+  //     [field]: file ? file.name : "",
+  //   }));
+  // };
 
   function increment() {
-    if (step === 3) {
-      if (formData.password && formData.confirmPassword && formData.password !== formData.confirmPassword) {
-        setPasswordError("Passwords do not match");
-        return;
-      }
-    }
+    // if (step === 3) {
+    //   if (
+    //     formData.password &&
+    //     formData.confirmPassword &&
+    //     formData.password !== formData.confirmPassword
+    //   ) {
+    //     setPasswordError("Passwords do not match");
+    //     return;
+    //   }
+    // }
     if (step < 4) {
       setStep((prev) => prev + 1);
     }
@@ -57,27 +103,38 @@ export const Register = ({ onNavigate }) => {
     }
   }
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (step === 4) {
-      setSubmitted(true);
-    } else {
-      increment();
-    }
-  };
+  // const handleSubmit = (e) => {
+  //   e.preventDefault();
+  //   if (step === 4) {
+  //     setSubmitted(true);
+  //   } else {
+  //     increment();
+  //   }
+  // };
 
   const stepMeta = [
-    { title: "Personal details", subtitle: "Enter your contact and profile information" },
-    { title: "Verification", subtitle: "Upload identification documents for verification" },
+    {
+      title: "Personal details",
+      subtitle: "Enter your contact and profile information",
+    },
+    {
+      title: "Verification",
+      subtitle: "Upload identification documents for verification",
+    },
     { title: "Address", subtitle: "Provide your primary residential address" },
-    { title: "Account credentials", subtitle: "Set up your login email and secure password" },
-    { title: "Review & confirm", subtitle: "Verify your information before completing registration" },
+    {
+      title: "Account credentials",
+      subtitle: "Set up your login email and secure password",
+    },
+    {
+      title: "Review & confirm",
+      subtitle: "Verify your information before completing registration",
+    },
   ];
 
   return (
     <div className="min-h-screen bg-zinc-50/60 text-zinc-900 flex flex-col justify-center items-center px-4 py-8 antialiased selection:bg-emerald-100 selection:text-emerald-900">
       <div className="w-full max-w-sm">
-        
         {/* Brand Header */}
         <div className="mb-5 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
@@ -97,29 +154,36 @@ export const Register = ({ onNavigate }) => {
 
         {/* Form Card */}
         <div className="bg-white border border-zinc-200 rounded-lg p-5 sm:p-6">
-          
           {submitted ? (
             /* Submission Success State */
             <div className="py-6 text-center space-y-4">
               <div className="w-12 h-12 mx-auto rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600">
-                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                <svg
+                  className="w-6 h-6"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                >
                   <polyline points="20 6 9 17 4 12" />
                 </svg>
               </div>
               <div>
-                <h2 className="text-lg font-semibold text-zinc-900">Registration submitted</h2>
+                <h2 className="text-lg font-semibold text-zinc-900">
+                  Registration submitted
+                </h2>
                 <p className="text-xs text-zinc-500 mt-1">
-                  Your application has been received and is currently under verification.
+                  Your application has been received and is currently under
+                  verification.
                 </p>
               </div>
               <div className="pt-2">
-                <button
-                  type="button"
-                  onClick={() => (onNavigate ? onNavigate("login") : null)}
+                <Link
+                  to="/login"
                   className="inline-block text-xs font-medium text-emerald-700 hover:text-emerald-800 hover:underline cursor-pointer"
                 >
                   Return to sign in
-                </button>
+                </Link>
               </div>
             </div>
           ) : (
@@ -134,7 +198,10 @@ export const Register = ({ onNavigate }) => {
                 </p>
 
                 {/* Segmented Step Progress Bar */}
-                <div className="grid grid-cols-5 gap-1.5 mt-4" aria-hidden="true">
+                <div
+                  className="grid grid-cols-5 gap-1.5 mt-4"
+                  aria-hidden="true"
+                >
                   {[0, 1, 2, 3, 4].map((idx) => (
                     <div
                       key={idx}
@@ -146,7 +213,12 @@ export const Register = ({ onNavigate }) => {
                 </div>
               </div>
 
-              <form onSubmit={handleSubmit} className="space-y-4">
+              <form
+                onSubmit={handleSubmit(onSubmit, (errors) => {
+                  console.log(errors);
+                })}
+                className="space-y-4"
+              >
                 {/* STEP 0: Personal Details */}
                 {step === 0 && (
                   <>
@@ -161,64 +233,88 @@ export const Register = ({ onNavigate }) => {
                         id="profile_pic"
                         type="file"
                         accept="image/*"
-                        onChange={(e) => handleFileChange("profilePicName", e.target.files?.[0])}
+                        onChange={(e) =>
+                          handleFileChange(
+                            "profilePicName",
+                            e.target.files?.[0],
+                          )
+                        }
                         className="block w-full text-xs text-zinc-600 border border-zinc-300 rounded-md cursor-pointer bg-zinc-50/50 p-2 file:mr-3 file:py-1 file:px-2.5 file:rounded-md file:border file:border-zinc-300 file:text-xs file:font-medium file:bg-white file:text-zinc-700 hover:file:bg-zinc-100 hover:file:border-zinc-400 focus:outline-none focus:ring-1 focus:ring-emerald-600 focus:border-emerald-600"
                       />
                       <span className="block text-[11px] text-zinc-400 mt-1">
-                        {formData.profilePicName ? `Selected: ${formData.profilePicName}` : "JPG or PNG, up to 5MB"}
+                        {/* formData.profilePicName
+                          ? `Selected: ${formData.profilePicName}`
+                          : "JPG or PNG, up to 5MB" */}
+                        JPG or PNG, up to 5MB
                       </span>
                     </div>
 
                     <div>
                       <label
-                        htmlFor="first_name"
+                        htmlFor="firstName"
                         className="block text-xs font-medium text-zinc-700 mb-1"
                       >
                         First name
                       </label>
                       <input
-                        id="first_name"
+                        id="firstName"
                         type="text"
-                        value={formData.firstName}
-                        onChange={(e) => handleInputChange("firstName", e.target.value)}
+                        {...register("firstName", {
+                          onChange: () => clearErrors("firstName"),
+                        })}
                         placeholder="Juan"
-                        className="!h-10 w-full px-3 py-2 text-sm text-zinc-900 bg-white border border-zinc-300 rounded-md placeholder:text-zinc-400 focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 transition-colors"
+                        className="h-10! w-full px-3 py-2 text-sm text-zinc-900 bg-white border border-zinc-300 rounded-md placeholder:text-zinc-400 focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 transition-colors"
                       />
                     </div>
-
+                    {errors.firstName && (
+                      <span className="text-red-500 text-sm mt-0">
+                        {errors.firstName.message}
+                      </span>
+                    )}
                     <div>
                       <label
-                        htmlFor="last_name"
+                        htmlFor="lastName"
                         className="block text-xs font-medium text-zinc-700 mb-1"
                       >
                         Last name
                       </label>
                       <input
-                        id="last_name"
+                        id="lastName"
                         type="text"
-                        value={formData.lastName}
-                        onChange={(e) => handleInputChange("lastName", e.target.value)}
+                        {...register("lastName", {
+                          onChange: () => clearErrors("lastName"),
+                        })}
                         placeholder="Dela Cruz"
-                        className="!h-10 w-full px-3 py-2 text-sm text-zinc-900 bg-white border border-zinc-300 rounded-md placeholder:text-zinc-400 focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 transition-colors"
+                        className="h-10! w-full px-3 py-2 text-sm text-zinc-900 bg-white border border-zinc-300 rounded-md placeholder:text-zinc-400 focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 transition-colors"
                       />
                     </div>
-
+                    {errors.lastName && (
+                      <span className="text-red-500 text-sm mt-0">
+                        {errors.lastName.message}
+                      </span>
+                    )}
                     <div>
                       <label
-                        htmlFor="contact_number"
+                        htmlFor="contactNumber"
                         className="block text-xs font-medium text-zinc-700 mb-1"
                       >
                         Contact number
                       </label>
                       <input
-                        id="contact_number"
+                        id="contactNumber"
                         type="text"
-                        value={formData.contactNumber}
-                        onChange={(e) => handleInputChange("contactNumber", e.target.value)}
+                        {...register("contactNumber", {
+                          onChange: () => clearErrors("contactNumber"),
+                        })}
                         placeholder="0912 345 6789"
-                        className="!h-10 w-full px-3 py-2 text-sm text-zinc-900 bg-white border border-zinc-300 rounded-md placeholder:text-zinc-400 focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 transition-colors"
+                        className="h-10! w-full px-3 py-2 text-sm text-zinc-900 bg-white border border-zinc-300 rounded-md placeholder:text-zinc-400 focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 transition-colors"
                       />
                     </div>
+                    {errors.contactNumber && (
+                      <span className="text-red-500 text-sm mt-0">
+                        {errors.contactNumber.message}
+                      </span>
+                    )}
                   </>
                 )}
 
@@ -226,7 +322,9 @@ export const Register = ({ onNavigate }) => {
                 {step === 1 && (
                   <>
                     <div className="p-3 bg-zinc-50 border border-zinc-200 rounded-md text-xs text-zinc-600 leading-relaxed">
-                      Required for motorcycle installment plans and credit evaluation. Valid government ID and proof of income are verified by our loan team.
+                      Required for motorcycle installment plans and credit
+                      evaluation. Valid government ID and proof of income are
+                      verified by our loan team.
                     </div>
 
                     <div>
@@ -239,11 +337,16 @@ export const Register = ({ onNavigate }) => {
                       <input
                         id="valid_id"
                         type="file"
-                        onChange={(e) => handleFileChange("validIdName", e.target.files?.[0])}
+                        onChange={(e) =>
+                          handleFileChange("validIdName", e.target.files?.[0])
+                        }
                         className="block w-full text-xs text-zinc-600 border border-zinc-300 rounded-md cursor-pointer bg-zinc-50/50 p-2 file:mr-3 file:py-1 file:px-2.5 file:rounded-md file:border file:border-zinc-300 file:text-xs file:font-medium file:bg-white file:text-zinc-700 hover:file:bg-zinc-100 hover:file:border-zinc-400 focus:outline-none focus:ring-1 focus:ring-emerald-600 focus:border-emerald-600"
                       />
                       <span className="block text-[11px] text-zinc-400 mt-1">
-                        {formData.validIdName ? `Selected: ${formData.validIdName}` : "Driver’s license, Passport, UMID, or National ID"}
+                        {/* formData.validIdName
+                          ? `Selected: ${formData.validIdName}`
+                          : "Driver’s license, Passport, UMID, or National ID" */}
+                        Driver’s license, Passport, UMID, or National ID
                       </span>
                     </div>
 
@@ -257,11 +360,20 @@ export const Register = ({ onNavigate }) => {
                       <input
                         id="proof_income"
                         type="file"
-                        onChange={(e) => handleFileChange("proofIncomeName", e.target.files?.[0])}
+                        onChange={(e) =>
+                          handleFileChange(
+                            "proofIncomeName",
+                            e.target.files?.[0],
+                          )
+                        }
                         className="block w-full text-xs text-zinc-600 border border-zinc-300 rounded-md cursor-pointer bg-zinc-50/50 p-2 file:mr-3 file:py-1 file:px-2.5 file:rounded-md file:border file:border-zinc-300 file:text-xs file:font-medium file:bg-white file:text-zinc-700 hover:file:bg-zinc-100 hover:file:border-zinc-400 focus:outline-none focus:ring-1 focus:ring-emerald-600 focus:border-emerald-600"
                       />
                       <span className="block text-[11px] text-zinc-400 mt-1">
-                        {formData.proofIncomeName ? `Selected: ${formData.proofIncomeName}` : "Latest payslip, certificate of employment, or bank statement"}
+                        {/* formData.proofIncomeName
+                          ? `Selected: ${formData.proofIncomeName}`
+                          : "Latest payslip, certificate of employment, or bank statement" */}
+                        Latest payslip, certificate of employment, or bank
+                        statement
                       </span>
                     </div>
                   </>
@@ -272,69 +384,77 @@ export const Register = ({ onNavigate }) => {
                   <>
                     <div>
                       <label
-                        htmlFor="address_street"
+                        htmlFor="addressStreet"
                         className="block text-xs font-medium text-zinc-700 mb-1"
                       >
                         House / Unit #, Street, Village
                       </label>
                       <input
-                        id="address_street"
+                        id="addressStreet"
                         type="text"
-                        value={formData.street}
-                        onChange={(e) => handleInputChange("street", e.target.value)}
+                        // value={formData.street}
+                        {...register("street", {
+                          onChange: () => clearErrors("street"),
+                        })}
                         placeholder="123 Rizal Street"
-                        className="!h-10 w-full px-3 py-2 text-sm text-zinc-900 bg-white border border-zinc-300 rounded-md placeholder:text-zinc-400 focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 transition-colors"
+                        className="h-10! w-full px-3 py-2 text-sm text-zinc-900 bg-white border border-zinc-300 rounded-md placeholder:text-zinc-400 focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 transition-colors"
                       />
                     </div>
 
                     <div>
                       <label
-                        htmlFor="address_barangay"
+                        htmlFor="addressBarangay"
                         className="block text-xs font-medium text-zinc-700 mb-1"
                       >
                         Barangay
                       </label>
                       <input
-                        id="address_barangay"
+                        id="addressBarangay"
                         type="text"
-                        value={formData.barangay}
-                        onChange={(e) => handleInputChange("barangay", e.target.value)}
+                        // value={formData.barangay}
+                        {...register("barangay", {
+                          onChange: () => clearErrors("barangay"),
+                        })}
                         placeholder="San Antonio"
-                        className="!h-10 w-full px-3 py-2 text-sm text-zinc-900 bg-white border border-zinc-300 rounded-md placeholder:text-zinc-400 focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 transition-colors"
+                        className="h-10! w-full px-3 py-2 text-sm text-zinc-900 bg-white border border-zinc-300 rounded-md placeholder:text-zinc-400 focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 transition-colors"
                       />
                     </div>
 
                     <div className="grid grid-cols-3 gap-2">
                       <div className="col-span-2">
                         <label
-                          htmlFor="address_city"
+                          htmlFor="addressCity"
                           className="block text-xs font-medium text-zinc-700 mb-1"
                         >
                           City / Municipality
                         </label>
                         <input
-                          id="address_city"
+                          id="addressCity"
                           type="text"
-                          value={formData.city}
-                          onChange={(e) => handleInputChange("city", e.target.value)}
+                          // value={formData.city}
+                          {...register("city", {
+                            onChange: () => clearErrors("city"),
+                          })}
                           placeholder="Pasig City"
-                          className="!h-10 w-full px-3 py-2 text-sm text-zinc-900 bg-white border border-zinc-300 rounded-md placeholder:text-zinc-400 focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 transition-colors"
+                          className="h-10! w-full px-3 py-2 text-sm text-zinc-900 bg-white border border-zinc-300 rounded-md placeholder:text-zinc-400 focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 transition-colors"
                         />
                       </div>
                       <div>
                         <label
-                          htmlFor="address_postal"
+                          htmlFor="addressPostal"
                           className="block text-xs font-medium text-zinc-700 mb-1"
                         >
                           Postal Code
                         </label>
                         <input
-                          id="address_postal"
+                          id="addressPostal"
                           type="text"
-                          value={formData.postalCode}
-                          onChange={(e) => handleInputChange("postalCode", e.target.value)}
+                          // value={formData.postalCode}
+                          {...register("postalCode", {
+                            onChange: () => clearErrors("postalCode"),
+                          })}
                           placeholder="1600"
-                          className="!h-10 w-full px-3 py-2 text-sm text-zinc-900 bg-white border border-zinc-300 rounded-md placeholder:text-zinc-400 focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 transition-colors"
+                          className="h-10! w-full px-3 py-2 text-sm text-zinc-900 bg-white border border-zinc-300 rounded-md placeholder:text-zinc-400 focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 transition-colors"
                         />
                       </div>
                     </div>
@@ -346,19 +466,21 @@ export const Register = ({ onNavigate }) => {
                   <>
                     <div>
                       <label
-                        htmlFor="account_email"
+                        htmlFor="accountEmail"
                         className="block text-xs font-medium text-zinc-700 mb-1"
                       >
                         Email address
                       </label>
                       <input
-                        id="account_email"
+                        id="accountEmail"
                         type="email"
-                        value={formData.email}
-                        onChange={(e) => handleInputChange("email", e.target.value)}
+                        // value={formData.email}
+                        {...register("email", {
+                          onChange: () => clearErrors("email"),
+                        })}
                         placeholder="rider@example.com"
                         required
-                        className="!h-10 w-full px-3 py-2 text-sm text-zinc-900 bg-white border border-zinc-300 rounded-md placeholder:text-zinc-400 focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 transition-colors"
+                        className="h-10! w-full px-3 py-2 text-sm text-zinc-900 bg-white border border-zinc-300 rounded-md placeholder:text-zinc-400 focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 transition-colors"
                       />
                     </div>
 
@@ -373,27 +495,46 @@ export const Register = ({ onNavigate }) => {
                         <input
                           id="account_password"
                           type={showPassword ? "text" : "password"}
-                          value={formData.password}
-                          onChange={(e) => handleInputChange("password", e.target.value)}
+                          // value={formData.password}
+                          {...register("password", {
+                            onChange: () => clearErrors("password"),
+                          })}
                           placeholder="••••••••"
-                          required
-                          className="!h-10 w-full px-3 py-2 pr-10 text-sm text-zinc-900 bg-white border border-zinc-300 rounded-md placeholder:text-zinc-400 focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 transition-colors"
+                          className="h-10! w-full px-3 py-2 pr-10 text-sm text-zinc-900 bg-white border border-zinc-300 rounded-md placeholder:text-zinc-400 focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 transition-colors"
                         />
                         <button
                           type="button"
                           onClick={() => setShowPassword(!showPassword)}
                           className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-zinc-400 hover:text-zinc-600 focus:outline-none cursor-pointer flex items-center justify-center z-10"
-                          aria-label={showPassword ? "Hide password" : "Show password"}
+                          aria-label={
+                            showPassword ? "Hide password" : "Show password"
+                          }
                         >
                           {showPassword ? (
-                            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <svg
+                              className="w-4 h-4"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            >
                               <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24" />
                               <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68" />
                               <path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61" />
                               <line x1="2" x2="22" y1="2" y2="22" />
                             </svg>
                           ) : (
-                            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <svg
+                              className="w-4 h-4"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            >
                               <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
                               <circle cx="12" cy="12" r="3" />
                             </svg>
@@ -407,49 +548,75 @@ export const Register = ({ onNavigate }) => {
 
                     <div>
                       <label
-                        htmlFor="account_confirm_password"
+                        htmlFor="confirmPassword"
                         className="block text-xs font-medium text-zinc-700 mb-1"
                       >
                         Confirm password
                       </label>
                       <div className="relative flex items-center">
                         <input
-                          id="account_confirm_password"
+                          id="confirmPassword"
                           type={showConfirmPassword ? "text" : "password"}
-                          value={formData.confirmPassword}
-                          onChange={(e) => handleInputChange("confirmPassword", e.target.value)}
+                          // value={formData.confirmPassword}
+                          {...register("confirmPassword", {
+                            onChange: () => clearErrors("confirmPassword"),
+                          })}
                           placeholder="••••••••"
                           required
-                          className={`!h-10 w-full px-3 py-2 pr-10 text-sm text-zinc-900 bg-white border rounded-md placeholder:text-zinc-400 focus:outline-none focus:ring-1 transition-colors ${
-                            passwordError
-                              ? "border-red-500 focus:border-red-500 focus:ring-red-500"
-                              : "border-zinc-300 focus:border-emerald-600 focus:ring-emerald-600"
-                          }`}
+                          // className={`h-10! w-full px-3 py-2 pr-10 text-sm text-zinc-900 bg-white border rounded-md placeholder:text-zinc-400 focus:outline-none focus:ring-1 transition-colors ${
+                          //   passwordError
+                          //     ? "border-red-500 focus:border-red-500 focus:ring-red-500"
+                          //     : "border-zinc-300 focus:border-emerald-600 focus:ring-emerald-600"
+                          // }`}
                         />
                         <button
                           type="button"
-                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                          onClick={() =>
+                            setShowConfirmPassword(!showConfirmPassword)
+                          }
                           className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-zinc-400 hover:text-zinc-600 focus:outline-none cursor-pointer flex items-center justify-center z-10"
-                          aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+                          aria-label={
+                            showConfirmPassword
+                              ? "Hide password"
+                              : "Show password"
+                          }
                         >
                           {showConfirmPassword ? (
-                            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <svg
+                              className="w-4 h-4"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            >
                               <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24" />
                               <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68" />
                               <path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61" />
                               <line x1="2" x2="22" y1="2" y2="22" />
                             </svg>
                           ) : (
-                            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <svg
+                              className="w-4 h-4"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            >
                               <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
                               <circle cx="12" cy="12" r="3" />
                             </svg>
                           )}
                         </button>
                       </div>
-                      {passwordError && (
-                        <p className="text-[11px] text-red-600 mt-1">{passwordError}</p>
-                      )}
+                      {/* passwordError && (
+                        <p className="text-[11px] text-red-600 mt-1">
+                          {passwordError}
+                        </p>
+                      ) */}
                     </div>
                   </>
                 )}
@@ -474,17 +641,19 @@ export const Register = ({ onNavigate }) => {
                       <dl className="grid grid-cols-3 gap-y-1.5 text-zinc-600">
                         <dt className="text-zinc-500">Name:</dt>
                         <dd className="col-span-2 font-medium text-zinc-800">
-                          {formData.firstName || formData.lastName
+                          {/* formData.firstName || formData.lastName
                             ? `${formData.firstName} ${formData.lastName}`.trim()
-                            : "—"}
+                            : "—" */}
+                          —
                         </dd>
                         <dt className="text-zinc-500">Contact:</dt>
                         <dd className="col-span-2 font-medium text-zinc-800">
-                          {formData.contactNumber || "—"}
+                          {/* formData.contactNumber || "—" */}—
                         </dd>
                         <dt className="text-zinc-500">Photo:</dt>
                         <dd className="col-span-2 truncate text-zinc-700">
-                          {formData.profilePicName || "No file chosen"}
+                          {/* formData.profilePicName || "No file chosen" */}
+                          No file chosen
                         </dd>
                       </dl>
                     </div>
@@ -506,11 +675,13 @@ export const Register = ({ onNavigate }) => {
                       <dl className="grid grid-cols-3 gap-y-1.5 text-zinc-600">
                         <dt className="text-zinc-500">Valid ID:</dt>
                         <dd className="col-span-2 truncate text-zinc-700">
-                          {formData.validIdName || "No file chosen"}
+                          {/* formData.validIdName || "No file chosen" */}
+                          No file chosen
                         </dd>
                         <dt className="text-zinc-500">Income proof:</dt>
                         <dd className="col-span-2 truncate text-zinc-700">
-                          {formData.proofIncomeName || "No file chosen"}
+                          {/* formData.proofIncomeName || "No file chosen" */}
+                          No file chosen
                         </dd>
                       </dl>
                     </div>
@@ -532,15 +703,18 @@ export const Register = ({ onNavigate }) => {
                       <dl className="grid grid-cols-3 gap-y-1.5 text-zinc-600">
                         <dt className="text-zinc-500">Street / Unit:</dt>
                         <dd className="col-span-2 font-medium text-zinc-800">
-                          {formData.street || "—"}
+                          {/* formData.street || "—" */}—
                         </dd>
                         <dt className="text-zinc-500">Barangay:</dt>
                         <dd className="col-span-2 font-medium text-zinc-800">
-                          {formData.barangay || "—"}
+                          {/* formData.barangay || "—" */}—
                         </dd>
                         <dt className="text-zinc-500">City / Postal:</dt>
                         <dd className="col-span-2 font-medium text-zinc-800">
-                          {formData.city ? `${formData.city}${formData.postalCode ? ` (${formData.postalCode})` : ""}, Philippines` : "—"}
+                          {/* formData.city
+                            ? `${formData.city}${formData.postalCode ? ` (${formData.postalCode})` : ""}, Philippines`
+                            : "—" */}
+                          —
                         </dd>
                       </dl>
                     </div>
@@ -562,11 +736,11 @@ export const Register = ({ onNavigate }) => {
                       <dl className="grid grid-cols-3 gap-y-1.5 text-zinc-600">
                         <dt className="text-zinc-500">Email:</dt>
                         <dd className="col-span-2 font-medium text-zinc-800">
-                          {formData.email || "—"}
+                          {/* formData.email || "—" */}—
                         </dd>
                         <dt className="text-zinc-500">Password:</dt>
                         <dd className="col-span-2 font-mono text-zinc-700">
-                          {formData.password ? "••••••••" : "—"}
+                          {/* formData.password ? "••••••••" : "—" */}—
                         </dd>
                       </dl>
                     </div>
@@ -579,7 +753,7 @@ export const Register = ({ onNavigate }) => {
                     <button
                       type="button"
                       onClick={decrement}
-                      className="!h-10 px-4 rounded-md border border-zinc-300 bg-white text-zinc-700 text-sm font-medium hover:bg-zinc-50 active:bg-zinc-100 transition-colors cursor-pointer"
+                      className="h-10! px-4 rounded-md border border-zinc-300 bg-white text-zinc-700 text-sm font-medium hover:bg-zinc-50 active:bg-zinc-100 transition-colors cursor-pointer"
                     >
                       Back
                     </button>
@@ -587,7 +761,8 @@ export const Register = ({ onNavigate }) => {
 
                   <button
                     type="submit"
-                    className="!h-10 px-4 flex-1 rounded-md bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-sm font-medium transition-colors cursor-pointer"
+                    onClick={increment}
+                    className="h-10! px-4 flex-1 rounded-md bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-sm font-medium transition-colors cursor-pointer"
                   >
                     {step === 4 ? "Submit registration" : "Continue"}
                   </button>
@@ -598,13 +773,12 @@ export const Register = ({ onNavigate }) => {
               <div className="mt-6 pt-5 border-t border-zinc-100 text-center">
                 <p className="text-xs text-zinc-500">
                   Already have an account?{" "}
-                  <button
-                    type="button"
-                    onClick={() => (onNavigate ? onNavigate("login") : null)}
+                  <Link
+                    to="/login"
                     className="font-medium text-emerald-700 hover:text-emerald-800 hover:underline cursor-pointer"
                   >
                     Sign in
-                  </button>
+                  </Link>
                 </p>
               </div>
             </>
@@ -615,7 +789,6 @@ export const Register = ({ onNavigate }) => {
         <p className="text-center text-[11px] text-zinc-400 mt-4">
           By signing up, you agree to our terms of service and privacy policy.
         </p>
-
       </div>
     </div>
   );
