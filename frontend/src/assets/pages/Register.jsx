@@ -3,32 +3,16 @@ import { ErrorMessage, useForm } from "react-hook-form";
 import { Link } from "react-router-dom";
 import { zodResolver } from "@hookform/resolvers/zod";
 import registerSchema from "../schema/registerSchema.js";
-
+import axios from "axios";
 export const Register = () => {
   const [step, setStep] = useState(0);
-
-  // Form field state for review step
-  // const [formData, setFormData] = useState({
-  //   profilePicName: "",
-  //   firstName: "",
-  //   lastName: "",
-  //   contactNumber: "",
-  //   validIdName: "",
-  //   proofIncomeName: "",
-  //   street: "",
-  //   barangay: "",
-  //   city: "",
-  //   postalCode: "",
-  //   email: "",
-  //   password: "",
-  //   confirmPassword: "",
-  // });
 
   const {
     handleSubmit,
     register,
     clearErrors,
-    watch,
+    trigger,
+    getValues,
     formState: { errors },
   } = useForm({
     resolver: zodResolver(registerSchema),
@@ -43,23 +27,21 @@ export const Register = () => {
       formData.append("contactNumber", data.contactNumber);
       formData.append("street", data.street);
       formData.append("barangay", data.barangay);
+      formData.append("city", data.city);
       formData.append("postalCode", data.postalCode);
       formData.append("email", data.email);
       formData.append("password", data.password);
+      formData.append("confirmPassword", data.confirmPassword);
+      const response = await axios.post(
+        "http://localhost:4001/api/v1/register",
 
-      const response = await fetch("https://localhost:4001/api/v1/register", {
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: { data },
-      });
+        formData,
+      );
 
-      const res = response.json();
-
-      if (!response.ok) {
-        console.log(res.errors);
-      }
-    } catch (error) {}
+      console.log(response.data);
+    } catch (error) {
+      console.log(error);
+    }
   };
 
   const [showPassword, setShowPassword] = useState(false);
@@ -81,17 +63,15 @@ export const Register = () => {
   //   }));
   // };
 
-  function increment() {
-    // if (step === 3) {
-    //   if (
-    //     formData.password &&
-    //     formData.confirmPassword &&
-    //     formData.password !== formData.confirmPassword
-    //   ) {
-    //     setPasswordError("Passwords do not match");
-    //     return;
-    //   }
-    // }
+  async function increment() {
+    const currentFields = stepFields[step];
+    if (currentFields) {
+      const isValid = await trigger(currentFields);
+      if (!isValid) {
+        return;
+      }
+    }
+
     if (step < 4) {
       setStep((prev) => prev + 1);
     }
@@ -131,6 +111,13 @@ export const Register = () => {
       subtitle: "Verify your information before completing registration",
     },
   ];
+
+  const stepFields = {
+    0: ["firstName", "lastName", "contactNumber"],
+    // 1: ["", "", ""],
+    2: ["street", "barangay", "city", "postalCode"],
+    3: ["email", "password", "confirmPassword"],
+  };
 
   return (
     <div className="min-h-screen bg-zinc-50/60 text-zinc-900 flex flex-col justify-center items-center px-4 py-8 antialiased selection:bg-emerald-100 selection:text-emerald-900">
@@ -249,7 +236,7 @@ export const Register = () => {
                       </span>
                     </div>
 
-                    <div>
+                    <div className="mb-0">
                       <label
                         htmlFor="firstName"
                         className="block text-xs font-medium text-zinc-700 mb-1"
@@ -271,7 +258,7 @@ export const Register = () => {
                         {errors.firstName.message}
                       </span>
                     )}
-                    <div>
+                    <div className="mb-0">
                       <label
                         htmlFor="lastName"
                         className="block text-xs font-medium text-zinc-700 mb-1"
@@ -293,7 +280,7 @@ export const Register = () => {
                         {errors.lastName.message}
                       </span>
                     )}
-                    <div>
+                    <div className="mb-0">
                       <label
                         htmlFor="contactNumber"
                         className="block text-xs font-medium text-zinc-700 mb-1"
@@ -327,7 +314,7 @@ export const Register = () => {
                       verified by our loan team.
                     </div>
 
-                    <div>
+                    <div className="mb-0">
                       <label
                         htmlFor="valid_id"
                         className="block text-xs font-medium text-zinc-700 mb-1"
@@ -350,7 +337,7 @@ export const Register = () => {
                       </span>
                     </div>
 
-                    <div>
+                    <div className="mb-0">
                       <label
                         htmlFor="proof_income"
                         className="block text-xs font-medium text-zinc-700 mb-1"
@@ -382,7 +369,7 @@ export const Register = () => {
                 {/* STEP 2: Address */}
                 {step === 2 && (
                   <>
-                    <div>
+                    <div className="mb-0">
                       <label
                         htmlFor="addressStreet"
                         className="block text-xs font-medium text-zinc-700 mb-1"
@@ -400,8 +387,13 @@ export const Register = () => {
                         className="h-10! w-full px-3 py-2 text-sm text-zinc-900 bg-white border border-zinc-300 rounded-md placeholder:text-zinc-400 focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 transition-colors"
                       />
                     </div>
+                    {errors.street && (
+                      <span className="text-red-500 text-sm mt-0">
+                        {errors.street.message}
+                      </span>
+                    )}
 
-                    <div>
+                    <div className="mb-0">
                       <label
                         htmlFor="addressBarangay"
                         className="block text-xs font-medium text-zinc-700 mb-1"
@@ -419,43 +411,65 @@ export const Register = () => {
                         className="h-10! w-full px-3 py-2 text-sm text-zinc-900 bg-white border border-zinc-300 rounded-md placeholder:text-zinc-400 focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 transition-colors"
                       />
                     </div>
+                    {errors.barangay && (
+                      <span className="text-red-500 text-sm mt-0">
+                        {errors.barangay.message}
+                      </span>
+                    )}
 
-                    <div className="grid grid-cols-3 gap-2">
-                      <div className="col-span-2">
-                        <label
-                          htmlFor="addressCity"
-                          className="block text-xs font-medium text-zinc-700 mb-1"
-                        >
-                          City / Municipality
-                        </label>
-                        <input
-                          id="addressCity"
-                          type="text"
-                          // value={formData.city}
-                          {...register("city", {
-                            onChange: () => clearErrors("city"),
-                          })}
-                          placeholder="Pasig City"
-                          className="h-10! w-full px-3 py-2 text-sm text-zinc-900 bg-white border border-zinc-300 rounded-md placeholder:text-zinc-400 focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 transition-colors"
-                        />
-                      </div>
+                    <div className="grid grid-cols-2 gap-2">
                       <div>
-                        <label
-                          htmlFor="addressPostal"
-                          className="block text-xs font-medium text-zinc-700 mb-1"
-                        >
-                          Postal Code
-                        </label>
-                        <input
-                          id="addressPostal"
-                          type="text"
-                          // value={formData.postalCode}
-                          {...register("postalCode", {
-                            onChange: () => clearErrors("postalCode"),
-                          })}
-                          placeholder="1600"
-                          className="h-10! w-full px-3 py-2 text-sm text-zinc-900 bg-white border border-zinc-300 rounded-md placeholder:text-zinc-400 focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 transition-colors"
-                        />
+                        <div className="col-span-2 mb-0 ">
+                          <label
+                            htmlFor="addressCity"
+                            className="block text-xs font-medium text-zinc-700 mb-1"
+                          >
+                            City / Municipality
+                          </label>
+                          <input
+                            id="addressCity"
+                            type="text"
+                            // value={formData.city}
+                            {...register("city", {
+                              onChange: () => clearErrors("city"),
+                            })}
+                            placeholder="Pasig City"
+                            className="h-10! w-full px-3 py-2 text-sm text-zinc-900 bg-white border border-zinc-300 rounded-md placeholder:text-zinc-400 focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 transition-colors"
+                          />
+                        </div>
+                        {errors.city && (
+                          <span className="text-red-500 text-sm mt-0">
+                            {errors.city.message}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="">
+                        <div className="mb-0">
+                          <label
+                            htmlFor="addressPostal"
+                            className="block text-xs font-medium text-zinc-700 mb-1"
+                          >
+                            Postal Code
+                          </label>
+                          <input
+                            id="addressPostal"
+                            type="text"
+                            maxLength={4}
+                            minLength={4}
+                            // value={formData.postalCode}
+                            {...register("postalCode", {
+                              onChange: () => clearErrors("postalCode"),
+                            })}
+                            placeholder="1600"
+                            className="h-10! w-full px-3 py-2 text-sm text-zinc-900 bg-white border border-zinc-300 rounded-md placeholder:text-zinc-400 focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 transition-colors"
+                          />
+                        </div>
+                        {errors.postalCode && (
+                          <span className="text-red-500 text-sm mt-0">
+                            {errors.postalCode.message}
+                          </span>
+                        )}
                       </div>
                     </div>
                   </>
@@ -464,7 +478,7 @@ export const Register = () => {
                 {/* STEP 3: Email & Password Credentials */}
                 {step === 3 && (
                   <>
-                    <div>
+                    <div className="mb-0">
                       <label
                         htmlFor="accountEmail"
                         className="block text-xs font-medium text-zinc-700 mb-1"
@@ -483,7 +497,11 @@ export const Register = () => {
                         className="h-10! w-full px-3 py-2 text-sm text-zinc-900 bg-white border border-zinc-300 rounded-md placeholder:text-zinc-400 focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 transition-colors"
                       />
                     </div>
-
+                    {errors.email && (
+                      <span className="text-red-500 text-sm mt-0">
+                        {errors.email.message}
+                      </span>
+                    )}
                     <div>
                       <label
                         htmlFor="account_password"
@@ -541,9 +559,11 @@ export const Register = () => {
                           )}
                         </button>
                       </div>
-                      <span className="block text-[11px] text-zinc-400 mt-1">
-                        Must be at least 8 characters
-                      </span>
+                      {errors.password && (
+                        <span className="text-red-500 text-sm mt-0">
+                          {errors.password.message}
+                        </span>
+                      )}
                     </div>
 
                     <div>
@@ -563,12 +583,13 @@ export const Register = () => {
                           })}
                           placeholder="••••••••"
                           required
-                          // className={`h-10! w-full px-3 py-2 pr-10 text-sm text-zinc-900 bg-white border rounded-md placeholder:text-zinc-400 focus:outline-none focus:ring-1 transition-colors ${
-                          //   passwordError
-                          //     ? "border-red-500 focus:border-red-500 focus:ring-red-500"
-                          //     : "border-zinc-300 focus:border-emerald-600 focus:ring-emerald-600"
-                          // }`}
+                          className={`h-10! w-full px-3 py-2 pr-10 text-sm text-zinc-900 bg-white border rounded-md placeholder:text-zinc-400 focus:outline-none focus:ring-1 transition-colors ${
+                            errors.confirmPassword
+                              ? "border-red-500 focus:border-red-500 focus:ring-red-500"
+                              : "border-zinc-300 focus:border-emerald-600 focus:ring-emerald-600"
+                          }`}
                         />
+
                         <button
                           type="button"
                           onClick={() =>
@@ -612,11 +633,11 @@ export const Register = () => {
                           )}
                         </button>
                       </div>
-                      {/* passwordError && (
-                        <p className="text-[11px] text-red-600 mt-1">
-                          {passwordError}
-                        </p>
-                      ) */}
+                      {errors.confirmPassword && (
+                        <span className="text-red-500 text-sm mt-0">
+                          {errors.confirmPassword.message}
+                        </span>
+                      )}
                     </div>
                   </>
                 )}
@@ -641,14 +662,11 @@ export const Register = () => {
                       <dl className="grid grid-cols-3 gap-y-1.5 text-zinc-600">
                         <dt className="text-zinc-500">Name:</dt>
                         <dd className="col-span-2 font-medium text-zinc-800">
-                          {/* formData.firstName || formData.lastName
-                            ? `${formData.firstName} ${formData.lastName}`.trim()
-                            : "—" */}
-                          —
+                          {getValues("firstName") + " " + getValues("lastName")}
                         </dd>
                         <dt className="text-zinc-500">Contact:</dt>
                         <dd className="col-span-2 font-medium text-zinc-800">
-                          {/* formData.contactNumber || "—" */}—
+                          {getValues("contactNumber")}
                         </dd>
                         <dt className="text-zinc-500">Photo:</dt>
                         <dd className="col-span-2 truncate text-zinc-700">
@@ -703,18 +721,15 @@ export const Register = () => {
                       <dl className="grid grid-cols-3 gap-y-1.5 text-zinc-600">
                         <dt className="text-zinc-500">Street / Unit:</dt>
                         <dd className="col-span-2 font-medium text-zinc-800">
-                          {/* formData.street || "—" */}—
+                          {getValues("street")}
                         </dd>
                         <dt className="text-zinc-500">Barangay:</dt>
                         <dd className="col-span-2 font-medium text-zinc-800">
-                          {/* formData.barangay || "—" */}—
+                          {getValues("barangay")}
                         </dd>
                         <dt className="text-zinc-500">City / Postal:</dt>
                         <dd className="col-span-2 font-medium text-zinc-800">
-                          {/* formData.city
-                            ? `${formData.city}${formData.postalCode ? ` (${formData.postalCode})` : ""}, Philippines`
-                            : "—" */}
-                          —
+                          {getValues("city") + ", " + getValues("postalCode")}
                         </dd>
                       </dl>
                     </div>
@@ -736,11 +751,11 @@ export const Register = () => {
                       <dl className="grid grid-cols-3 gap-y-1.5 text-zinc-600">
                         <dt className="text-zinc-500">Email:</dt>
                         <dd className="col-span-2 font-medium text-zinc-800">
-                          {/* formData.email || "—" */}—
+                          {getValues("email")}
                         </dd>
                         <dt className="text-zinc-500">Password:</dt>
                         <dd className="col-span-2 font-mono text-zinc-700">
-                          {/* formData.password ? "••••••••" : "—" */}—
+                          {"*".repeat(getValues("password").length)}
                         </dd>
                       </dl>
                     </div>
@@ -760,7 +775,7 @@ export const Register = () => {
                   )}
 
                   <button
-                    type="submit"
+                    type={step === 4 ? "submit" : "button"}
                     onClick={increment}
                     className="h-10! px-4 flex-1 rounded-md bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-sm font-medium transition-colors cursor-pointer"
                   >
