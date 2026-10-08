@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 
-const Address = mongoose.Schema({
+const addressSchema = mongoose.Schema({
   userId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
@@ -24,3 +24,6 @@ const Address = mongoose.Schema({
     required: true,
   },
 });
+
+const Address = mongoose.model("Address", addressSchema);
+export default Address;

@@ -21,7 +21,7 @@ const userSchema = new mongoose.Schema({
   role: {
     type: String,
     enum: ["customer", "admin"],
-    required: true,
+    default: "customer",
   },
   contactNumber: {
     type: String,
@@ -51,4 +51,5 @@ const userSchema = new mongoose.Schema({
   },
 });
 
-export default User = mongoose.model("User", userSchema);
+const User = mongoose.model("User", userSchema);
+export default User;
