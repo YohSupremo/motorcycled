@@ -1,9 +1,46 @@
 import bcrypt from "bcrypt";
 import User from "../model/User.js";
 import Address from "../model/Address.js";
+import { cloudConf } from "../config/cloudinary.js";
+
+const uploadHandler = (fileBuffer, folder) => {
+  return new Promise((res, rej) => {
+    const stream = cloudConf.uploader.upload_stream(
+      {
+        folder,
+        resource_type: "image",
+      },
+      (error, result) => {
+        error ? rej(error) : res(result.secure_url);
+      },
+    );
+    stream.end(fileBuffer);
+  });
+};
 
 export const register = async (req, res) => {
   try {
+    const profilePicture = req.files?.profilePicture?.[0];
+    const validId = req.files?.validId?.[0];
+    const proofOfIncome = req.files?.proofOfIncome?.[0];
+
+    let profilePictureUrl = null;
+    let validIdUrl = null;
+    let proofOfIncomeUrl = null;
+    if (profilePicture) {
+      profilePictureUrl = await uploadHandler(profilePicture.buffer, "profile");
+    }
+    if (validId) {
+      validIdUrl = await uploadHandler(validId.buffer, "validId");
+    }
+
+    if (proofOfIncome) {
+      proofOfIncomeUrl = await uploadHandler(
+        proofOfIncome.buffer,
+        "proofOfIncome",
+      );
+    }
+
     const {
       firstName,
       lastName,
@@ -38,9 +75,12 @@ export const register = async (req, res) => {
     }
 
     const user = await User.create({
+      profilePicture: profilePictureUrl,
       firstName,
       lastName,
       contactNumber,
+      validId: validIdUrl,
+      proofOfIncome: proofOfIncomeUrl,
       email,
       password: hashedpassword,
     });
