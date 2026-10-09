@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ErrorMessage, useForm } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { Link } from "react-router-dom";
 import { zodResolver } from "@hookform/resolvers/zod";
 import registerSchema from "../schema/registerSchema.js";
@@ -22,9 +22,12 @@ export const Register = () => {
   const onSubmit = async (data) => {
     try {
       const formData = new FormData();
+      formData.append("profilePicture", data.profilePicture);
       formData.append("firstName", data.firstName);
       formData.append("lastName", data.lastName);
       formData.append("contactNumber", data.contactNumber);
+      formData.append("validId", data.validId);
+      formData.append("proofOfIncome", data.proofOfIncome);
       formData.append("street", data.street);
       formData.append("barangay", data.barangay);
       formData.append("city", data.city);
@@ -34,11 +37,11 @@ export const Register = () => {
       formData.append("confirmPassword", data.confirmPassword);
       const response = await axios.post(
         "http://localhost:4001/api/v1/register",
-
         formData,
       );
 
       console.log(response.data);
+      setSubmitted(true);
     } catch (error) {
       console.log(error);
     }
@@ -47,21 +50,6 @@ export const Register = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [submitted, setSubmitted] = useState(false);
-  // const [passwordError, setPasswordError] = useState("");
-
-  // const handleInputChange = (field, value) => {
-  //   setFormData((prev) => ({ ...prev, [field]: value }));
-  //   if (field === "password" || field === "confirmPassword") {
-  //     setPasswordError("");
-  //   }
-  // };
-
-  // const handleFileChange = (field, file) => {
-  //   setFormData((prev) => ({
-  //     ...prev,
-  //     [field]: file ? file.name : "",
-  //   }));
-  // };
 
   async function increment() {
     const currentFields = stepFields[step];
@@ -82,15 +70,6 @@ export const Register = () => {
       setStep((prev) => prev - 1);
     }
   }
-
-  // const handleSubmit = (e) => {
-  //   e.preventDefault();
-  //   if (step === 4) {
-  //     setSubmitted(true);
-  //   } else {
-  //     increment();
-  //   }
-  // };
 
   const stepMeta = [
     {
@@ -113,8 +92,8 @@ export const Register = () => {
   ];
 
   const stepFields = {
-    0: ["firstName", "lastName", "contactNumber"],
-    // 1: ["", "", ""],
+    0: ["profilePicture", "firstName", "lastName", "contactNumber"],
+    1: ["validId", "proofOfIncome"],
     2: ["street", "barangay", "city", "postalCode"],
     3: ["email", "password", "confirmPassword"],
   };
@@ -200,16 +179,11 @@ export const Register = () => {
                 </div>
               </div>
 
-              <form
-                onSubmit={handleSubmit(onSubmit, (errors) => {
-                  console.log(errors);
-                })}
-                className="space-y-4"
-              >
+              <form onSubmit={(e) => e.preventDefault()} className="space-y-4">
                 {/* STEP 0: Personal Details */}
                 {step === 0 && (
                   <>
-                    <div>
+                    <div className="mb-0">
                       <label
                         htmlFor="profile_pic"
                         className="block text-xs font-medium text-zinc-700 mb-1"
@@ -220,12 +194,9 @@ export const Register = () => {
                         id="profile_pic"
                         type="file"
                         accept="image/*"
-                        onChange={(e) =>
-                          handleFileChange(
-                            "profilePicName",
-                            e.target.files?.[0],
-                          )
-                        }
+                        {...register("profilePicture", {
+                          onChange: () => clearErrors("profilePicture"),
+                        })}
                         className="block w-full text-xs text-zinc-600 border border-zinc-300 rounded-md cursor-pointer bg-zinc-50/50 p-2 file:mr-3 file:py-1 file:px-2.5 file:rounded-md file:border file:border-zinc-300 file:text-xs file:font-medium file:bg-white file:text-zinc-700 hover:file:bg-zinc-100 hover:file:border-zinc-400 focus:outline-none focus:ring-1 focus:ring-emerald-600 focus:border-emerald-600"
                       />
                       <span className="block text-[11px] text-zinc-400 mt-1">
@@ -235,6 +206,11 @@ export const Register = () => {
                         JPG or PNG, up to 5MB
                       </span>
                     </div>
+                    {errors.profilePicture && (
+                      <span className="text-red-500 text-sm mt-0">
+                        {errors.profilePicture.message}
+                      </span>
+                    )}
 
                     <div className="mb-0">
                       <label
@@ -324,9 +300,10 @@ export const Register = () => {
                       <input
                         id="valid_id"
                         type="file"
-                        onChange={(e) =>
-                          handleFileChange("validIdName", e.target.files?.[0])
-                        }
+                        accept="image/*"
+                        {...register("validId", {
+                          onChange: () => clearErrors("validId"),
+                        })}
                         className="block w-full text-xs text-zinc-600 border border-zinc-300 rounded-md cursor-pointer bg-zinc-50/50 p-2 file:mr-3 file:py-1 file:px-2.5 file:rounded-md file:border file:border-zinc-300 file:text-xs file:font-medium file:bg-white file:text-zinc-700 hover:file:bg-zinc-100 hover:file:border-zinc-400 focus:outline-none focus:ring-1 focus:ring-emerald-600 focus:border-emerald-600"
                       />
                       <span className="block text-[11px] text-zinc-400 mt-1">
@@ -336,6 +313,11 @@ export const Register = () => {
                         Driver’s license, Passport, UMID, or National ID
                       </span>
                     </div>
+                    {errors.validId && (
+                      <span className="text-red-500 text-sm mt-0">
+                        {errors.validId.message}
+                      </span>
+                    )}
 
                     <div className="mb-0">
                       <label
@@ -347,12 +329,10 @@ export const Register = () => {
                       <input
                         id="proof_income"
                         type="file"
-                        onChange={(e) =>
-                          handleFileChange(
-                            "proofIncomeName",
-                            e.target.files?.[0],
-                          )
-                        }
+                        accept="image/*"
+                        {...register("proofOfIncome", {
+                          onChange: () => clearErrors("proofOfIncome"),
+                        })}
                         className="block w-full text-xs text-zinc-600 border border-zinc-300 rounded-md cursor-pointer bg-zinc-50/50 p-2 file:mr-3 file:py-1 file:px-2.5 file:rounded-md file:border file:border-zinc-300 file:text-xs file:font-medium file:bg-white file:text-zinc-700 hover:file:bg-zinc-100 hover:file:border-zinc-400 focus:outline-none focus:ring-1 focus:ring-emerald-600 focus:border-emerald-600"
                       />
                       <span className="block text-[11px] text-zinc-400 mt-1">
@@ -363,6 +343,11 @@ export const Register = () => {
                         statement
                       </span>
                     </div>
+                    {errors.proofOfIncome && (
+                      <span className="text-red-500 text-sm mt-0">
+                        {errors.proofOfIncome.message}
+                      </span>
+                    )}
                   </>
                 )}
 
@@ -493,7 +478,6 @@ export const Register = () => {
                           onChange: () => clearErrors("email"),
                         })}
                         placeholder="rider@example.com"
-                        required
                         className="h-10! w-full px-3 py-2 text-sm text-zinc-900 bg-white border border-zinc-300 rounded-md placeholder:text-zinc-400 focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 transition-colors"
                       />
                     </div>
@@ -582,7 +566,6 @@ export const Register = () => {
                             onChange: () => clearErrors("confirmPassword"),
                           })}
                           placeholder="••••••••"
-                          required
                           className={`h-10! w-full px-3 py-2 pr-10 text-sm text-zinc-900 bg-white border rounded-md placeholder:text-zinc-400 focus:outline-none focus:ring-1 transition-colors ${
                             errors.confirmPassword
                               ? "border-red-500 focus:border-red-500 focus:ring-red-500"
@@ -670,8 +653,7 @@ export const Register = () => {
                         </dd>
                         <dt className="text-zinc-500">Photo:</dt>
                         <dd className="col-span-2 truncate text-zinc-700">
-                          {/* formData.profilePicName || "No file chosen" */}
-                          No file chosen
+                          {getValues("profilePicture")?.[0]?.name}
                         </dd>
                       </dl>
                     </div>
@@ -693,13 +675,11 @@ export const Register = () => {
                       <dl className="grid grid-cols-3 gap-y-1.5 text-zinc-600">
                         <dt className="text-zinc-500">Valid ID:</dt>
                         <dd className="col-span-2 truncate text-zinc-700">
-                          {/* formData.validIdName || "No file chosen" */}
-                          No file chosen
+                          {getValues("validId")?.[0]?.name}
                         </dd>
                         <dt className="text-zinc-500">Income proof:</dt>
                         <dd className="col-span-2 truncate text-zinc-700">
-                          {/* formData.proofIncomeName || "No file chosen" */}
-                          No file chosen
+                          {getValues("proofOfIncome")?.[0]?.name}
                         </dd>
                       </dl>
                     </div>
@@ -774,13 +754,23 @@ export const Register = () => {
                     </button>
                   )}
 
-                  <button
-                    type={step === 4 ? "submit" : "button"}
-                    onClick={increment}
-                    className="h-10! px-4 flex-1 rounded-md bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-sm font-medium transition-colors cursor-pointer"
-                  >
-                    {step === 4 ? "Submit registration" : "Continue"}
-                  </button>
+                  {step < 4 ? (
+                    <button
+                      type="button"
+                      onClick={increment}
+                      className="h-10! px-4 flex-1 rounded-md bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-sm font-medium transition-colors cursor-pointer"
+                    >
+                      Continue
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleSubmit(onSubmit)}
+                      className="h-10! px-4 flex-1 rounded-md bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-sm font-medium transition-colors cursor-pointer"
+                    >
+                      Submit registration
+                    </button>
+                  )}
                 </div>
               </form>
 
