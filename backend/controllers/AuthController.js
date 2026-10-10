@@ -18,6 +18,28 @@ const uploadHandler = (fileBuffer, folder) => {
   });
 };
 
+const isProd = process.env.NODE_ENV === "production";
+
+// Sign a JWT and send it as an httpOnly cookie, together with the user.
+const sendToken = (user, statusCode, res) => {
+  const token = user.getJWTToken();
+
+  const cookieExpireDays = Number(process.env.COOKIE_EXPIRE) || 7;
+  const options = {
+    expires: new Date(Date.now() + cookieExpireDays * 24 * 60 * 60 * 1000),
+    httpOnly: true,
+    sameSite: isProd ? "none" : "lax",
+    secure: isProd,
+  };
+
+  user.password = undefined;
+
+  return res.status(statusCode).cookie("token", token, options).json({
+    success: true,
+    user,
+  });
+};
+
 export const register = async (req, res) => {
   try {
     const profilePicture = req.files?.profilePicture?.[0];
@@ -93,6 +115,9 @@ export const register = async (req, res) => {
       postalCode,
     });
 
+    // Never expose the hashed password in the response.
+    user.password = undefined;
+
     return res.status(201).json({
       message: "User created successfully!",
       success: true,
@@ -108,9 +133,69 @@ export const register = async (req, res) => {
   }
 };
 
-export const login = (req, res) => {};
+export const login = async (req, res) => {
+  try {
+    const { email, password } = req.body;
 
-export const logout = (req, res) => {};
+    if (!email || !password) {
+      return res.status(400).json({
+        message: "Please enter email & password",
+        success: false,
+      });
+    }
+
+    // Allow logging in with either the email or the contact number.
+    const user = await User.findOne({
+      $or: [{ email }, { contactNumber: email }],
+    });
+
+    if (!user) {
+      return res.status(401).json({
+        message: "Invalid email or password",
+        success: false,
+      });
+    }
+
+    const isPasswordMatched = await user.comparePassword(password);
+
+    if (!isPasswordMatched) {
+      return res.status(401).json({
+        message: "Invalid email or password",
+        success: false,
+      });
+    }
+
+    return sendToken(user, 200, res);
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      message: "Internal service error",
+      success: false,
+    });
+  }
+};
+
+export const logout = (_req, res) => {
+  res.cookie("token", null, {
+    expires: new Date(Date.now()),
+    httpOnly: true,
+    sameSite: isProd ? "none" : "lax",
+    secure: isProd,
+  });
+
+  return res.status(200).json({
+    success: true,
+    message: "Logged out successfully",
+  });
+};
+
+// Returns the currently authenticated user (set by the auth middleware).
+export const getUserProfile = (req, res) => {
+  return res.status(200).json({
+    success: true,
+    user: req.user,
+  });
+};
 
 export const forgotPassword = (req, res) => {};
 

@@ -1,6 +1,8 @@
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
+import { useDispatch } from "react-redux";
 import { Register } from "./assets/pages/Register";
 import { Login } from "./assets/pages/Login";
+import { loadUser } from "./actions/userActions";
 import { Homepage } from "./assets/pages/customer/Homepage";
 import { Shop } from "./assets/pages/customer/Shop";
 import { Orders } from "./assets/pages/customer/Orders";
@@ -19,6 +21,23 @@ import { AdminProducts } from "./assets/pages/admin/AdminProducts";
 import { AdminReviews } from "./assets/pages/admin/AdminReviews";
 import { AdminSettings } from "./assets/pages/admin/AdminSettings";
 function App() {
+  const dispatch = useDispatch();
+
+  // Restore the authenticated session (if any) from the JWT cookie on load.
+  // Skipped when there's no session marker, avoiding a useless 401 call
+  // (the cookie itself is httpOnly and invisible to JavaScript).
+  useEffect(() => {
+    let shouldLoad;
+    try {
+      shouldLoad = !!localStorage.getItem("isLoggedIn");
+    } catch {
+      shouldLoad = false;
+    }
+    if (shouldLoad) {
+      dispatch(loadUser());
+    }
+  }, [dispatch]);
+
   return (
     <>
       <BrowserRouter>

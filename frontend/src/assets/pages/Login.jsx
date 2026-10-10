@@ -1,21 +1,48 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
-export const Login = ({ onNavigate }) => {
+import { useState, useEffect } from "react";
+import { Link, useNavigate, useLocation } from "react-router-dom";
+import { useDispatch, useSelector } from "react-redux";
+import { login, clearErrors } from "../../actions/userActions";
+
+export const Login = () => {
+  const { isAuthenticated, error, loading } = useSelector((state) => state.auth);
+
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const navigate = useNavigate();
+  const location = useLocation();
+  const dispatch = useDispatch();
+
+  const redirect = new URLSearchParams(location.search).get("redirect");
+
+  // Redirect once login succeeds (supporting ?redirect=shipping or any path).
+  useEffect(() => {
+    if (isAuthenticated) {
+      const target =
+        redirect && redirect !== ""
+          ? redirect.startsWith("/")
+            ? redirect
+            : `/${redirect}`
+          : "/";
+      navigate(target);
+    }
+  }, [isAuthenticated, redirect, navigate]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    setIsSubmitting(true);
-    setTimeout(() => {
-      setIsSubmitting(false);
-      if (onNavigate) {
-        onNavigate("home");
-      }
-    }, 400);
+    dispatch(login(identifier, password));
+  };
+
+  const handleIdentifierChange = (e) => {
+    setIdentifier(e.target.value);
+    if (error) dispatch(clearErrors());
+  };
+
+  const handlePasswordChange = (e) => {
+    setPassword(e.target.value);
+    if (error) dispatch(clearErrors());
   };
 
   return (
@@ -48,6 +75,13 @@ export const Login = ({ onNavigate }) => {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Error message from the server / network */}
+            {error && (
+              <p className="text-[11px] text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2 leading-relaxed">
+                {error}
+              </p>
+            )}
+
             {/* Identifier input */}
             <div>
               <label
@@ -60,7 +94,7 @@ export const Login = ({ onNavigate }) => {
                 id="identifier"
                 type="text"
                 value={identifier}
-                onChange={(e) => setIdentifier(e.target.value)}
+                onChange={handleIdentifierChange}
                 placeholder="rider@example.com or 09123456789"
                 required
                 className="h-10! w-full px-3 py-2 text-sm text-zinc-900 bg-white border border-zinc-300 rounded-md placeholder:text-zinc-400 focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 transition-colors"
@@ -80,7 +114,7 @@ export const Login = ({ onNavigate }) => {
                   id="password"
                   type={showPassword ? "text" : "password"}
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={handlePasswordChange}
                   placeholder="••••••••"
                   required
                   className="h-10! w-full px-3 py-2 pr-10 text-sm text-zinc-900 bg-white border border-zinc-300 rounded-md placeholder:text-zinc-400 focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 transition-colors"
@@ -153,10 +187,10 @@ export const Login = ({ onNavigate }) => {
             <div className="pt-2">
               <button
                 type="submit"
-                disabled={isSubmitting}
+                disabled={loading}
                 className="!h-10 w-full px-4 rounded-md bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-sm font-medium transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                {isSubmitting ? "Signing in..." : "Sign in"}
+                {loading ? "Signing in..." : "Sign in"}
               </button>
             </div>
           </form>
