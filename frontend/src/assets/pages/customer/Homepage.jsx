@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate, Link } from "react-router-dom";
 import { ScrollReveal } from "../../components/ScrollReveal";
@@ -11,6 +11,7 @@ export const Homepage = ({ onNavigate }) => {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedBrandFilter, setSelectedBrandFilter] = useState("All");
+  const [carouselIndex, setCarouselIndex] = useState(0);
 
   // Select live products from database via Redux
   const { loading, products = [], productsCount = 0 } = useSelector(
@@ -29,6 +30,24 @@ export const Homepage = ({ onNavigate }) => {
       )
     );
   }, [dispatch, searchQuery, selectedBrandFilter]);
+
+  const featuredUnits = useMemo(() => products.slice(0, 8), [products]);
+
+  useEffect(() => {
+    setCarouselIndex(0);
+  }, [selectedBrandFilter, searchQuery]);
+
+  useEffect(() => {
+    if (featuredUnits.length > 0 && carouselIndex >= featuredUnits.length) {
+      setCarouselIndex(0);
+    }
+  }, [featuredUnits.length, carouselIndex]);
+
+  const goToSlide = (index) => {
+    const len = featuredUnits.length;
+    if (len === 0) return;
+    setCarouselIndex(((index % len) + len) % len);
+  };
 
   const handleNavigate = (path, paramString = "") => {
     if (typeof onNavigate === "function") {
@@ -223,11 +242,10 @@ export const Homepage = ({ onNavigate }) => {
         </div>
       </section>
 
-      {/* Main Content Area */}
-      <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-12 space-y-16">
-        {/* Section 1: Featured Showroom Inventory (Structured Directory / Table - NO floating card slop) */}
-        <ScrollReveal threshold={0.08} duration={650}>
-          <section className="space-y-4">
+      {/* Featured product spotlight — full-bleed carousel, live catalog units */}
+      <ScrollReveal threshold={0.08} duration={650}>
+        <section className="bg-white border-b border-zinc-200">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-12 pb-4">
             <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2 pb-3 border-b border-zinc-900">
               <div>
                 <span className="text-xs font-mono uppercase tracking-wider text-emerald-700 font-semibold">
@@ -250,154 +268,36 @@ export const Homepage = ({ onNavigate }) => {
                 </button>
               </div>
             </div>
+          </div>
 
-            {/* Featured Motorcycle Cards Grid with Real Database Products */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-              {loading ? (
-                [...Array(4)].map((_, i) => (
-                  <div
-                    key={i}
-                    className="border border-zinc-200 rounded-lg p-4 bg-white animate-pulse space-y-3"
-                  >
-                    <div className="w-full h-44 bg-zinc-100 rounded" />
-                    <div className="h-4 bg-zinc-100 rounded w-2/3" />
-                    <div className="h-3 bg-zinc-100 rounded w-1/2" />
-                    <div className="h-6 bg-zinc-100 rounded w-1/3" />
-                  </div>
-                ))
-              ) : products.length > 0 ? (
-                products.slice(0, 8).map((bike) => {
-                  const categoryName = bike.category?.name || bike.category || "Motorcycles";
-                  const brandName = bike.brand?.name || bike.brand || "OEM";
-                  const hasImage = bike.images && bike.images.length > 0 && bike.images[0]?.url;
-                  const minDown = Number(bike.minInstallmentPrice || bike.price * 0.2);
-                  const financedAmount = Math.max(0, bike.price - minDown);
-                  const monthlyEst = Math.round((financedAmount * 1.1) / 12);
-
-                  return (
-                    <div
-                      key={bike._id}
-                      className="border border-zinc-200 rounded-lg bg-white hover:border-zinc-300 hover:shadow-xs transition-all flex flex-col justify-between overflow-hidden group"
-                    >
-                      {/* Image: Real Cloudinary image or technical placeholder */}
-                      <Link to={`/product/${bike._id}`} className="block overflow-hidden">
-                        {hasImage ? (
-                          <div className="w-full h-44 bg-zinc-100 overflow-hidden relative border-b border-zinc-100 flex items-center justify-center">
-                            <img
-                              src={bike.images[0].url}
-                              alt={bike.name}
-                              className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-200"
-                            />
-                            {bike.images.length > 1 && (
-                              <span className="absolute bottom-2 right-2 bg-black/70 backdrop-blur-xs text-white text-[10px] px-1.5 py-0.5 rounded font-mono">
-                                +{bike.images.length - 1}
-                              </span>
-                            )}
-                          </div>
-                        ) : (
-                          <ProductImagePlaceholder
-                            category={categoryName}
-                            name={bike.name}
-                            brand={brandName}
-                          />
-                        )}
-                      </Link>
-
-                      {/* Card Content */}
-                      <div className="p-4 space-y-3 flex-1 flex flex-col justify-between">
-                        <div className="space-y-1.5">
-                          <div className="flex items-center justify-between text-[11px]">
-                            <span className="font-mono uppercase tracking-wider text-zinc-500 font-semibold">
-                              {brandName}
-                            </span>
-                            <span
-                              className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium border ${
-                                bike.stock === 0
-                                  ? "bg-red-50 text-red-800 border-red-200"
-                                  : bike.stock <= 3
-                                  ? "bg-amber-50 text-amber-800 border-amber-200"
-                                  : "bg-emerald-50 text-emerald-800 border-emerald-200"
-                              }`}
-                            >
-                              <span
-                                className={`w-1.5 h-1.5 rounded-full ${
-                                  bike.stock === 0 ? "bg-red-600" : "bg-emerald-600"
-                                }`}
-                              />
-                              {bike.stock === 0 ? "Out of stock" : `${bike.stock} in stock`}
-                            </span>
-                          </div>
-
-                          <Link
-                            to={`/product/${bike._id}`}
-                            className="block text-sm font-bold text-zinc-900 leading-snug group-hover:text-emerald-700 transition-colors line-clamp-2 hover:underline"
-                          >
-                            {bike.name}
-                          </Link>
-
-                          {bike.compatibleModels && bike.compatibleModels.length > 0 && (
-                            <p className="text-[11px] text-zinc-500 font-mono line-clamp-1">
-                              Fit: {bike.compatibleModels.join(", ")}
-                            </p>
-                          )}
-                        </div>
-
-                        <div className="pt-2 border-t border-zinc-100 space-y-2">
-                          <div className="flex items-baseline justify-between">
-                            <span className="text-sm font-bold text-zinc-900 font-mono">
-                              ₱
-                              {Number(bike.price).toLocaleString("en-US", {
-                                minimumFractionDigits: 2,
-                              })}
-                            </span>
-                            <span className="text-[10px] text-zinc-400 font-mono">
-                              {categoryName}
-                            </span>
-                          </div>
-
-                          {bike.installmentEligible && (
-                            <div className="text-[11px] text-emerald-800 font-medium bg-emerald-50/60 border border-emerald-200/60 px-2 py-1 rounded space-y-0.5">
-                              <span className="block font-semibold">
-                                ₱{monthlyEst.toLocaleString()}/mo (12 mos)
-                              </span>
-                              <span className="block text-[10px] text-zinc-500">
-                                Downpayment from ₱{minDown.toLocaleString()}
-                              </span>
-                            </div>
-                          )}
-
-                          <div className="flex gap-2 pt-1">
-                            <button
-                              type="button"
-                              onClick={() => handleNavigate("shop", `keyword=${encodeURIComponent(bike.name)}`)}
-                              className="flex-1 !h-8 rounded border border-zinc-300 bg-white hover:bg-zinc-50 text-zinc-700 text-xs font-medium transition-colors cursor-pointer"
-                            >
-                              Details
-                            </button>
-                            {bike.installmentEligible && (
-                              <button
-                                type="button"
-                                onClick={() => handleNavigate("orders")}
-                                className="flex-1 !h-8 rounded bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-xs font-medium transition-colors cursor-pointer shadow-2xs"
-                              >
-                                Financing
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })
-              ) : (
-                <div className="col-span-full py-12 text-center text-xs text-zinc-500 border border-zinc-200 rounded-lg bg-zinc-50">
-                  No showroom units match the selected brand or keyword in database.
-                </div>
-              )}
+          {loading ? (
+            <div className="max-w-6xl mx-auto px-4 sm:px-6 pb-12">
+              <div className="animate-pulse flex flex-col items-center gap-5 py-8">
+                <div className="w-full max-w-xl h-64 sm:h-80 bg-zinc-100 rounded" />
+                <div className="h-5 bg-zinc-100 rounded w-48" />
+                <div className="h-4 bg-zinc-100 rounded w-32" />
+                <div className="h-10 bg-zinc-100 rounded w-56" />
+              </div>
             </div>
-          </section>
-        </ScrollReveal>
+          ) : featuredUnits.length > 0 ? (
+            <FeaturedProductCarousel
+              units={featuredUnits}
+              activeIndex={carouselIndex}
+              onGoTo={goToSlide}
+              onFinancing={() => handleNavigate("orders")}
+            />
+          ) : (
+            <div className="max-w-6xl mx-auto px-4 sm:px-6 pb-12">
+              <div className="py-12 text-center text-xs text-zinc-500 border border-zinc-200 rounded-lg bg-zinc-50">
+                No showroom units match the selected brand or keyword in database.
+              </div>
+            </div>
+          )}
+        </section>
+      </ScrollReveal>
 
+      {/* Main Content Area */}
+      <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-12 space-y-16">
         {/* Section 2: Catalog Categories (Structured Directory Index - NO floating cards) */}
         <ScrollReveal threshold={0.08} delay={60} duration={650}>
           <section className="space-y-4">
@@ -657,6 +557,284 @@ export const Homepage = ({ onNavigate }) => {
           </section>
         </ScrollReveal>
       </main>
+    </div>
+  );
+};
+
+const productMeta = (bike) => {
+  const categoryName = bike.category?.name || bike.category || "Motorcycles";
+  const brandName = bike.brand?.name || bike.brand || "OEM";
+  const hasImage = Boolean(bike.images?.[0]?.url);
+  const minDown = Number(bike.minInstallmentPrice || bike.price * 0.2);
+  const financedAmount = Math.max(0, bike.price - minDown);
+  const monthlyEst = Math.round((financedAmount * 1.1) / 12);
+  const rating = Number(bike.ratings) || 0;
+  const reviewCount = Number(bike.numOfReviews) || 0;
+  return { categoryName, brandName, hasImage, minDown, monthlyEst, rating, reviewCount };
+};
+
+const ProductSpotlightImage = ({ bike, active = false }) => {
+  const { categoryName, brandName, hasImage } = productMeta(bike);
+
+  if (hasImage) {
+    return (
+      <div className="w-full h-56 sm:h-72 lg:h-[22rem] bg-white flex items-center justify-center overflow-hidden">
+        <img
+          src={bike.images[0].url}
+          alt={bike.name}
+          className={`max-h-full max-w-full object-contain object-center ${
+            active ? "home-spotlight__hero-img" : ""
+          }`}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-full h-56 sm:h-72 lg:h-[22rem] bg-zinc-50 flex items-center justify-center overflow-hidden">
+      <ProductImagePlaceholder
+        category={categoryName}
+        name={bike.name}
+        brand={brandName}
+        compact
+        className="h-full"
+      />
+    </div>
+  );
+};
+
+const FeaturedProductCarousel = ({
+  units,
+  activeIndex,
+  onGoTo,
+  onFinancing,
+}) => {
+  const canNavigate = units.length > 1;
+  const slides = useMemo(() => {
+    if (units.length < 2) return units;
+    return [units[units.length - 1], ...units, units[0]];
+  }, [units]);
+
+  const [visualIndex, setVisualIndex] = useState(canNavigate ? 1 : 0);
+  const [isAnimating, setIsAnimating] = useState(false);
+  const animatingRef = useRef(false);
+
+  useEffect(() => {
+    animatingRef.current = false;
+    setIsAnimating(false);
+    setVisualIndex(units.length > 1 ? 1 : 0);
+  }, [units]);
+
+  const go = (direction) => {
+    if (!canNavigate || animatingRef.current) return;
+    animatingRef.current = true;
+    setIsAnimating(true);
+    setVisualIndex((current) => current + direction);
+    onGoTo(activeIndex + direction);
+  };
+
+  const handleTransitionEnd = (event) => {
+    if (event.target !== event.currentTarget) return;
+    if (!canNavigate) {
+      animatingRef.current = false;
+      setIsAnimating(false);
+      return;
+    }
+
+    if (visualIndex === 0) {
+      setIsAnimating(false);
+      setVisualIndex(units.length);
+    } else if (visualIndex === units.length + 1) {
+      setIsAnimating(false);
+      setVisualIndex(1);
+    } else {
+      setIsAnimating(false);
+    }
+    animatingRef.current = false;
+  };
+
+  const current = units[activeIndex] || units[0];
+  const {
+    categoryName,
+    brandName,
+    minDown,
+    monthlyEst,
+    rating,
+    reviewCount,
+  } = productMeta(current);
+  const roundedRating = Math.round(rating);
+
+  return (
+    <div className="relative pb-12 pt-2 sm:pt-4">
+      <div
+        className="home-spotlight__viewport"
+        style={{ "--visual-index": visualIndex }}
+      >
+        <div
+          className={`home-spotlight__track ${isAnimating ? "is-animating" : ""}`}
+          onTransitionEnd={handleTransitionEnd}
+        >
+          {slides.map((bike, index) => {
+            const isActive = index === visualIndex;
+            const slideKey = `${bike._id}-${index}`;
+
+            return (
+              <div
+                key={slideKey}
+                className={`home-spotlight__slide ${isActive ? "is-active" : ""}`}
+              >
+                <div className="home-spotlight__slide-inner flex flex-col items-center">
+                  {isActive ? (
+                    <Link
+                      to={`/product/${bike._id}`}
+                      className="block w-full group"
+                      aria-label={`View ${bike.name}`}
+                    >
+                      <ProductSpotlightImage bike={bike} active />
+                    </Link>
+                  ) : (
+                    <button
+                      type="button"
+                      className="block w-full bg-transparent border-0 p-0 cursor-pointer"
+                      onClick={() => go(index > visualIndex ? 1 : -1)}
+                      aria-label={`Show ${bike.name}`}
+                    >
+                      <ProductSpotlightImage bike={bike} />
+                    </button>
+                  )}
+                  <span
+                    className={`mt-3 text-[11px] sm:text-xs font-semibold tracking-[0.18em] uppercase line-clamp-1 ${
+                      isActive ? "text-zinc-900" : "text-zinc-400"
+                    }`}
+                  >
+                    {bike.name}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {canNavigate && (
+        <>
+          <button
+            type="button"
+            className="home-spotlight__nav absolute left-3 sm:left-6 md:left-[22%] top-[34%] sm:top-[38%] z-10"
+            onClick={() => go(-1)}
+            aria-label="Previous featured unit"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path
+                d="M15 5L8 12L15 19"
+                stroke="currentColor"
+                strokeWidth="2.4"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
+          <button
+            type="button"
+            className="home-spotlight__nav absolute right-3 sm:right-6 md:right-[22%] top-[34%] sm:top-[38%] z-10"
+            onClick={() => go(1)}
+            aria-label="Next featured unit"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path
+                d="M9 5L16 12L9 19"
+                stroke="currentColor"
+                strokeWidth="2.4"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
+        </>
+      )}
+
+      <div className="max-w-xl mx-auto px-4 mt-5 sm:mt-6 flex flex-col items-center text-center gap-3">
+        <div className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-wider text-zinc-500">
+          <span className="font-semibold text-emerald-700">{brandName}</span>
+          <span className="text-zinc-300">/</span>
+          <span>{categoryName}</span>
+        </div>
+
+        <Link
+          to={`/product/${current._id}`}
+          className="text-base sm:text-lg font-extrabold tracking-[0.16em] uppercase text-zinc-900 hover:text-emerald-700 transition-colors"
+        >
+          {current.name}
+        </Link>
+
+        <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs text-zinc-600">
+          <span className="text-lg font-bold text-zinc-900 font-mono tracking-tight">
+            ₱
+            {Number(current.price).toLocaleString("en-US", {
+              minimumFractionDigits: 2,
+            })}
+          </span>
+          {rating > 0 && (
+            <span className="inline-flex items-center gap-1">
+              <span className="text-amber-500 tracking-tight">
+                {"★".repeat(Math.max(0, roundedRating))}
+                {"☆".repeat(Math.max(0, 5 - roundedRating))}
+              </span>
+              <span className="text-zinc-500">
+                {rating.toFixed(1)}
+                {reviewCount > 0 ? ` (${reviewCount})` : ""}
+              </span>
+            </span>
+          )}
+          <span
+            className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium border ${
+              current.stock === 0
+                ? "bg-red-50 text-red-800 border-red-200"
+                : current.stock <= 3
+                ? "bg-amber-50 text-amber-800 border-amber-200"
+                : "bg-emerald-50 text-emerald-800 border-emerald-200"
+            }`}
+          >
+            <span
+              className={`w-1.5 h-1.5 rounded-full ${
+                current.stock === 0 ? "bg-red-600" : "bg-emerald-600"
+              }`}
+            />
+            {current.stock === 0 ? "Out of stock" : `${current.stock} in stock`}
+          </span>
+        </div>
+
+        {current.installmentEligible && (
+          <p className="text-[11px] text-emerald-800">
+            From ₱{monthlyEst.toLocaleString()}/mo (12 mos) · Downpayment ₱
+            {minDown.toLocaleString()}
+          </p>
+        )}
+
+        {current.images?.length > 1 && (
+          <span className="text-[10px] font-mono text-zinc-400">
+            {current.images.length} photos
+          </span>
+        )}
+
+        <div className="flex flex-col sm:flex-row items-center gap-2 pt-1">
+          <Link
+            to={`/product/${current._id}`}
+            className="inline-flex items-center justify-center min-w-[16rem] !h-10 px-6 bg-emerald-700 hover:bg-emerald-800 active:bg-emerald-900 text-white text-[11px] font-bold tracking-[0.14em] uppercase transition-colors"
+          >
+            View Featured Motorcycle
+          </Link>
+          {current.installmentEligible && (
+            <button
+              type="button"
+              onClick={onFinancing}
+              className="inline-flex items-center justify-center min-w-[9rem] !h-10 px-5 border border-zinc-300 bg-white hover:bg-zinc-50 text-zinc-800 text-[11px] font-semibold tracking-[0.08em] uppercase transition-colors cursor-pointer"
+            >
+              Financing
+            </button>
+          )}
+        </div>
+      </div>
     </div>
   );
 };

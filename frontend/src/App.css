@@ -32,6 +32,89 @@ html {
   animation: subtleFadeIn 300ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
+/* Homepage featured product spotlight (Motortrade-inspired presentation) */
+.home-spotlight__viewport {
+  overflow: hidden;
+  width: 100%;
+  --slide-size: 82%;
+}
+
+@media (min-width: 768px) {
+  .home-spotlight__viewport {
+    --slide-size: 33.3333%;
+  }
+}
+
+.home-spotlight__track {
+  display: flex;
+  align-items: flex-end;
+  width: 100%;
+  will-change: transform;
+  transform: translateX(
+    calc((100% - var(--slide-size)) / 2 - var(--visual-index) * var(--slide-size))
+  );
+}
+
+.home-spotlight__track.is-animating {
+  transition: transform 520ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.home-spotlight__slide {
+  flex: 0 0 var(--slide-size);
+  max-width: var(--slide-size);
+  padding: 0 0.5rem;
+  box-sizing: border-box;
+}
+
+.home-spotlight__slide-inner {
+  transform: scale(0.86);
+  opacity: 0.32;
+  filter: grayscale(18%);
+  transition:
+    transform 520ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 520ms ease,
+    filter 520ms ease;
+}
+
+.home-spotlight__slide.is-active .home-spotlight__slide-inner {
+  transform: scale(1);
+  opacity: 1;
+  filter: none;
+}
+
+.home-spotlight__hero-img {
+  transition: transform 220ms ease;
+}
+
+a.group:hover .home-spotlight__hero-img {
+  transform: scale(1.03);
+}
+
+.home-spotlight__nav {
+  width: 36px;
+  height: 36px;
+  background: #18181b;
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  cursor: pointer;
+  transition: background-color 180ms ease;
+}
+
+.home-spotlight__nav:hover,
+.home-spotlight__nav:focus-visible {
+  background: #059669;
+  outline: none;
+}
+
+.home-spotlight__nav:disabled {
+  opacity: 0.35;
+  cursor: default;
+  background: #18181b;
+}
+
 /* Subtle scrollbar for sticky filter aside */
 aside::-webkit-scrollbar {
   width: 4px;
