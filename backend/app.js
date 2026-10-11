@@ -6,6 +6,7 @@ import cookieParser from "cookie-parser";
 const app = express();
 import connection from "./config/db.js";
 import authRoutes from "./routes/authRoutes.js";
+import useRoutes from "./routes/useRoutes.js";
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -23,6 +24,7 @@ app.use(
 connection();
 
 app.use("/api/v1", authRoutes);
+app.use("/api/v1/profile", useRoutes);
 
 // Central error handler so multer/other middleware errors return a
 // readable JSON response instead of Express's default HTML 500.

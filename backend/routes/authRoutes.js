@@ -7,7 +7,7 @@ import {
 } from "../controllers/AuthController.js";
 import upload from "../middleware/multer.js";
 import { auth } from "../middleware/authMiddleware.js";
-
+import { authorizeRoles } from "../middleware/authMiddleware.js";
 const router = Router();
 
 router.post(

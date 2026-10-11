@@ -21,10 +21,12 @@ const uploadHandler = (fileBuffer, folder) => {
 const isProd = process.env.NODE_ENV === "production";
 
 // Sign a JWT and send it as an httpOnly cookie, together with the user.
-const sendToken = (user, statusCode, res) => {
+const sendToken = async (user, statusCode, res) => {
   const token = user.getJWTToken();
+  const address = await Address.findOne({ userId: user._id }).lean();
 
-  const cookieExpireDays = Number(process.env.COOKIE_EXPIRE) || 7;
+  const cookieExpireDays =
+    Number(process.env.COOKIE_EXPIRES_TIME || process.env.COOKIE_EXPIRE) || 7;
   const options = {
     expires: new Date(Date.now() + cookieExpireDays * 24 * 60 * 60 * 1000),
     httpOnly: true,
@@ -37,6 +39,7 @@ const sendToken = (user, statusCode, res) => {
   return res.status(statusCode).cookie("token", token, options).json({
     success: true,
     user,
+    address,
   });
 };
 
@@ -113,6 +116,7 @@ export const register = async (req, res) => {
       barangay,
       city,
       postalCode,
+      isDefault: true,
     });
 
     // Never expose the hashed password in the response.
@@ -165,7 +169,7 @@ export const login = async (req, res) => {
       });
     }
 
-    return sendToken(user, 200, res);
+    return await sendToken(user, 200, res);
   } catch (error) {
     console.error(error);
     return res.status(500).json({
@@ -190,11 +194,22 @@ export const logout = (_req, res) => {
 };
 
 // Returns the currently authenticated user (set by the auth middleware).
-export const getUserProfile = (req, res) => {
-  return res.status(200).json({
-    success: true,
-    user: req.user,
-  });
+export const getUserProfile = async (req, res) => {
+  try {
+    const address = await Address.findOne({ userId: req.user._id }).lean();
+
+    return res.status(200).json({
+      success: true,
+      user: req.user,
+      address,
+    });
+  } catch (error) {
+    console.error("Failed to load user address:", error);
+    return res.status(500).json({
+      message: "Internal service error",
+      success: false,
+    });
+  }
 };
 
 export const forgotPassword = (req, res) => {};

@@ -39,6 +39,7 @@ export const auth = async (req, res, next) => {
 export const authorizeRoles = (...roles) => {
   return (req, res, next) => {
     if (!req.user || !roles.includes(req.user.role)) {
+      console.log(req.user.role);
       return res.status(403).json({
         message: `Role (${req.user?.role || "unknown"}) is not allowed to access this resource`,
         success: false,

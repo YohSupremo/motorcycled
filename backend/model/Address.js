@@ -23,6 +23,14 @@ const addressSchema = mongoose.Schema({
     type: String,
     required: true,
   },
+  label: {
+    type: String,
+    default: "Address",
+  },
+  isDefault: {
+    type: Boolean,
+    default: false,
+  },
 });
 
 const Address = mongoose.model("Address", addressSchema);
