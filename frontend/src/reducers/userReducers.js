@@ -11,8 +11,16 @@ import {
 } from "../constants/userConstants";
 import { UPDATE_PROFILE_SUCCESS } from "../constants/profileConstants";
 
+const hasSessionMarker = (() => {
+  try {
+    return !!localStorage.getItem("isLoggedIn");
+  } catch {
+    return false;
+  }
+})();
+
 const initialAuthState = {
-  loading: false,
+  loading: hasSessionMarker,
   isAuthenticated: false,
   user: null,
   error: null,

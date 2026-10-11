@@ -2,14 +2,18 @@ import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
-
-const app = express();
+import mongoose from "mongoose";
 import connection from "./config/db.js";
 import authRoutes from "./routes/authRoutes.js";
 import useRoutes from "./routes/useRoutes.js";
+import productRoutes from "./routes/productRoutes.js";
+import catalogRoutes from "./routes/catalogRoutes.js";
+import { seedCatalogDefaults } from "./controllers/catalogController.js";
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+const app = express();
+
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 app.use(cookieParser());
 
 // Must allow the exact frontend origin with credentials: true so the
@@ -22,9 +26,14 @@ app.use(
 );
 
 connection();
+// Seed default categories & brands after mongoose connects.
+// connection() returns void, so we use the mongoose "open" event.
+mongoose.connection.once("open", () => seedCatalogDefaults());
 
 app.use("/api/v1", authRoutes);
 app.use("/api/v1/profile", useRoutes);
+app.use("/api/v1", productRoutes);
+app.use("/api/v1", catalogRoutes);
 
 // Central error handler so multer/other middleware errors return a
 // readable JSON response instead of Express's default HTML 500.

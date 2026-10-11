@@ -65,31 +65,28 @@ export const Navbar = ({ currentPage }) => {
           <nav className="hidden md:flex items-center gap-1 text-xs font-medium">
             <Link
               to="/"
-              className={`px-3 py-1.5 rounded-md transition-colors cursor-pointer ${
-                currentPage === "home"
-                  ? "bg-zinc-100 text-zinc-900 font-semibold"
-                  : "text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50"
-              }`}
+              className={`px-3 py-1.5 rounded-md transition-colors cursor-pointer ${currentPage === "home"
+                ? "bg-zinc-100 text-zinc-900 font-semibold"
+                : "text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50"
+                }`}
             >
               Home
             </Link>
             <Link
               to="/shop"
-              className={`px-3 py-1.5 rounded-md transition-colors cursor-pointer ${
-                currentPage === "shop"
-                  ? "bg-zinc-100 text-zinc-900 font-semibold"
-                  : "text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50"
-              }`}
+              className={`px-3 py-1.5 rounded-md transition-colors cursor-pointer ${currentPage === "shop"
+                ? "bg-zinc-100 text-zinc-900 font-semibold"
+                : "text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50"
+                }`}
             >
               Shop Catalog
             </Link>
             <Link
               to="/orders"
-              className={`px-3 py-1.5 rounded-md transition-colors cursor-pointer ${
-                currentPage === "orders"
-                  ? "bg-zinc-100 text-zinc-900 font-semibold"
-                  : "text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50"
-              }`}
+              className={`px-3 py-1.5 rounded-md transition-colors cursor-pointer ${currentPage === "orders"
+                ? "bg-zinc-100 text-zinc-900 font-semibold"
+                : "text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50"
+                }`}
             >
               My Installments & Orders
             </Link>
@@ -101,11 +98,10 @@ export const Navbar = ({ currentPage }) => {
           {/* Cart Nav Button */}
           <Link
             to="/cart"
-            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors cursor-pointer border ${
-              currentPage === "cart"
-                ? "bg-emerald-50 text-emerald-900 border-emerald-300 font-semibold shadow-2xs"
-                : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50 hover:text-zinc-900"
-            }`}
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors cursor-pointer border ${currentPage === "cart"
+              ? "bg-emerald-50 text-emerald-900 border-emerald-300 font-semibold shadow-2xs"
+              : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50 hover:text-zinc-900"
+              }`}
             title="Shopping Cart"
           >
             <svg
@@ -128,11 +124,10 @@ export const Navbar = ({ currentPage }) => {
           {/* Dealership Operations Quick Access */}
           <button
             type="button"
-            className={`hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors cursor-pointer border ${
-              currentPage === "admin"
-                ? "bg-emerald-50 text-emerald-900 border-emerald-300 font-semibold shadow-2xs"
-                : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50 hover:text-zinc-900"
-            }`}
+            className={`hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors cursor-pointer border ${currentPage === "admin"
+              ? "bg-emerald-50 text-emerald-900 border-emerald-300 font-semibold shadow-2xs"
+              : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50 hover:text-zinc-900"
+              }`}
             title="Dealership Operations"
           >
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
@@ -179,9 +174,8 @@ export const Navbar = ({ currentPage }) => {
 
                 {/* Dropdown Chevron */}
                 <svg
-                  className={`w-3.5 h-3.5 text-zinc-400 transition-transform duration-200 ${
-                    isDropdownOpen ? "rotate-180 text-zinc-700" : ""
-                  }`}
+                  className={`w-3.5 h-3.5 text-zinc-400 transition-transform duration-200 ${isDropdownOpen ? "rotate-180 text-zinc-700" : ""
+                    }`}
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
@@ -237,11 +231,10 @@ export const Navbar = ({ currentPage }) => {
                     <button
                       type="button"
                       onClick={() => handleNavClick("personal-info")}
-                      className={`w-full text-left px-3 py-2 rounded-md text-xs transition-colors cursor-pointer flex items-center gap-2.5 ${
-                        currentPage === "profile"
-                          ? "bg-zinc-100 text-zinc-900 font-semibold"
-                          : "text-zinc-700 hover:bg-zinc-50 hover:text-zinc-900"
-                      }`}
+                      className={`w-full text-left px-3 py-2 rounded-md text-xs transition-colors cursor-pointer flex items-center gap-2.5 ${currentPage === "profile"
+                        ? "bg-zinc-100 text-zinc-900 font-semibold"
+                        : "text-zinc-700 hover:bg-zinc-50 hover:text-zinc-900"
+                        }`}
                     >
                       <div className="w-7 h-7 rounded bg-zinc-100 flex items-center justify-center text-zinc-700 shrink-0">
                         <svg
@@ -325,38 +318,41 @@ export const Navbar = ({ currentPage }) => {
                     </button>
 
                     {/* 4. Dealership Operations Portal */}
-                    <Link
-                      to="admin/dashboard"
-                      className="w-full text-left px-3 py-2 rounded-md text-xs transition-colors cursor-pointer flex items-center gap-2.5 text-zinc-700 hover:bg-emerald-50 hover:text-emerald-950"
-                    >
-                      <div className="w-7 h-7 rounded bg-zinc-900 text-white flex items-center justify-center shrink-0">
-                        <svg
-                          className="w-3.5 h-3.5"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                        >
-                          <rect x="3" y="3" width="7" height="7" />
-                          <rect x="14" y="3" width="7" height="7" />
-                          <rect x="14" y="14" width="7" height="7" />
-                          <rect x="3" y="14" width="7" height="7" />
-                        </svg>
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-semibold text-xs text-zinc-900">
-                            Dealership Operations
-                          </span>
-                          <span className="text-[9px] font-mono font-medium px-1.5 py-0.2 rounded bg-emerald-50 text-emerald-800 border border-emerald-200">
-                            Management
+
+                    {user?.role === "admin" && (
+                      <Link
+                        to="/admin/dashboard"
+                        onClick={() => setIsDropdownOpen(false)}
+                        className="w-full text-left px-3 py-2 rounded-md text-xs transition-colors cursor-pointer flex items-center gap-2.5 text-zinc-700 hover:bg-emerald-50 hover:text-emerald-950"
+                      >
+                        <div className="w-7 h-7 rounded bg-zinc-900 text-white flex items-center justify-center shrink-0">
+                          <svg
+                            className="w-3.5 h-3.5"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                          >
+                            <rect x="3" y="3" width="7" height="7" />
+                            <rect x="14" y="3" width="7" height="7" />
+                            <rect x="14" y="14" width="7" height="7" />
+                            <rect x="3" y="14" width="7" height="7" />
+                          </svg>
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-semibold text-xs text-zinc-900">
+                              Dealership Operations
+                            </span>
+                            <span className="text-[9px] font-mono font-medium px-1.5 py-0.2 rounded bg-emerald-50 text-emerald-800 border border-emerald-200">
+                              Management
+                            </span>
+                          </div>
+                          <span className="block text-[10px] text-zinc-500">
+                            Inventory, orders & financing underwriting
                           </span>
                         </div>
-                        <span className="block text-[10px] text-zinc-500">
-                          Inventory, orders & financing underwriting
-                        </span>
-                      </div>
-                    </Link>
+                      </Link>)}
                   </div>
 
                   {/* Dropdown Footer: Sign Out */}
@@ -411,31 +407,28 @@ export const Navbar = ({ currentPage }) => {
       <div className="md:hidden border-t border-zinc-100 bg-zinc-50 px-4 py-2 flex items-center justify-between text-xs font-medium overflow-x-auto gap-2">
         <Link
           to="/"
-          className={`px-2.5 py-1 rounded whitespace-nowrap ${
-            currentPage === "home"
-              ? "bg-white text-zinc-900 font-semibold shadow-xs"
-              : "text-zinc-600"
-          }`}
+          className={`px-2.5 py-1 rounded whitespace-nowrap ${currentPage === "home"
+            ? "bg-white text-zinc-900 font-semibold shadow-xs"
+            : "text-zinc-600"
+            }`}
         >
           Home
         </Link>
         <Link
           to="shop"
-          className={`px-2.5 py-1 rounded whitespace-nowrap ${
-            currentPage === "shop"
-              ? "bg-white text-zinc-900 font-semibold shadow-xs"
-              : "text-zinc-600"
-          }`}
+          className={`px-2.5 py-1 rounded whitespace-nowrap ${currentPage === "shop"
+            ? "bg-white text-zinc-900 font-semibold shadow-xs"
+            : "text-zinc-600"
+            }`}
         >
           Shop
         </Link>
         <Link
           to="/cart"
-          className={`px-2.5 py-1 rounded whitespace-nowrap flex items-center gap-1 ${
-            currentPage === "cart"
-              ? "bg-white text-zinc-900 font-semibold shadow-xs"
-              : "text-zinc-600"
-          }`}
+          className={`px-2.5 py-1 rounded whitespace-nowrap flex items-center gap-1 ${currentPage === "cart"
+            ? "bg-white text-zinc-900 font-semibold shadow-xs"
+            : "text-zinc-600"
+            }`}
         >
           <span>Cart</span>
           <span className="w-4 h-4 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold flex items-center justify-center">
@@ -444,11 +437,10 @@ export const Navbar = ({ currentPage }) => {
         </Link>
         <Link
           to="/orders"
-          className={`px-2.5 py-1 rounded whitespace-nowrap ${
-            currentPage === "orders"
-              ? "bg-white text-zinc-900 font-semibold shadow-xs"
-              : "text-zinc-600"
-          }`}
+          className={`px-2.5 py-1 rounded whitespace-nowrap ${currentPage === "orders"
+            ? "bg-white text-zinc-900 font-semibold shadow-xs"
+            : "text-zinc-600"
+            }`}
         >
           Installments & Orders
         </Link>

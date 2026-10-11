@@ -1,104 +1,88 @@
-import { useState } from "react";
-import { Navbar } from "../../components/Navbar";
-import { Footer } from "../../components/Footer";
+import { useState, useEffect } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { useNavigate, Link } from "react-router-dom";
 import { ScrollReveal } from "../../components/ScrollReveal";
 import { ProductImagePlaceholder } from "../../components/ProductImagePlaceholder";
+import { getProducts } from "../../../actions/productActions";
 
 export const Homepage = ({ onNavigate }) => {
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedBrandFilter, setSelectedBrandFilter] = useState("All");
 
-  const featuredBikes = [
-    {
-      id: "prod-1",
-      name: "Yamaha NMAX 155 ABS",
-      brand: "Yamaha",
-      category: "Maxi-Scooter",
-      price: "₱151,900.00",
-      monthlyEst: "₱11,340/mo (12 mos)",
-      minDown: "₱30,380.00",
-      engine: "155cc Liquid-Cooled SOHC 4-Valve VVA",
-      fuelSystem: "Electronic Fuel Injection",
-      stock: 4,
-      installmentEligible: true,
-    },
-    {
-      id: "prod-2",
-      name: "Honda Click 125i",
-      brand: "Honda",
-      category: "Commuter Scooter",
-      price: "₱81,400.00",
-      monthlyEst: "₱6,120/mo (12 mos)",
-      minDown: "₱16,280.00",
-      engine: "125cc Liquid-Cooled eSP SOHC",
-      fuelSystem: "PGM-FI Fuel Injection",
-      stock: 8,
-      installmentEligible: true,
-    },
-    {
-      id: "prod-3",
-      name: "Kawasaki Ninja 400 SE",
-      brand: "Kawasaki",
-      category: "Sportbike",
-      price: "₱340,900.00",
-      monthlyEst: "₱18,200/mo (24 mos)",
-      minDown: "₱68,180.00",
-      engine: "399cc Liquid-Cooled Parallel Twin DOHC",
-      fuelSystem: "Digital Fuel Injection",
-      stock: 2,
-      installmentEligible: true,
-    },
-    {
-      id: "prod-4",
-      name: "CFMOTO 450SR Sport",
-      brand: "CFMOTO",
-      category: "Supersport",
-      price: "₱299,900.00",
-      monthlyEst: "₱16,400/mo (24 mos)",
-      minDown: "₱59,980.00",
-      engine: "449cc Liquid-Cooled Parallel Twin 270°",
-      fuelSystem: "Bosch EFI",
-      stock: 3,
-      installmentEligible: true,
-    },
-  ];
+  // Select live products from database via Redux
+  const { loading, products = [], productsCount = 0 } = useSelector(
+    (state) => state.products || {}
+  );
+
+  // Fetch live catalog units on mount and filter changes
+  useEffect(() => {
+    dispatch(
+      getProducts(
+        1,
+        searchQuery,
+        [0, 9999999],
+        "",
+        selectedBrandFilter === "All" ? "" : selectedBrandFilter
+      )
+    );
+  }, [dispatch, searchQuery, selectedBrandFilter]);
+
+  const handleNavigate = (path, paramString = "") => {
+    if (typeof onNavigate === "function") {
+      onNavigate(path);
+    } else {
+      navigate(paramString ? `/${path}?${paramString}` : `/${path}`);
+    }
+  };
+
+  const handleHeroSearch = (e) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      handleNavigate("shop", `keyword=${encodeURIComponent(searchQuery.trim())}`);
+    } else {
+      handleNavigate("shop");
+    }
+  };
 
   const categories = [
     {
       name: "Motorcycles",
       desc: "Brand-new scooters, underbones, touring & sportbikes ready for releasing",
-      count: "18 models in stock",
+      count: "Live Showroom",
       tag: "Units",
     },
     {
-      name: "Engine Parts & Transmission",
+      name: "Engine Parts",
       desc: "Genuine cylinder blocks, forged pistons, valves, drive belts & CVT clutch assemblies",
-      count: "140+ components",
-      tag: "OEM Parts",
+      count: "OEM Parts",
+      tag: "Components",
     },
     {
-      name: "Brakes & Suspension",
+      name: "Brakes",
       desc: "Hydraulic disc calipers, sintered brake pads, master cylinders & rear shock absorbers",
-      count: "85 components",
+      count: "Safety",
       tag: "Chassis",
     },
     {
-      name: "Tires & Alloy Wheels",
+      name: "Tires and Wheels",
       desc: "High-grip tubeless compound tires, cast alloy rims, tire valves & tubes",
-      count: "45 sizes",
+      count: "Performance",
       tag: "Consumables",
     },
     {
-      name: "Helmets & Riding Protection",
+      name: "Helmets",
       desc: "ECE 22.06 & DOT certified full-face helmets, armored jackets & riding gloves",
-      count: "62 variants",
+      count: "Certified",
       tag: "Gear",
     },
     {
-      name: "Oils, Lubricants & Care",
+      name: "Lubricants",
       desc: "Full synthetic 4-stroke engine oils, gear lubricants, coolant & chain care products",
-      count: "28 items",
-      tag: "Maintenance",
+      count: "Maintenance",
+      tag: "Fluids",
     },
   ];
 
@@ -137,20 +121,6 @@ export const Homepage = ({ onNavigate }) => {
     },
   ];
 
-  const filteredBikes = featuredBikes.filter((bike) => {
-    if (selectedBrandFilter !== "All" && bike.brand !== selectedBrandFilter)
-      return false;
-    if (searchQuery.trim() !== "") {
-      const q = searchQuery.toLowerCase();
-      return (
-        bike.name.toLowerCase().includes(q) ||
-        bike.brand.toLowerCase().includes(q) ||
-        bike.engine.toLowerCase().includes(q)
-      );
-    }
-    return true;
-  });
-
   return (
     <div className="min-h-screen bg-white text-zinc-900 antialiased flex flex-col font-sans selection:bg-emerald-100 selection:text-emerald-900">
       {/* Editorial Dealership Hero Banner - Unboxed & Content-First */}
@@ -170,7 +140,7 @@ export const Homepage = ({ onNavigate }) => {
               </p>
 
               {/* Integrated Search and Action */}
-              <div className="pt-2 flex flex-col sm:flex-row gap-2 max-w-xl">
+              <form onSubmit={handleHeroSearch} className="pt-2 flex flex-col sm:flex-row gap-2 max-w-xl">
                 <input
                   type="text"
                   value={searchQuery}
@@ -179,13 +149,12 @@ export const Homepage = ({ onNavigate }) => {
                   className="!h-10 flex-1 px-3 text-sm text-zinc-900 bg-white border border-zinc-300 rounded-md focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 shadow-2xs"
                 />
                 <button
-                  type="button"
-                  onClick={() => onNavigate("shop")}
+                  type="submit"
                   className="!h-10 px-5 rounded-md bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-sm font-medium transition-colors cursor-pointer whitespace-nowrap shadow-2xs"
                 >
                   Explore Catalog
                 </button>
-              </div>
+              </form>
 
               {/* Brand Filter Row */}
               <div className="pt-3 flex flex-wrap items-center gap-1.5 text-xs">
@@ -270,12 +239,11 @@ export const Homepage = ({ onNavigate }) => {
               </div>
               <div className="flex items-center gap-4 text-xs">
                 <span className="text-zinc-500">
-                  Showing {filteredBikes.length} of {featuredBikes.length}{" "}
-                  showroom models
+                  Showing {products.length} of {productsCount} showroom models
                 </span>
                 <button
                   type="button"
-                  onClick={() => onNavigate("shop")}
+                  onClick={() => handleNavigate("shop")}
                   className="font-semibold text-emerald-700 hover:text-emerald-800 hover:underline cursor-pointer"
                 >
                   Full Catalog &rarr;
@@ -283,85 +251,147 @@ export const Homepage = ({ onNavigate }) => {
               </div>
             </div>
 
-            {/* Featured Motorcycle Cards Grid with Spacing */}
+            {/* Featured Motorcycle Cards Grid with Real Database Products */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-              {filteredBikes.map((bike) => (
-                <div
-                  key={bike.id}
-                  className="border border-zinc-200 rounded-lg bg-white hover:border-zinc-300 hover:shadow-xs transition-all flex flex-col justify-between overflow-hidden group"
-                >
-                  {/* Automotive Technical Product Image Placeholder */}
-                  <ProductImagePlaceholder
-                    category={bike.category}
-                    name={bike.name}
-                    brand={bike.brand}
-                  />
-
-                  {/* Card Content */}
-                  <div className="p-4 space-y-3 flex-1 flex flex-col justify-between">
-                    <div className="space-y-1.5">
-                      <div className="flex items-center justify-between text-[11px]">
-                        <span className="font-mono uppercase tracking-wider text-zinc-500 font-semibold">
-                          {bike.brand}
-                        </span>
-                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-50 text-emerald-800 border border-emerald-200">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
-                          {bike.stock} in stock
-                        </span>
-                      </div>
-
-                      <h3 className="text-sm font-bold text-zinc-900 leading-snug group-hover:text-emerald-700 transition-colors">
-                        {bike.name}
-                      </h3>
-
-                      <p className="text-[11px] text-zinc-500 font-mono line-clamp-1">
-                        {bike.engine}
-                      </p>
-                    </div>
-
-                    <div className="pt-2 border-t border-zinc-100 space-y-2">
-                      <div className="flex items-baseline justify-between">
-                        <span className="text-sm font-bold text-zinc-900 font-mono">
-                          {bike.price}
-                        </span>
-                        <span className="text-[10px] text-zinc-400 font-mono">
-                          {bike.category}
-                        </span>
-                      </div>
-
-                      <div className="text-[11px] text-emerald-800 font-medium bg-emerald-50/60 border border-emerald-200/60 px-2 py-1 rounded space-y-0.5">
-                        <span className="block font-semibold">
-                          {bike.monthlyEst}
-                        </span>
-                        <span className="block text-[10px] text-zinc-500">
-                          Downpayment from {bike.minDown}
-                        </span>
-                      </div>
-
-                      <div className="flex gap-2 pt-1">
-                        <button
-                          type="button"
-                          onClick={() => onNavigate("shop")}
-                          className="flex-1 !h-8 rounded border border-zinc-300 bg-white hover:bg-zinc-50 text-zinc-700 text-xs font-medium transition-colors cursor-pointer"
-                        >
-                          Details
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => onNavigate("orders")}
-                          className="flex-1 !h-8 rounded bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-xs font-medium transition-colors cursor-pointer shadow-2xs"
-                        >
-                          Financing
-                        </button>
-                      </div>
-                    </div>
+              {loading ? (
+                [...Array(4)].map((_, i) => (
+                  <div
+                    key={i}
+                    className="border border-zinc-200 rounded-lg p-4 bg-white animate-pulse space-y-3"
+                  >
+                    <div className="w-full h-44 bg-zinc-100 rounded" />
+                    <div className="h-4 bg-zinc-100 rounded w-2/3" />
+                    <div className="h-3 bg-zinc-100 rounded w-1/2" />
+                    <div className="h-6 bg-zinc-100 rounded w-1/3" />
                   </div>
-                </div>
-              ))}
+                ))
+              ) : products.length > 0 ? (
+                products.slice(0, 8).map((bike) => {
+                  const categoryName = bike.category?.name || bike.category || "Motorcycles";
+                  const brandName = bike.brand?.name || bike.brand || "OEM";
+                  const hasImage = bike.images && bike.images.length > 0 && bike.images[0]?.url;
+                  const minDown = Number(bike.minInstallmentPrice || bike.price * 0.2);
+                  const financedAmount = Math.max(0, bike.price - minDown);
+                  const monthlyEst = Math.round((financedAmount * 1.1) / 12);
 
-              {filteredBikes.length === 0 && (
+                  return (
+                    <div
+                      key={bike._id}
+                      className="border border-zinc-200 rounded-lg bg-white hover:border-zinc-300 hover:shadow-xs transition-all flex flex-col justify-between overflow-hidden group"
+                    >
+                      {/* Image: Real Cloudinary image or technical placeholder */}
+                      <Link to={`/product/${bike._id}`} className="block overflow-hidden">
+                        {hasImage ? (
+                          <div className="w-full h-44 bg-zinc-100 overflow-hidden relative border-b border-zinc-100 flex items-center justify-center">
+                            <img
+                              src={bike.images[0].url}
+                              alt={bike.name}
+                              className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-200"
+                            />
+                            {bike.images.length > 1 && (
+                              <span className="absolute bottom-2 right-2 bg-black/70 backdrop-blur-xs text-white text-[10px] px-1.5 py-0.5 rounded font-mono">
+                                +{bike.images.length - 1}
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <ProductImagePlaceholder
+                            category={categoryName}
+                            name={bike.name}
+                            brand={brandName}
+                          />
+                        )}
+                      </Link>
+
+                      {/* Card Content */}
+                      <div className="p-4 space-y-3 flex-1 flex flex-col justify-between">
+                        <div className="space-y-1.5">
+                          <div className="flex items-center justify-between text-[11px]">
+                            <span className="font-mono uppercase tracking-wider text-zinc-500 font-semibold">
+                              {brandName}
+                            </span>
+                            <span
+                              className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium border ${
+                                bike.stock === 0
+                                  ? "bg-red-50 text-red-800 border-red-200"
+                                  : bike.stock <= 3
+                                  ? "bg-amber-50 text-amber-800 border-amber-200"
+                                  : "bg-emerald-50 text-emerald-800 border-emerald-200"
+                              }`}
+                            >
+                              <span
+                                className={`w-1.5 h-1.5 rounded-full ${
+                                  bike.stock === 0 ? "bg-red-600" : "bg-emerald-600"
+                                }`}
+                              />
+                              {bike.stock === 0 ? "Out of stock" : `${bike.stock} in stock`}
+                            </span>
+                          </div>
+
+                          <Link
+                            to={`/product/${bike._id}`}
+                            className="block text-sm font-bold text-zinc-900 leading-snug group-hover:text-emerald-700 transition-colors line-clamp-2 hover:underline"
+                          >
+                            {bike.name}
+                          </Link>
+
+                          {bike.compatibleModels && bike.compatibleModels.length > 0 && (
+                            <p className="text-[11px] text-zinc-500 font-mono line-clamp-1">
+                              Fit: {bike.compatibleModels.join(", ")}
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="pt-2 border-t border-zinc-100 space-y-2">
+                          <div className="flex items-baseline justify-between">
+                            <span className="text-sm font-bold text-zinc-900 font-mono">
+                              ₱
+                              {Number(bike.price).toLocaleString("en-US", {
+                                minimumFractionDigits: 2,
+                              })}
+                            </span>
+                            <span className="text-[10px] text-zinc-400 font-mono">
+                              {categoryName}
+                            </span>
+                          </div>
+
+                          {bike.installmentEligible && (
+                            <div className="text-[11px] text-emerald-800 font-medium bg-emerald-50/60 border border-emerald-200/60 px-2 py-1 rounded space-y-0.5">
+                              <span className="block font-semibold">
+                                ₱{monthlyEst.toLocaleString()}/mo (12 mos)
+                              </span>
+                              <span className="block text-[10px] text-zinc-500">
+                                Downpayment from ₱{minDown.toLocaleString()}
+                              </span>
+                            </div>
+                          )}
+
+                          <div className="flex gap-2 pt-1">
+                            <button
+                              type="button"
+                              onClick={() => handleNavigate("shop", `keyword=${encodeURIComponent(bike.name)}`)}
+                              className="flex-1 !h-8 rounded border border-zinc-300 bg-white hover:bg-zinc-50 text-zinc-700 text-xs font-medium transition-colors cursor-pointer"
+                            >
+                              Details
+                            </button>
+                            {bike.installmentEligible && (
+                              <button
+                                type="button"
+                                onClick={() => handleNavigate("orders")}
+                                className="flex-1 !h-8 rounded bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-xs font-medium transition-colors cursor-pointer shadow-2xs"
+                              >
+                                Financing
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
                 <div className="col-span-full py-12 text-center text-xs text-zinc-500 border border-zinc-200 rounded-lg bg-zinc-50">
-                  No showroom units match the selected brand or keyword.
+                  No showroom units match the selected brand or keyword in database.
                 </div>
               )}
             </div>
@@ -389,7 +419,7 @@ export const Homepage = ({ onNavigate }) => {
               {categories.map((cat) => (
                 <div
                   key={cat.name}
-                  onClick={() => onNavigate("shop")}
+                  onClick={() => handleNavigate("shop", `category=${encodeURIComponent(cat.name)}`)}
                   className="border-r border-b border-zinc-200 p-5 hover:bg-zinc-50/80 transition-colors cursor-pointer group flex flex-col justify-between"
                 >
                   <div className="space-y-1.5">

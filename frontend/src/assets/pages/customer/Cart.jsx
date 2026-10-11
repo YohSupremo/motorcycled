@@ -57,14 +57,45 @@ export const Cart = ({ onNavigate }) => {
     setCartItems((prev) =>
       prev.map((item) => {
         if (item.id === id) {
+          const current = Number(item.quantity) || 1;
           const newQty = Math.max(
             1,
-            Math.min(item.inStock, item.quantity + delta),
+            Math.min(item.inStock, current + delta),
           );
           return { ...item, quantity: newQty };
         }
         return item;
       }),
+    );
+  };
+
+  const handleDirectQuantityChange = (id, valStr) => {
+    const item = cartItems.find((i) => i.id === id);
+    if (!item) return;
+    if (valStr === "") {
+      setCartItems((prev) =>
+        prev.map((i) => (i.id === id ? { ...i, quantity: "" } : i))
+      );
+      return;
+    }
+    const num = parseInt(valStr, 10);
+    if (isNaN(num)) return;
+    const clamped = Math.max(1, Math.min(item.inStock, num));
+    setCartItems((prev) =>
+      prev.map((i) => (i.id === id ? { ...i, quantity: clamped } : i))
+    );
+  };
+
+  const handleQuantityBlur = (id) => {
+    setCartItems((prev) =>
+      prev.map((i) => {
+        if (i.id === id) {
+          const num = Number(i.quantity);
+          const clamped = !num || num < 1 ? 1 : Math.min(i.inStock, num);
+          return { ...i, quantity: clamped };
+        }
+        return i;
+      })
     );
   };
 
@@ -80,7 +111,7 @@ export const Cart = ({ onNavigate }) => {
 
   // Financial Computations
   const subtotal = cartItems.reduce(
-    (acc, item) => acc + item.unitPrice * item.quantity,
+    (acc, item) => acc + item.unitPrice * (Number(item.quantity) || 1),
     0,
   );
   const shippingFee = deliveryMethod === "shipping" ? 350 : 0;
@@ -243,26 +274,37 @@ export const Cart = ({ onNavigate }) => {
 
                             {/* Quantity Controls */}
                             <td className="py-3.5 px-4 text-center whitespace-nowrap">
-                              <div className="inline-flex items-center border border-zinc-300 rounded-md bg-white shadow-2xs">
+                              <div className="inline-flex items-center border border-zinc-300 rounded-md bg-white shadow-2xs overflow-hidden">
                                 <button
                                   type="button"
-                                  disabled={item.quantity <= 1}
+                                  disabled={Number(item.quantity) <= 1}
                                   onClick={() =>
                                     handleUpdateQuantity(item.id, -1)
                                   }
+                                  aria-label="Decrease quantity"
                                   className="w-7 h-7 flex items-center justify-center text-zinc-600 hover:bg-zinc-100 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-colors text-xs font-bold"
                                 >
                                   −
                                 </button>
-                                <span className="w-8 text-center font-mono font-semibold text-xs text-zinc-900 select-none">
-                                  {item.quantity}
-                                </span>
+                                <input
+                                  type="number"
+                                  min="1"
+                                  max={item.inStock}
+                                  value={item.quantity}
+                                  onChange={(e) =>
+                                    handleDirectQuantityChange(item.id, e.target.value)
+                                  }
+                                  onBlur={() => handleQuantityBlur(item.id)}
+                                  aria-label="Quantity"
+                                  className="w-10 h-7 text-center font-mono font-semibold text-xs text-zinc-900 border-x border-zinc-200 focus:outline-none focus:bg-emerald-50/50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                />
                                 <button
                                   type="button"
-                                  disabled={item.quantity >= item.inStock}
+                                  disabled={Number(item.quantity) >= item.inStock}
                                   onClick={() =>
                                     handleUpdateQuantity(item.id, 1)
                                   }
+                                  aria-label="Increase quantity"
                                   className="w-7 h-7 flex items-center justify-center text-zinc-600 hover:bg-zinc-100 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-colors text-xs font-bold"
                                 >
                                   +

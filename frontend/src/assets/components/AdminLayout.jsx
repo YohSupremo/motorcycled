@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { Outlet } from "react-router-dom";
 import { Link } from "react-router-dom";
+import { useSelector } from "react-redux";
 export const AdminLayout = ({ activeTab, onTabChange, onNavigate }) => {
+  const { user } = useSelector((state) => state.auth);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -305,18 +307,27 @@ export const AdminLayout = ({ activeTab, onTabChange, onNavigate }) => {
             className={`flex items-center gap-2.5 p-1.5 ${isCollapsed ? "justify-center" : ""}`}
           >
             <div className="relative shrink-0">
-              <div className="w-7 h-7 rounded-full bg-emerald-800 text-white flex items-center justify-center font-bold text-xs shadow-2xs">
-                KL
-              </div>
+              {user?.profilePicture ? (
+                <img
+                  src={user.profilePicture}
+                  alt="avatar"
+                  className="w-7 h-7 rounded-full object-cover shadow-sm"
+                />
+              ) : (
+                <div className="w-7 h-7 rounded-full bg-emerald-800 text-white flex items-center justify-center font-bold text-xs shadow-2xs">
+                  {user?.firstName?.[0]?.toUpperCase() || "A"}
+                  {user?.lastName?.[0]?.toUpperCase() || ""}
+                </div>
+              )}
               <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-500 ring-1 ring-white" />
             </div>
             {!isCollapsed && (
               <div className="overflow-hidden text-left">
                 <p className="text-xs font-semibold text-zinc-900 truncate">
-                  Kelly Laurence
+                  {user ? `${user.firstName} ${user.lastName}` : "Admin"}
                 </p>
-                <p className="text-[10px] text-zinc-500 font-mono truncate">
-                  Operations Lead
+                <p className="text-[10px] text-zinc-500 font-mono truncate capitalize">
+                  {user?.role || "admin"}
                 </p>
               </div>
             )}

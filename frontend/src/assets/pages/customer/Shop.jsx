@@ -1,160 +1,146 @@
-import { useEffect, useState } from "react";
-import { Navbar } from "../../components/Navbar";
-import { Footer } from "../../components/Footer";
+import { useEffect, useState, useMemo } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { ScrollReveal } from "../../components/ScrollReveal";
 import { ProductImagePlaceholder } from "../../components/ProductImagePlaceholder";
+import { getProducts, getCategories, getBrands } from "../../../actions/productActions";
 
 export const Shop = ({ onNavigate }) => {
-  const [selectedCategory, setSelectedCategory] = useState("All");
-  const [selectedBrand, setSelectedBrand] = useState("All");
-  const [onlyInstallment, setOnlyInstallment] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [cartItemsCount, setCartItemsCount] = useState(0);
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Read URL query params on mount
+  const initialCategory = searchParams.get("category") || "All";
+  const initialBrand = searchParams.get("brand") || "All";
+  const initialKeyword = searchParams.get("keyword") || searchParams.get("search") || "";
+  const initialPage = Number(searchParams.get("page")) || 1;
+
+  const [selectedCategory, setSelectedCategory] = useState(initialCategory);
+  const [selectedBrand, setSelectedBrand] = useState(initialBrand);
+  const [onlyInstallment, setOnlyInstallment] = useState(
+    searchParams.get("installment") === "true"
+  );
+  const [searchQuery, setSearchQuery] = useState(initialKeyword);
+  const [currentPage, setCurrentPage] = useState(initialPage);
+  const [viewMode, setViewMode] = useState("grid"); // "grid" or "table"
   const [addedNotice, setAddedNotice] = useState("");
 
-  const categories = [
-    "All",
-    "Motorcycles",
-    "Engine Parts",
-    "Brakes",
-    "Tires and Wheels",
-    "Helmets",
-    "Riding Gear",
-    "Lubricants",
-  ];
+  // Select live data from Redux store
+  // Reference: itcp318-s3a-2026/frontend/src/Components/Home.jsx
+  const {
+    loading,
+    products = [],
+    productsCount = 0,
+    resPerPage = 12,
+  } = useSelector((state) => state.products || {});
 
-  const brands = ["All", "Honda", "Yamaha", "Suzuki", "Kawasaki", "CFMOTO"];
+  const { categories: dbCategories = [], brands: dbBrands = [] } = useSelector(
+    (state) => state.catalog || {}
+  );
 
-  const products = [
-    {
-      id: 1,
-      name: "Yamaha NMAX 155 ABS",
-      category: "Motorcycles",
-      brand: "Yamaha",
-      compatibleModels: ["NMAX 155 V1", "NMAX 155 V2"],
-      price: 151900,
-      stock: 4,
-      installmentEligible: true,
-      minDownpayment: 30380,
-      monthlyEstimate: "₱11,340/mo (12 mos)",
-    },
-    {
-      id: 2,
-      name: "Honda Click 125i (CBS)",
-      category: "Motorcycles",
-      brand: "Honda",
-      compatibleModels: ["Click 125 V2", "Click 125 V3"],
-      price: 81400,
-      stock: 7,
-      installmentEligible: true,
-      minDownpayment: 16280,
-      monthlyEstimate: "₱6,120/mo (12 mos)",
-    },
-    {
-      id: 3,
-      name: "Kawasaki Ninja 400 SE",
-      category: "Motorcycles",
-      brand: "Kawasaki",
-      compatibleModels: ["Ninja 400", "Z400"],
-      price: 340900,
-      stock: 2,
-      installmentEligible: true,
-      minDownpayment: 68180,
-      monthlyEstimate: "₱18,200/mo (24 mos)",
-    },
-    {
-      id: 4,
-      name: "CFMOTO 450SR Sport",
-      category: "Motorcycles",
-      brand: "CFMOTO",
-      compatibleModels: ["450SR"],
-      price: 299900,
-      stock: 3,
-      installmentEligible: true,
-      minDownpayment: 59980,
-      monthlyEstimate: "₱16,400/mo (24 mos)",
-    },
-    {
-      id: 5,
-      name: "Yamalube 4T Full Synthetic 10W-40 (1 Liter)",
-      category: "Lubricants",
-      brand: "Yamaha",
-      compatibleModels: [
-        "Yamaha Mio",
-        "Yamaha NMAX",
-        "Yamaha Aerox",
-        "Universal 4T",
-      ],
-      price: 450,
-      stock: 35,
-      installmentEligible: false,
-    },
-    {
-      id: 6,
-      name: "Honda Genuine High-Performance Brake Pads",
-      category: "Brakes",
-      brand: "Honda",
-      compatibleModels: ["Honda Click 125", "Honda Click 150", "Honda ADV 150"],
-      price: 680,
-      stock: 14,
-      installmentEligible: false,
-    },
-    {
-      id: 7,
-      name: "HJC RPHA 11 Full-Face Helmet (Matte Black)",
-      category: "Helmets",
-      brand: "Kawasaki",
-      compatibleModels: ["Universal Rider Gear"],
-      price: 18500,
-      stock: 5,
-      installmentEligible: true,
-      minDownpayment: 3700,
-      monthlyEstimate: "₱2,650/mo (6 mos)",
-    },
-    {
-      id: 8,
-      name: "Pirelli Angel Scooter Tire 130/70-13",
-      category: "Tires and Wheels",
-      brand: "Yamaha",
-      compatibleModels: ["Yamaha NMAX 155", "Honda PCX 160"],
-      price: 3100,
-      stock: 12,
-      installmentEligible: false,
-    },
-    {
-      id: 9,
-      name: "Koso High-Angle Performance Camshaft",
-      category: "Engine Parts",
-      brand: "Yamaha",
-      compatibleModels: ["Yamaha NMAX 155", "Yamaha Aerox 155"],
-      price: 2850,
-      stock: 8,
-      installmentEligible: false,
-    },
-  ];
+  // Fetch categories & brands once on mount
+  useEffect(() => {
+    dispatch(getCategories());
+    dispatch(getBrands());
+  }, [dispatch]);
 
-  const [viewMode, setViewMode] = useState("grid"); // "grid" or "table"
+  // Fetch products from database whenever query parameters change
+  useEffect(() => {
+    dispatch(
+      getProducts(
+        currentPage,
+        searchQuery,
+        [0, 9999999],
+        selectedCategory,
+        selectedBrand,
+        onlyInstallment
+      )
+    );
+  }, [
+    dispatch,
+    currentPage,
+    searchQuery,
+    selectedCategory,
+    selectedBrand,
+    onlyInstallment,
+  ]);
 
-  const filteredProducts = products.filter((p) => {
-    if (selectedCategory !== "All" && p.category !== selectedCategory)
-      return false;
-    if (selectedBrand !== "All" && p.brand !== selectedBrand) return false;
-    if (onlyInstallment && !p.installmentEligible) return false;
-    if (searchQuery.trim() !== "") {
-      const q = searchQuery.toLowerCase();
-      const matchName = p.name.toLowerCase().includes(q);
-      const matchModel = p.compatibleModels.some((m) =>
-        m.toLowerCase().includes(q),
+  // Sync state changes back to search params (without page refresh)
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (selectedCategory && selectedCategory !== "All") params.set("category", selectedCategory);
+    if (selectedBrand && selectedBrand !== "All") params.set("brand", selectedBrand);
+    if (searchQuery.trim()) params.set("keyword", searchQuery.trim());
+    if (onlyInstallment) params.set("installment", "true");
+    if (currentPage > 1) params.set("page", String(currentPage));
+    setSearchParams(params, { replace: true });
+  }, [selectedCategory, selectedBrand, searchQuery, onlyInstallment, currentPage, setSearchParams]);
+
+  // Available categories list (fallback to defaults if DB is still seeding)
+  const categoriesList = useMemo(() => {
+    const names = ["All"];
+    if (dbCategories?.length > 0) {
+      dbCategories.forEach((c) => {
+        if (c?.name && !names.includes(c.name)) names.push(c.name);
+      });
+    } else {
+      names.push(
+        "Motorcycles",
+        "Engine Parts",
+        "Brakes",
+        "Tires and Wheels",
+        "Helmets",
+        "Riding Gear",
+        "Accessories",
+        "Lubricants"
       );
-      if (!matchName && !matchModel) return false;
     }
-    return true;
-  });
+    return names;
+  }, [dbCategories]);
+
+  // Available brands list
+  const brandsList = useMemo(() => {
+    const names = ["All"];
+    if (dbBrands?.length > 0) {
+      dbBrands.forEach((b) => {
+        if (b?.name && !names.includes(b.name)) names.push(b.name);
+      });
+    } else {
+      names.push("Honda", "Yamaha", "Suzuki", "Kawasaki", "CFMOTO");
+    }
+    return names;
+  }, [dbBrands]);
+
+  // Pagination calculation (Reference: itcp318-s3a-2026/frontend/src/Components/Home.jsx)
+  const totalPages = Math.max(1, Math.ceil((productsCount || 0) / (resPerPage || 12)));
+
+  const handlePageChange = (newPage) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setCurrentPage(newPage);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  };
 
   const handleAddToCart = (product) => {
-    setCartItemsCount((prev) => prev + 1);
     setAddedNotice(`Added "${product.name}" to cart`);
-    setTimeout(() => setAddedNotice(""), 2200);
+    setTimeout(() => setAddedNotice(""), 2500);
+  };
+
+  const handleNavigate = (path) => {
+    if (typeof onNavigate === "function") {
+      onNavigate(path);
+    } else {
+      navigate(`/${path}`);
+    }
+  };
+
+  const handleResetFilters = () => {
+    setSelectedCategory("All");
+    setSelectedBrand("All");
+    setOnlyInstallment(false);
+    setSearchQuery("");
+    setCurrentPage(1);
   };
 
   return (
@@ -163,13 +149,19 @@ export const Shop = ({ onNavigate }) => {
         {/* Header & Cart Summary */}
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-4 border-b border-zinc-900">
           <div>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-[11px] font-mono uppercase tracking-widest text-emerald-700 font-semibold">
+                Live Dealership Catalog
+              </span>
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-zinc-900 tracking-tight">
               Motorcycles, Parts & Accessories
             </h1>
             <p className="text-xs text-zinc-500 mt-1 max-w-xl">
               Brand-new showroom motorcycle units, certified OEM replacement
-              parts, and rider safety equipment with model-specific
-              compatibility.
+              parts, and rider safety equipment with model-specific compatibility
+              synchronized directly from our dealership database.
             </p>
           </div>
 
@@ -191,13 +183,30 @@ export const Shop = ({ onNavigate }) => {
               <label className="block text-xs font-bold text-zinc-900 uppercase tracking-wider">
                 Search Catalog
               </label>
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search name, model, spec..."
-                className="w-full h-9! px-3 text-xs text-zinc-900 bg-zinc-50 border border-zinc-300 rounded-md focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
-              />
+              <div className="relative">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  placeholder="Search name, model, spec..."
+                  className="w-full h-9 px-3 pr-8 text-xs text-zinc-900 bg-zinc-50 border border-zinc-300 rounded-md focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearchQuery("");
+                      setCurrentPage(1);
+                    }}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-700 text-xs cursor-pointer"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Category Filter */}
@@ -209,7 +218,10 @@ export const Shop = ({ onNavigate }) => {
                 {selectedCategory !== "All" && (
                   <button
                     type="button"
-                    onClick={() => setSelectedCategory("All")}
+                    onClick={() => {
+                      setSelectedCategory("All");
+                      setCurrentPage(1);
+                    }}
                     className="text-[11px] text-zinc-500 hover:text-zinc-900 underline cursor-pointer"
                   >
                     Clear
@@ -217,11 +229,14 @@ export const Shop = ({ onNavigate }) => {
                 )}
               </div>
               <div className="space-y-0.5">
-                {categories.map((cat) => (
+                {categoriesList.map((cat) => (
                   <button
                     key={cat}
                     type="button"
-                    onClick={() => setSelectedCategory(cat)}
+                    onClick={() => {
+                      setSelectedCategory(cat);
+                      setCurrentPage(1);
+                    }}
                     className={`w-full text-left px-2.5 py-1.5 rounded text-xs transition-colors cursor-pointer flex items-center justify-between ${
                       selectedCategory === cat
                         ? "bg-emerald-50 text-emerald-900 border border-emerald-300 font-semibold"
@@ -246,7 +261,10 @@ export const Shop = ({ onNavigate }) => {
                 {selectedBrand !== "All" && (
                   <button
                     type="button"
-                    onClick={() => setSelectedBrand("All")}
+                    onClick={() => {
+                      setSelectedBrand("All");
+                      setCurrentPage(1);
+                    }}
                     className="text-[11px] text-zinc-500 hover:text-zinc-900 underline cursor-pointer"
                   >
                     Clear
@@ -254,11 +272,14 @@ export const Shop = ({ onNavigate }) => {
                 )}
               </div>
               <div className="space-y-0.5">
-                {brands.map((b) => (
+                {brandsList.map((b) => (
                   <button
                     key={b}
                     type="button"
-                    onClick={() => setSelectedBrand(b)}
+                    onClick={() => {
+                      setSelectedBrand(b);
+                      setCurrentPage(1);
+                    }}
                     className={`w-full text-left px-2.5 py-1.5 rounded text-xs transition-colors cursor-pointer flex items-center justify-between ${
                       selectedBrand === b
                         ? "bg-emerald-50 text-emerald-900 border border-emerald-300 font-semibold"
@@ -280,7 +301,10 @@ export const Shop = ({ onNavigate }) => {
                 <input
                   type="checkbox"
                   checked={onlyInstallment}
-                  onChange={(e) => setOnlyInstallment(e.target.checked)}
+                  onChange={(e) => {
+                    setOnlyInstallment(e.target.checked);
+                    setCurrentPage(1);
+                  }}
                   className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-600 cursor-pointer accent-emerald-600"
                 />
                 <span className="text-xs text-zinc-800 font-medium">
@@ -297,13 +321,8 @@ export const Shop = ({ onNavigate }) => {
               <div className="pt-2">
                 <button
                   type="button"
-                  onClick={() => {
-                    setSelectedCategory("All");
-                    setSelectedBrand("All");
-                    setOnlyInstallment(false);
-                    setSearchQuery("");
-                  }}
-                  className="w-full !h-8 rounded border border-zinc-300 text-xs text-zinc-700 font-medium hover:bg-zinc-50 cursor-pointer"
+                  onClick={handleResetFilters}
+                  className="w-full h-8 rounded border border-zinc-300 text-xs text-zinc-700 font-medium hover:bg-zinc-50 cursor-pointer"
                 >
                   Reset all filters
                 </button>
@@ -317,8 +336,9 @@ export const Shop = ({ onNavigate }) => {
               {/* View Bar & Metrics */}
               <div className="flex items-center justify-between pb-3 border-b border-zinc-200 text-xs">
                 <span className="text-zinc-600">
-                  Displaying <strong>{filteredProducts.length}</strong> items in
-                  catalog
+                  Displaying{" "}
+                  <strong>{products?.length || 0}</strong> of{" "}
+                  <strong>{productsCount || 0}</strong> items in database
                 </span>
 
                 {/* View Switcher: Table or Grid */}
@@ -348,98 +368,181 @@ export const Shop = ({ onNavigate }) => {
                 </div>
               </div>
 
-              {filteredProducts.length === 0 ? (
-                <div className="border border-zinc-200 rounded-md p-12 text-center space-y-2 bg-zinc-50/50">
+              {/* Loading Skeleton */}
+              {loading ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 py-4">
+                  {[...Array(6)].map((_, i) => (
+                    <div
+                      key={i}
+                      className="border border-zinc-200 rounded-md p-4 space-y-3 bg-white animate-pulse"
+                    >
+                      <div className="w-full h-40 bg-zinc-100 rounded" />
+                      <div className="h-4 bg-zinc-100 rounded w-2/3" />
+                      <div className="h-3 bg-zinc-100 rounded w-1/2" />
+                      <div className="h-6 bg-zinc-100 rounded w-1/3" />
+                    </div>
+                  ))}
+                </div>
+              ) : products.length === 0 ? (
+                /* Empty State */
+                <div className="border border-zinc-200 rounded-md p-12 text-center space-y-3 bg-zinc-50/50">
+                  <div className="w-12 h-12 mx-auto rounded-full bg-zinc-100 border border-zinc-200 flex items-center justify-center text-zinc-400">
+                    <svg
+                      className="w-6 h-6"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                    >
+                      <rect x="2" y="3" width="20" height="14" rx="2" />
+                      <line x1="8" y1="21" x2="16" y2="21" />
+                      <line x1="12" y1="17" x2="12" y2="21" />
+                    </svg>
+                  </div>
                   <p className="text-sm font-semibold text-zinc-800">
-                    No matching products found
+                    No products found in database
                   </p>
-                  <p className="text-xs text-zinc-500">
-                    Try adjusting your category, manufacturer filter, or search
-                    keywords.
+                  <p className="text-xs text-zinc-500 max-w-sm mx-auto">
+                    There are no products matching your current filters. Try
+                    adjusting the category, manufacturer, or search keywords.
                   </p>
+                  <div className="pt-2">
+                    <button
+                      type="button"
+                      onClick={handleResetFilters}
+                      className="px-4 h-8 rounded bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium cursor-pointer"
+                    >
+                      Clear all filters
+                    </button>
+                  </div>
                 </div>
               ) : viewMode === "grid" ? (
-                /* Architectural Grid - Shared single 1px borders, ZERO floating cards, ZERO drop shadows */
+                /* Architectural Grid - Real Cloudinary images + database attributes */
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 border-t border-l border-zinc-200">
-                  {filteredProducts.map((p) => (
-                    <div
-                      key={p.id}
-                      className="border-r border-b border-zinc-200 bg-white hover:bg-zinc-50/70 transition-colors flex flex-col justify-between overflow-hidden group"
-                    >
-                      {/* Automotive Technical Product Image Placeholder */}
-                      <ProductImagePlaceholder
-                        category={p.category}
-                        name={p.name}
-                        brand={p.brand}
-                      />
+                  {products.map((p) => {
+                    const categoryName = p.category?.name || p.category || "General";
+                    const brandName = p.brand?.name || p.brand || "OEM";
+                    const hasImage = p.images && p.images.length > 0 && p.images[0]?.url;
 
-                      <div className="p-4.5 space-y-3 flex-1 flex flex-col justify-between">
-                        <div className="space-y-1.5">
-                          <div className="flex items-center justify-between text-[11px]">
-                            <span className="font-mono uppercase tracking-wider text-zinc-500 font-semibold">
-                              {p.brand}
-                            </span>
-                            <span
-                              className={`font-medium px-1.5 py-0.5 rounded text-[10px] border ${
-                                p.stock <= 3
-                                  ? "bg-amber-50 text-amber-800 border-amber-200"
-                                  : "bg-emerald-50 text-emerald-800 border-emerald-200"
-                              }`}
-                            >
-                              {p.stock} in stock
-                            </span>
-                          </div>
+                    // Approximate installment monthly computation (standard 12-month)
+                    const minDown = Number(p.minInstallmentPrice || p.price * 0.2);
+                    const financedAmount = Math.max(0, p.price - minDown);
+                    const monthlyEstimate = Math.round((financedAmount * 1.1) / 12);
 
-                          <h3 className="text-sm font-bold text-zinc-900 leading-snug group-hover:text-emerald-700 transition-colors">
-                            {p.name}
-                          </h3>
-
-                          <p className="text-[11px] text-zinc-500 line-clamp-2">
-                            Compatible: {p.compatibleModels.join(", ")}
-                          </p>
-                        </div>
-
-                        <div className="pt-2 border-t border-zinc-100 space-y-2">
-                          <div className="flex items-baseline justify-between">
-                            <span className="text-sm font-bold text-zinc-900 font-mono">
-                              ₱
-                              {p.price.toLocaleString("en-US", {
-                                minimumFractionDigits: 2,
-                              })}
-                            </span>
-                            <span className="text-[11px] text-zinc-400 font-mono">
-                              {p.category}
-                            </span>
-                          </div>
-
-                          {p.installmentEligible && (
-                            <div className="text-[11px] text-emerald-700 font-medium bg-emerald-50/60 border border-emerald-200/60 px-2 py-1 rounded">
-                              Financing: {p.monthlyEstimate}
+                    return (
+                      <div
+                        key={p._id}
+                        className="border-r border-b border-zinc-200 bg-white hover:bg-zinc-50/70 transition-colors flex flex-col justify-between overflow-hidden group"
+                      >
+                        {/* Image: Real Cloudinary photo or technical OEM placeholder */}
+                        <Link to={`/product/${p._id}`} className="block overflow-hidden">
+                          {hasImage ? (
+                            <div className="w-full h-44 bg-zinc-100 overflow-hidden relative border-b border-zinc-100 flex items-center justify-center">
+                              <img
+                                src={p.images[0].url}
+                                alt={p.name}
+                                className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-200"
+                              />
+                              {p.images.length > 1 && (
+                                <span className="absolute bottom-2 right-2 bg-black/70 backdrop-blur-xs text-white text-[10px] px-1.5 py-0.5 rounded font-mono">
+                                  +{p.images.length - 1} photos
+                                </span>
+                              )}
                             </div>
+                          ) : (
+                            <ProductImagePlaceholder
+                              category={categoryName}
+                              name={p.name}
+                              brand={brandName}
+                            />
                           )}
+                        </Link>
 
-                          <div className="flex gap-2 pt-1">
-                            <button
-                              type="button"
-                              onClick={() => handleAddToCart(p)}
-                              className="flex-1 !h-8 rounded bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-xs font-medium transition-colors cursor-pointer"
+                        <div className="p-4.5 space-y-3 flex-1 flex flex-col justify-between">
+                          <div className="space-y-1.5">
+                            <div className="flex items-center justify-between text-[11px]">
+                              <span className="font-mono uppercase tracking-wider text-zinc-500 font-semibold">
+                                {brandName}
+                              </span>
+                              <span
+                                className={`font-medium px-1.5 py-0.5 rounded text-[10px] border ${
+                                  p.stock === 0
+                                    ? "bg-red-50 text-red-800 border-red-200"
+                                    : p.stock <= 3
+                                    ? "bg-amber-50 text-amber-800 border-amber-200"
+                                    : "bg-emerald-50 text-emerald-800 border-emerald-200"
+                                }`}
+                              >
+                                {p.stock === 0 ? "Out of stock" : `${p.stock} in stock`}
+                              </span>
+                            </div>
+
+                            <Link
+                              to={`/product/${p._id}`}
+                              className="block text-sm font-bold text-zinc-900 leading-snug group-hover:text-emerald-700 transition-colors line-clamp-2 hover:underline"
                             >
-                              Add to cart
-                            </button>
+                              {p.name}
+                            </Link>
+
+                            {p.compatibleModels && p.compatibleModels.length > 0 && (
+                              <p className="text-[11px] text-zinc-500 line-clamp-1 font-mono">
+                                Compatible: {p.compatibleModels.join(", ")}
+                              </p>
+                            )}
+
+                            {p.description && (
+                              <p className="text-[11px] text-zinc-500 line-clamp-2">
+                                {p.description}
+                              </p>
+                            )}
+                          </div>
+
+                          <div className="pt-2 border-t border-zinc-100 space-y-2">
+                            <div className="flex items-baseline justify-between">
+                              <span className="text-sm font-bold text-zinc-900 font-mono">
+                                ₱
+                                {Number(p.price).toLocaleString("en-US", {
+                                  minimumFractionDigits: 2,
+                                })}
+                              </span>
+                              <span className="text-[11px] text-zinc-400 font-mono">
+                                {categoryName}
+                              </span>
+                            </div>
+
                             {p.installmentEligible && (
+                              <div className="text-[11px] text-emerald-800 font-medium bg-emerald-50/60 border border-emerald-200/60 px-2 py-1 rounded">
+                                Financing: ₱{monthlyEstimate.toLocaleString()}/mo (12 mos)
+                                <span className="block text-[10px] text-zinc-500 font-mono">
+                                  Min Down: ₱{minDown.toLocaleString()}
+                                </span>
+                              </div>
+                            )}
+
+                            <div className="flex gap-2 pt-1">
                               <button
                                 type="button"
-                                onClick={() => onNavigate("orders")}
-                                className="!h-8 px-2.5 rounded border border-zinc-300 bg-white hover:bg-zinc-50 text-zinc-700 text-xs font-medium transition-colors cursor-pointer whitespace-nowrap"
+                                disabled={p.stock === 0}
+                                onClick={() => handleAddToCart(p)}
+                                className="flex-1 h-8 rounded bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 disabled:bg-zinc-200 disabled:text-zinc-400 disabled:cursor-not-allowed text-white text-xs font-medium transition-colors cursor-pointer"
                               >
-                                Financing
+                                {p.stock === 0 ? "Sold out" : "Add to cart"}
                               </button>
-                            )}
+                              {p.installmentEligible && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleNavigate("orders")}
+                                  className="h-8 px-2.5 rounded border border-zinc-300 bg-white hover:bg-zinc-50 text-zinc-700 text-xs font-medium transition-colors cursor-pointer whitespace-nowrap"
+                                >
+                                  Financing
+                                </button>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
                 /* Table Directory View - Data dense, structured dealership inventory */
@@ -461,74 +564,147 @@ export const Shop = ({ onNavigate }) => {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-zinc-200">
-                        {filteredProducts.map((p) => (
-                          <tr
-                            key={p.id}
-                            className="hover:bg-zinc-50/70 transition-colors"
-                          >
-                            <td className="py-3 px-3.5">
-                              <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 shrink-0 rounded bg-zinc-100 border border-zinc-200 overflow-hidden">
-                                  <ProductImagePlaceholder
-                                    category={p.category}
-                                    name={p.name}
-                                    brand={p.brand}
-                                    compact
-                                  />
+                        {products.map((p) => {
+                          const categoryName = p.category?.name || p.category || "General";
+                          const brandName = p.brand?.name || p.brand || "OEM";
+                          const hasImage = p.images && p.images.length > 0 && p.images[0]?.url;
+
+                          return (
+                            <tr
+                              key={p._id}
+                              className="hover:bg-zinc-50/70 transition-colors"
+                            >
+                              <td className="py-3 px-3.5">
+                                <div className="flex items-center gap-3">
+                                  <Link
+                                    to={`/product/${p._id}`}
+                                    className="w-10 h-10 shrink-0 rounded bg-zinc-100 border border-zinc-200 overflow-hidden flex items-center justify-center hover:opacity-80 transition-opacity"
+                                  >
+                                    {hasImage ? (
+                                      <img
+                                        src={p.images[0].url}
+                                        alt={p.name}
+                                        className="w-full h-full object-cover"
+                                      />
+                                    ) : (
+                                      <ProductImagePlaceholder
+                                        category={categoryName}
+                                        name={p.name}
+                                        brand={brandName}
+                                        compact
+                                      />
+                                    )}
+                                  </Link>
+                                  <div>
+                                    <Link
+                                      to={`/product/${p._id}`}
+                                      className="font-semibold text-zinc-900 block hover:text-emerald-700 hover:underline transition-colors"
+                                    >
+                                      {p.name}
+                                    </Link>
+                                    {p.installmentEligible && (
+                                      <span className="text-[10px] text-emerald-700 font-medium">
+                                        Financing eligible
+                                      </span>
+                                    )}
+                                  </div>
                                 </div>
-                                <div>
-                                  <span className="font-semibold text-zinc-900 block">
-                                    {p.name}
-                                  </span>
-                                  {p.installmentEligible && (
-                                    <span className="text-[10px] text-emerald-700 font-medium">
-                                      Installment: {p.monthlyEstimate}
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                            </td>
-                            <td className="py-3 px-3.5 hidden md:table-cell">
-                              <span className="text-zinc-800">
-                                {p.category}
-                              </span>
-                              <span className="block text-[10px] text-zinc-400 font-mono">
-                                {p.brand}
-                              </span>
-                            </td>
-                            <td className="py-3 px-3.5 hidden lg:table-cell text-zinc-500 text-[11px]">
-                              {p.compatibleModels.join(", ")}
-                            </td>
-                            <td className="py-3 px-3.5 text-center whitespace-nowrap">
-                              <span
-                                className={`px-1.5 py-0.5 rounded text-[10px] font-medium border ${
-                                  p.stock <= 3
-                                    ? "bg-amber-50 text-amber-800 border-amber-200"
-                                    : "bg-zinc-100 text-zinc-700 border-zinc-200"
-                                }`}
-                              >
-                                {p.stock} units
-                              </span>
-                            </td>
-                            <td className="py-3 px-3.5 font-mono font-bold text-zinc-900 whitespace-nowrap">
-                              ₱
-                              {p.price.toLocaleString("en-US", {
-                                minimumFractionDigits: 2,
-                              })}
-                            </td>
-                            <td className="py-3 px-3.5 text-right whitespace-nowrap">
-                              <button
-                                type="button"
-                                onClick={() => handleAddToCart(p)}
-                                className="!h-7 px-3 rounded bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium cursor-pointer transition-colors"
-                              >
-                                Add
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
+                              </td>
+                              <td className="py-3 px-3.5 hidden md:table-cell">
+                                <span className="text-zinc-800">{categoryName}</span>
+                                <span className="block text-[10px] text-zinc-400 font-mono">
+                                  {brandName}
+                                </span>
+                              </td>
+                              <td className="py-3 px-3.5 hidden lg:table-cell text-zinc-500 text-[11px]">
+                                {p.compatibleModels?.length > 0
+                                  ? p.compatibleModels.join(", ")
+                                  : "Universal Fit"}
+                              </td>
+                              <td className="py-3 px-3.5 text-center whitespace-nowrap">
+                                <span
+                                  className={`px-1.5 py-0.5 rounded text-[10px] font-medium border ${
+                                    p.stock === 0
+                                      ? "bg-red-50 text-red-800 border-red-200"
+                                      : p.stock <= 3
+                                      ? "bg-amber-50 text-amber-800 border-amber-200"
+                                      : "bg-zinc-100 text-zinc-700 border-zinc-200"
+                                  }`}
+                                >
+                                  {p.stock === 0 ? "Out of stock" : `${p.stock} units`}
+                                </span>
+                              </td>
+                              <td className="py-3 px-3.5 font-mono font-bold text-zinc-900 whitespace-nowrap">
+                                ₱
+                                {Number(p.price).toLocaleString("en-US", {
+                                  minimumFractionDigits: 2,
+                                })}
+                              </td>
+                              <td className="py-3 px-3.5 text-right whitespace-nowrap space-x-1.5">
+                                <Link
+                                  to={`/product/${p._id}`}
+                                  className="inline-block h-7 leading-7 px-2.5 rounded border border-zinc-300 hover:bg-zinc-100 text-zinc-700 text-xs font-medium cursor-pointer transition-colors"
+                                >
+                                  View
+                                </Link>
+                                <button
+                                  type="button"
+                                  disabled={p.stock === 0}
+                                  onClick={() => handleAddToCart(p)}
+                                  className="h-7 px-3 rounded bg-emerald-600 hover:bg-emerald-700 disabled:bg-zinc-200 disabled:text-zinc-400 disabled:cursor-not-allowed text-white text-xs font-medium cursor-pointer transition-colors"
+                                >
+                                  Add
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
+                  </div>
+                </div>
+              )}
+
+              {/* Pagination Controls (Reference: itcp318-s3a-2026/frontend/src/Components/Home.jsx) */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between pt-6 border-t border-zinc-200">
+                  <span className="text-xs text-zinc-500 font-mono">
+                    Page {currentPage} of {totalPages}
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      disabled={currentPage <= 1}
+                      onClick={() => handlePageChange(currentPage - 1)}
+                      className="px-3 h-8 rounded border border-zinc-300 text-xs text-zinc-700 hover:bg-zinc-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                    >
+                      &larr; Previous
+                    </button>
+                    {[...Array(totalPages)].map((_, i) => {
+                      const pageNum = i + 1;
+                      return (
+                        <button
+                          key={pageNum}
+                          type="button"
+                          onClick={() => handlePageChange(pageNum)}
+                          className={`w-8 h-8 rounded text-xs font-medium cursor-pointer transition-colors ${
+                            currentPage === pageNum
+                              ? "bg-emerald-600 text-white font-bold"
+                              : "border border-zinc-200 hover:bg-zinc-50 text-zinc-700"
+                          }`}
+                        >
+                          {pageNum}
+                        </button>
+                      );
+                    })}
+                    <button
+                      type="button"
+                      disabled={currentPage >= totalPages}
+                      onClick={() => handlePageChange(currentPage + 1)}
+                      className="px-3 h-8 rounded border border-zinc-300 text-xs text-zinc-700 hover:bg-zinc-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                    >
+                      Next &rarr;
+                    </button>
                   </div>
                 </div>
               )}
