@@ -161,7 +161,7 @@ export const Cart = ({ onNavigate }) => {
               <button
                 type="button"
                 onClick={() => onNavigate("shop")}
-                className="inline-flex items-center gap-2 !h-9 px-5 rounded-md bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-xs font-semibold transition-colors cursor-pointer shadow-2xs"
+                className="inline-flex items-center gap-2 h-9! px-5 rounded-md bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-xs font-semibold transition-colors cursor-pointer shadow-2xs"
               >
                 <span>Browse Inventory Catalog</span>
                 <span>&rarr;</span>
@@ -404,7 +404,7 @@ export const Cart = ({ onNavigate }) => {
                       <select
                         value={selectedBranch}
                         onChange={(e) => setSelectedBranch(e.target.value)}
-                        className="w-full !h-9 px-3 border border-zinc-300 rounded-md bg-white text-zinc-900 text-xs focus:outline-none focus:border-emerald-600 cursor-pointer"
+                        className="w-full h-9! px-3 border border-zinc-300 rounded-md bg-white text-zinc-900 text-xs focus:outline-none focus:border-emerald-600 cursor-pointer"
                       >
                         <option value="Pasig City - Central Dealership">
                           Pasig City — Central Dealership & Service Bay
@@ -624,7 +624,7 @@ export const Cart = ({ onNavigate }) => {
                   setCartItems([]);
                   onNavigate("orders");
                 }}
-                className="!h-9 px-4 rounded bg-zinc-900 hover:bg-zinc-800 text-white font-medium text-xs transition-colors cursor-pointer"
+                className="h-9! px-4 rounded bg-zinc-900 hover:bg-zinc-800 text-white font-medium text-xs transition-colors cursor-pointer"
               >
                 Track in My Orders &rarr;
               </button>

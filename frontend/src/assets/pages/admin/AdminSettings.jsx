@@ -411,7 +411,7 @@ export const AdminSettings = () => {
         <div className="pt-2 flex items-center justify-end">
           <button
             type="submit"
-            className="!h-9 px-6 rounded-md bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-xs font-semibold transition-colors cursor-pointer shadow-2xs"
+            className="h-9! px-6 rounded-md bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-xs font-semibold transition-colors cursor-pointer shadow-2xs"
           >
             Save Dealership Settings
           </button>

@@ -47,13 +47,21 @@ export const login = (email, password) => async (dispatch) => {
       withCredentials: true,
     };
 
-    const { data } = await axios.post(`${api}/login`, { email, password }, config);
+    const { data } = await axios.post(
+      `${api}/login`,
+      { email, password },
+      config,
+    );
 
+    console.log(data);
     markLoggedIn();
 
     dispatch({
       type: LOGIN_SUCCESS,
-      payload: data.user,
+      payload: {
+        ...data.user,
+        address: data.address,
+      },
     });
   } catch (error) {
     clearSessionMarker();
@@ -75,7 +83,10 @@ export const loadUser = () => async (dispatch) => {
 
     dispatch({
       type: LOAD_USER_SUCCESS,
-      payload: data.user,
+      payload: {
+        ...data.user,
+        address: data.address,
+      },
     });
   } catch (error) {
     clearSessionMarker();

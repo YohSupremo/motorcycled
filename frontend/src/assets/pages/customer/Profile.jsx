@@ -1,40 +1,133 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ScrollReveal } from "../../components/ScrollReveal";
 import { Link } from "react-router-dom";
-export const Profile = ({ activeTab = "all", onTabChange }) => {
-  const [profileData, setProfileData] = useState({
-    name: "Juan Dela Cruz",
-    email: "juan.delacruz@example.com",
-    contactNumber: "0917 123 4567",
-    street: "Block 14 Lot 8 Emerald Avenue",
-    city: "Pasig City",
-    postalCode: "1600",
-    country: "Philippines",
-  });
+import { useDispatch, useSelector } from "react-redux";
+import { toast } from "react-toastify";
+import {
+  addAddress,
+  deleteAddress,
+  getAddresses,
+  getProfile,
+  setDefaultAddress,
+  updateAddress,
+  updateProfile,
+} from "../../../actions/profileActions";
+
+export const Profile = ({ activeTab = "all" }) => {
+  const { user, isAuthenticated, loading } = useSelector((state) => state.auth);
+  const {
+    profile,
+    addresses,
+    loading: profileLoading,
+    updating,
+    addressesUpdating,
+  } = useSelector((state) => state.profile);
+  const dispatch = useDispatch();
 
   const [isEditingAddress, setIsEditingAddress] = useState(false);
-  const [saveNotice, setSaveNotice] = useState("");
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [selectedAddressId, setSelectedAddressId] = useState(null);
+  const [profileData, setProfileData] = useState({});
+  const [addressData, setAddressData] = useState({});
   const [profilePhotoUrl, setProfilePhotoUrl] = useState(null);
+  const [pendingProfilePhoto, setPendingProfilePhoto] = useState(null);
+  const persistedProfilePhoto =
+    profile?.profilePicture || user?.profilePicture || null;
+  const displayedProfilePhoto =
+    profilePhotoUrl === "" ? null : profilePhotoUrl || persistedProfilePhoto;
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      dispatch(getProfile());
+      dispatch(getAddresses());
+    }
+  }, [dispatch, isAuthenticated]);
+
+  const showNotice = (message) => {
+    toast.success(message);
+  };
+
+  const beginAddressEdit = (address) => {
+    setSelectedAddressId(address?._id ?? null);
+    setAddressData({
+      label: address?.label ?? "",
+      street: address?.street ?? "",
+      barangay: address?.barangay ?? "",
+      city: address?.city ?? "",
+      postalCode: address?.postalCode ?? "",
+    });
+    setIsEditingAddress(true);
+  };
+
+  const handleSaveAddress = async (e) => {
+    e.preventDefault();
+    const saved = selectedAddressId
+      ? await dispatch(updateAddress(selectedAddressId, addressData))
+      : await dispatch(addAddress(addressData));
+    if (saved) {
+      setIsEditingAddress(false);
+      setSelectedAddressId(null);
+      showNotice("Address saved successfully.");
+    } else {
+      toast.error("Unable to save address.");
+    }
+  };
+
+  const handleDeleteAddress = async (id) => {
+    if (!window.confirm("Delete this address?")) return;
+    const deleted = await dispatch(deleteAddress(id));
+    if (deleted) {
+      showNotice("Address deleted successfully.");
+    } else {
+      toast.error("Unable to delete address.");
+    }
+  };
+
+  const handleSetDefaultAddress = async (id) => {
+    const updated = await dispatch(setDefaultAddress(id));
+    if (updated) {
+      showNotice("Default address updated.");
+    } else {
+      toast.error("Unable to update default address.");
+    }
+  };
 
   const handleProfilePhotoChange = (e) => {
     const file = e.target.files[0];
     if (file) {
       const url = URL.createObjectURL(file);
       setProfilePhotoUrl(url);
-      setSaveNotice("Profile picture updated successfully.");
-      setTimeout(() => setSaveNotice(""), 2500);
+      setPendingProfilePhoto(file);
     }
   };
 
-  const handleSaveProfile = (e) => {
-    e.preventDefault();
-    setIsEditingAddress(false);
-    setSaveNotice("Profile and address updated successfully.");
-    setTimeout(() => setSaveNotice(""), 2500);
+  const handleApplyProfilePhoto = async () => {
+    if (!pendingProfilePhoto) return;
+
+    const saved = await dispatch(
+      updateProfile({ profilePicture: pendingProfilePhoto }),
+    );
+    if (saved) {
+      setPendingProfilePhoto(null);
+      showNotice("Profile picture updated successfully.");
+    } else {
+      toast.error("Unable to update profile picture.");
+    }
   };
 
   const currentTab = activeTab || "all";
 
+  if (!user || !isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-white text-zinc-900 flex items-center justify-center">
+        <p className="text-sm text-zinc-500">
+          {loading || profileLoading
+            ? "Loading profile..."
+            : "Please log in to view your profile."}
+        </p>
+      </div>
+    );
+  }
   return (
     <div className="min-h-screen bg-white text-zinc-900 antialiased flex flex-col font-sans selection:bg-emerald-100 selection:text-emerald-900">
       <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 py-8 space-y-10">
@@ -51,12 +144,6 @@ export const Profile = ({ activeTab = "all", onTabChange }) => {
           </div>
 
           <div className="flex items-center gap-3">
-            {saveNotice && (
-              <span className="text-xs font-medium text-emerald-800 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-md">
-                ✓ {saveNotice}
-              </span>
-            )}
-
             {/* Sub-tab Switcher: Profile vs Address vs Verification */}
             <div className="flex items-center gap-1 border border-zinc-200 p-0.5 rounded bg-zinc-50 text-xs font-medium">
               <Link
@@ -127,11 +214,14 @@ export const Profile = ({ activeTab = "all", onTabChange }) => {
                 <div className="flex flex-col sm:flex-row sm:items-center gap-4 pb-6 border-b border-zinc-200">
                   <div className="relative shrink-0 inline-block">
                     <div className="w-16 h-16 rounded-full bg-zinc-900 text-white flex items-center justify-center font-bold text-lg ring-2 ring-zinc-200 overflow-hidden shadow-2xs">
-                      {profilePhotoUrl ? (
+                      {displayedProfilePhoto ? (
                         <img
-                          src={profilePhotoUrl}
-                          alt="Juan Dela Cruz"
+                          src={displayedProfilePhoto}
+                          alt={`${user.firstName} ${user.lastName}`}
                           className="w-full h-full object-cover"
+                          onError={() => {
+                            setProfilePhotoUrl("");
+                          }}
                         />
                       ) : (
                         <span className="tracking-tighter">JD</span>
@@ -166,13 +256,22 @@ export const Profile = ({ activeTab = "all", onTabChange }) => {
                         />
                       </label>
 
-                      {profilePhotoUrl && (
+                      {pendingProfilePhoto && (
+                        <button
+                          type="button"
+                          onClick={handleApplyProfilePhoto}
+                          className="px-2.5 py-1.5 rounded-md text-xs text-white bg-emerald-600 hover:bg-emerald-700 transition-colors cursor-pointer"
+                        >
+                          Apply
+                        </button>
+                      )}
+                      {pendingProfilePhoto && (
                         <button
                           type="button"
                           onClick={() => {
                             setProfilePhotoUrl(null);
-                            setSaveNotice("Profile picture removed.");
-                            setTimeout(() => setSaveNotice(""), 2500);
+                            setPendingProfilePhoto(null);
+                            toast.info("Profile picture change cancelled.");
                           }}
                           className="px-2.5 py-1.5 rounded-md text-xs text-zinc-500 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
                         >
@@ -191,15 +290,37 @@ export const Profile = ({ activeTab = "all", onTabChange }) => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                   <div>
                     <label className="block text-zinc-700 font-semibold mb-1">
-                      Full Legal Name
+                      First Name
                     </label>
                     <input
                       type="text"
-                      value={profileData.name}
+                      value={profileData.firstName ?? profile?.firstName ?? ""}
+                      readOnly={!isEditingProfile}
                       onChange={(e) =>
-                        setProfileData({ ...profileData, name: e.target.value })
+                        setProfileData((previous) => ({
+                          ...previous,
+                          firstName: e.target.value,
+                        }))
                       }
-                      className="!h-9 w-full px-3 text-zinc-900 bg-zinc-50 border border-zinc-300 rounded-md focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
+                      className="h-9! w-full px-3 text-zinc-900 bg-zinc-50 border border-zinc-300 rounded-md focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-zinc-700 font-semibold mb-1">
+                      Last Name
+                    </label>
+                    <input
+                      type="text"
+                      value={profileData.lastName ?? profile?.lastName ?? ""}
+                      readOnly={!isEditingProfile}
+                      onChange={(e) =>
+                        setProfileData((previous) => ({
+                          ...previous,
+                          lastName: e.target.value,
+                        }))
+                      }
+                      className="h-9! w-full px-3 text-zinc-900 bg-zinc-50 border border-zinc-300 rounded-md focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
                     />
                   </div>
 
@@ -209,9 +330,9 @@ export const Profile = ({ activeTab = "all", onTabChange }) => {
                     </label>
                     <input
                       type="email"
-                      value={profileData.email}
+                      value={user.email}
                       readOnly
-                      className="!h-9 w-full px-3 text-zinc-500 bg-zinc-100 border border-zinc-200 rounded-md cursor-not-allowed"
+                      className="h-9! w-full px-3 text-zinc-500 bg-zinc-100 border border-zinc-200 rounded-md cursor-not-allowed"
                     />
                     <span className="block text-[10px] text-zinc-400 mt-1">
                       Unique account identifier
@@ -224,14 +345,17 @@ export const Profile = ({ activeTab = "all", onTabChange }) => {
                     </label>
                     <input
                       type="text"
-                      value={profileData.contactNumber}
-                      onChange={(e) =>
-                        setProfileData({
-                          ...profileData,
-                          contactNumber: e.target.value,
-                        })
+                      value={
+                        profileData.contactNumber ?? profile?.contactNumber ?? ""
                       }
-                      className="!h-9 w-full px-3 text-zinc-900 bg-zinc-50 border border-zinc-300 rounded-md focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
+                      readOnly={!isEditingProfile}
+                      onChange={(e) =>
+                        setProfileData((previous) => ({
+                          ...previous,
+                          contactNumber: e.target.value,
+                        }))
+                      }
+                      className="h-9! w-full px-3 text-zinc-900 bg-zinc-50 border border-zinc-300 rounded-md focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
                     />
                   </div>
 
@@ -243,9 +367,30 @@ export const Profile = ({ activeTab = "all", onTabChange }) => {
                       type="text"
                       value="Customer / Verified Rider"
                       readOnly
-                      className="!h-9 w-full px-3 text-zinc-500 bg-zinc-100 border border-zinc-200 rounded-md cursor-not-allowed"
+                      className="h-9! w-full px-3 text-zinc-500 bg-zinc-100 border border-zinc-200 rounded-md cursor-not-allowed"
                     />
                   </div>
+                </div>
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (!isEditingProfile) {
+                        setIsEditingProfile(true);
+                        return;
+                      }
+                      const saved = await dispatch(updateProfile(profileData));
+                      if (saved) {
+                        setIsEditingProfile(false);
+                        showNotice("Profile updated successfully.");
+                      } else {
+                        toast.error("Unable to update profile.");
+                      }
+                    }}
+                    className="px-4 py-1.5 rounded bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium cursor-pointer"
+                  >
+                    {isEditingProfile ? (updating ? "Saving..." : "Save Profile") : "Edit Profile"}
+                  </button>
                 </div>
               </div>
             </section>
@@ -267,36 +412,57 @@ export const Profile = ({ activeTab = "all", onTabChange }) => {
                 <div className="pt-2">
                   <button
                     type="button"
-                    onClick={() => setIsEditingAddress(!isEditingAddress)}
+                    onClick={() => {
+                      if (isEditingAddress) {
+                        setIsEditingAddress(false);
+                        setSelectedAddressId(null);
+                      } else {
+                        beginAddressEdit();
+                      }
+                    }}
                     className="text-xs font-semibold text-emerald-700 hover:text-emerald-800 hover:underline cursor-pointer"
                   >
                     {isEditingAddress
                       ? "← Cancel Editing"
-                      : "Modify Registered Address"}
+                      : "Add Address"}
                   </button>
                 </div>
               </div>
 
               <div className="md:col-span-8">
                 {isEditingAddress ? (
-                  <form
-                    onSubmit={handleSaveProfile}
-                    className="space-y-4 text-xs"
-                  >
+                  <form onSubmit={handleSaveAddress} className="space-y-4 text-xs">
+                    <div>
+                      <label className="block text-zinc-700 font-semibold mb-1">
+                        Address Label
+                      </label>
+                      <input
+                        type="text"
+                        value={addressData.label ?? ""}
+                        onChange={(e) =>
+                          setAddressData((previous) => ({
+                            ...previous,
+                            label: e.target.value,
+                          }))
+                        }
+                        placeholder="Home, Work, etc."
+                        className="h-9! w-full px-3 text-zinc-900 bg-white border border-zinc-300 rounded-md focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
+                      />
+                    </div>
                     <div>
                       <label className="block text-zinc-700 font-semibold mb-1">
                         House / Unit #, Street
                       </label>
                       <input
                         type="text"
-                        value={profileData.street}
+                        value={addressData.street ?? ""}
                         onChange={(e) =>
-                          setProfileData({
-                            ...profileData,
+                          setAddressData((previous) => ({
+                            ...previous,
                             street: e.target.value,
-                          })
+                          }))
                         }
-                        className="!h-9 w-full px-3 text-zinc-900 bg-white border border-zinc-300 rounded-md focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
+                        className="h-9! w-full px-3 text-zinc-900 bg-white border border-zinc-300 rounded-md focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
                       />
                     </div>
 
@@ -307,14 +473,14 @@ export const Profile = ({ activeTab = "all", onTabChange }) => {
                         </label>
                         <input
                           type="text"
-                          value={profileData.city}
+                          value={addressData.city ?? ""}
                           onChange={(e) =>
-                            setProfileData({
-                              ...profileData,
+                            setAddressData((previous) => ({
+                              ...previous,
                               city: e.target.value,
-                            })
+                            }))
                           }
-                          className="!h-9 w-full px-3 text-zinc-900 bg-white border border-zinc-300 rounded-md focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
+                          className="h-9! w-full px-3 text-zinc-900 bg-white border border-zinc-300 rounded-md focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
                         />
                       </div>
                       <div>
@@ -323,27 +489,31 @@ export const Profile = ({ activeTab = "all", onTabChange }) => {
                         </label>
                         <input
                           type="text"
-                          value={profileData.postalCode}
+                          value={addressData.postalCode ?? ""}
                           onChange={(e) =>
-                            setProfileData({
-                              ...profileData,
+                            setAddressData((previous) => ({
+                              ...previous,
                               postalCode: e.target.value,
-                            })
+                            }))
                           }
-                          className="!h-9 w-full px-3 text-zinc-900 bg-white border border-zinc-300 rounded-md focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
+                          className="h-9! w-full px-3 text-zinc-900 bg-white border border-zinc-300 rounded-md focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
                         />
                       </div>
                     </div>
-
                     <div>
                       <label className="block text-zinc-700 font-semibold mb-1">
-                        Country
+                        Barangay
                       </label>
                       <input
                         type="text"
-                        value={profileData.country}
-                        readOnly
-                        className="!h-9 w-full px-3 text-zinc-500 bg-zinc-100 border border-zinc-200 rounded-md cursor-not-allowed"
+                        value={addressData.barangay ?? ""}
+                        onChange={(e) =>
+                          setAddressData((previous) => ({
+                            ...previous,
+                            barangay: e.target.value,
+                          }))
+                        }
+                        className="h-9! w-full px-3 text-zinc-900 bg-white border border-zinc-300 rounded-md focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
                       />
                     </div>
 
@@ -359,38 +529,63 @@ export const Profile = ({ activeTab = "all", onTabChange }) => {
                         type="submit"
                         className="px-4 py-1.5 rounded bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-medium cursor-pointer"
                       >
-                        Save Address
+                        {addressesUpdating ? "Saving..." : "Save Address"}
                       </button>
                     </div>
                   </form>
                 ) : (
-                  <div className="border border-zinc-200 rounded-md divide-y divide-zinc-200 bg-zinc-50/50 text-xs">
-                    <div className="py-2.5 px-4 flex justify-between">
-                      <span className="text-zinc-500">Street / Unit:</span>
-                      <span className="font-semibold text-zinc-900">
-                        {profileData.street}
-                      </span>
-                    </div>
-                    <div className="py-2.5 px-4 flex justify-between">
-                      <span className="text-zinc-500">
-                        City / Municipality:
-                      </span>
-                      <span className="font-semibold text-zinc-900">
-                        {profileData.city}
-                      </span>
-                    </div>
-                    <div className="py-2.5 px-4 flex justify-between">
-                      <span className="text-zinc-500">Postal Code:</span>
-                      <span className="font-mono text-zinc-900">
-                        {profileData.postalCode}
-                      </span>
-                    </div>
-                    <div className="py-2.5 px-4 flex justify-between">
-                      <span className="text-zinc-500">Country:</span>
-                      <span className="text-zinc-800">
-                        {profileData.country}
-                      </span>
-                    </div>
+                  <div className="space-y-3">
+                    {addresses.map((address) => (
+                      <div
+                        key={address._id}
+                        className="border border-zinc-200 rounded-md p-4 bg-zinc-50/50 text-xs"
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="font-semibold text-zinc-900">
+                            {address.label || "Address"}
+                          </span>
+                          {address.isDefault && (
+                            <span className="text-[10px] text-emerald-700 font-semibold">
+                              DEFAULT
+                            </span>
+                          )}
+                        </div>
+                        <p className="mt-2 text-zinc-700">
+                          {address.street}, {address.barangay}, {address.city}{" "}
+                          {address.postalCode}
+                        </p>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {!address.isDefault && (
+                            <button
+                              type="button"
+                              onClick={() => handleSetDefaultAddress(address._id)}
+                              className="text-emerald-700 hover:underline cursor-pointer"
+                            >
+                              Set default
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => beginAddressEdit(address)}
+                            className="text-zinc-700 hover:underline cursor-pointer"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteAddress(address._id)}
+                            className="text-red-600 hover:underline cursor-pointer"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                    {addresses.length === 0 && (
+                      <p className="text-xs text-zinc-500">
+                        No saved addresses yet.
+                      </p>
+                    )}
                   </div>
                 )}
               </div>

@@ -300,7 +300,7 @@ export const AdminOrders = ({ initialSelectedOrderId }) => {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Filter by Order ID (e.g. ORD-2026), customer name, or unit..."
-            className="w-full !h-9 px-3 text-xs bg-white border border-zinc-300 rounded focus:border-emerald-600 focus:outline-none shadow-2xs"
+            className="w-full h-9! px-3 text-xs bg-white border border-zinc-300 rounded focus:border-emerald-600 focus:outline-none shadow-2xs"
           />
         </div>
       </div>

@@ -9,6 +9,7 @@ import {
   LOGOUT_FAIL,
   CLEAR_ERRORS,
 } from "../constants/userConstants";
+import { UPDATE_PROFILE_SUCCESS } from "../constants/profileConstants";
 
 const initialAuthState = {
   loading: false,
@@ -36,6 +37,14 @@ export const authReducer = (state = initialAuthState, action) => {
         isAuthenticated: true,
         user: action.payload,
         error: null,
+      };
+
+    case UPDATE_PROFILE_SUCCESS:
+      return {
+        ...state,
+        user: state.user
+          ? { ...state.user, ...action.payload }
+          : action.payload,
       };
 
     case LOGIN_FAIL:

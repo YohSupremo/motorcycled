@@ -494,7 +494,7 @@ export const Homepage = ({ onNavigate }) => {
               <button
                 type="button"
                 onClick={() => onNavigate("orders")}
-                className="!h-9 px-4 rounded-md bg-zinc-900 hover:bg-zinc-800 text-white font-medium transition-colors cursor-pointer self-start sm:self-auto"
+                className="h-9! px-4 rounded-md bg-zinc-900 hover:bg-zinc-800 text-white font-medium transition-colors cursor-pointer self-start sm:self-auto"
               >
                 View Payment Schedules &rarr;
               </button>

@@ -507,7 +507,7 @@ export const Orders = ({ onNavigate }) => {
                   type="text"
                   readOnly
                   value={selectedSchedule.amountDue}
-                  className="w-full !h-9 px-2.5 font-mono font-bold text-zinc-900 bg-zinc-50 border border-zinc-300 rounded-md"
+                  className="w-full h-9! px-2.5 font-mono font-bold text-zinc-900 bg-zinc-50 border border-zinc-300 rounded-md"
                 />
               </div>
 
@@ -515,7 +515,7 @@ export const Orders = ({ onNavigate }) => {
                 <label className="block font-medium text-zinc-700 mb-1">
                   Payment Method
                 </label>
-                <select className="w-full !h-9 px-2.5 border border-zinc-300 rounded-md bg-white text-zinc-900 focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 cursor-pointer">
+                <select className="w-full h-9! px-2.5 border border-zinc-300 rounded-md bg-white text-zinc-900 focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 cursor-pointer">
                   <option value="online">
                     Online Payment (GCash / Maya / Card)
                   </option>
@@ -532,7 +532,7 @@ export const Orders = ({ onNavigate }) => {
                   type="text"
                   placeholder="e.g. GCASH-8392104"
                   required
-                  className="w-full !h-9 px-2.5 border border-zinc-300 rounded-md bg-white text-zinc-900 focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
+                  className="w-full h-9! px-2.5 border border-zinc-300 rounded-md bg-white text-zinc-900 focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
                 />
               </div>
 
@@ -540,13 +540,13 @@ export const Orders = ({ onNavigate }) => {
                 <button
                   type="button"
                   onClick={() => setShowPaymentModal(false)}
-                  className="flex-1 !h-9 rounded-md border border-zinc-300 bg-white text-zinc-700 font-medium hover:bg-zinc-50 cursor-pointer"
+                  className="flex-1 h-9! rounded-md border border-zinc-300 bg-white text-zinc-700 font-medium hover:bg-zinc-50 cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 !h-9 rounded-md bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-medium cursor-pointer shadow-xs"
+                  className="flex-1 h-9! rounded-md bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-medium cursor-pointer shadow-xs"
                 >
                   Submit Payment
                 </button>
