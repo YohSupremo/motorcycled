@@ -4,7 +4,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { login, clearErrors } from "../../actions/userActions";
 
 export const Login = () => {
-  const { isAuthenticated, error, loading } = useSelector(
+  const { isAuthenticated, user, error, loading } = useSelector(
     (state) => state.auth,
   );
 
@@ -19,18 +19,19 @@ export const Login = () => {
 
   const redirect = new URLSearchParams(location.search).get("redirect");
 
-  // Redirect once login succeeds (supporting ?redirect=shipping or any path).
+  // Redirect once login succeeds (supporting ?redirect=shipping or admin dashboard).
   useEffect(() => {
     if (isAuthenticated) {
+      const defaultTarget = user?.role === "admin" ? "/admin/dashboard" : "/";
       const target =
         redirect && redirect !== ""
           ? redirect.startsWith("/")
             ? redirect
             : `/${redirect}`
-          : "/";
+          : defaultTarget;
       navigate(target);
     }
-  }, [isAuthenticated, redirect, navigate]);
+  }, [isAuthenticated, redirect, navigate, user]);
 
   const handleSubmit = (e) => {
     e.preventDefault();

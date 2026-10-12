@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { getProductDetails, clearErrors } from "../../../actions/productActions";
+import { addToCart } from "../../../actions/cartActions";
 import { ProductImagePlaceholder } from "../../components/ProductImagePlaceholder";
 import { ScrollReveal } from "../../components/ScrollReveal";
 
@@ -76,12 +77,15 @@ export const ProductDetails = () => {
     }
   };
 
+
   const handleAddToCart = () => {
     const finalQty = Number(quantity) || 1;
     setQuantity(finalQty);
+    dispatch(addToCart(product._id, finalQty));
     setAddedNotice(`Added ${finalQty} × "${product.name}" to cart!`);
     setTimeout(() => setAddedNotice(""), 3000);
   };
+
 
   const handlePrevImage = () => {
     if (images.length <= 1) return;

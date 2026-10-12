@@ -9,7 +9,9 @@ import { ProductDetails } from "./assets/pages/customer/ProductDetails";
 import { Orders } from "./assets/pages/customer/Orders";
 import { Profile } from "./assets/pages/customer/Profile";
 import { Cart } from "./assets/pages/customer/Cart";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { Shipping } from "./assets/pages/customer/Shipping";
+import { ConfirmOrder } from "./assets/pages/customer/ConfirmOrder";
+import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
 import { Layout } from "./assets/components/Layout";
 import "./App.css";
 import { AdminLayout } from "./assets/components/AdminLayout";
@@ -62,7 +64,30 @@ function App() {
             <Route path="/shop" element={<Shop />} />
             <Route path="/product/:id" element={<ProductDetails />} />
             <Route path="/cart" element={<Cart />} />
-            <Route path="/orders" element={<Orders />} />
+            <Route
+              path="/checkout/shipping"
+              element={
+                <ProtectedRoute>
+                  <Shipping />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/checkout/confirm"
+              element={
+                <ProtectedRoute>
+                  <ConfirmOrder />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/orders"
+              element={
+                <ProtectedRoute>
+                  <Orders />
+                </ProtectedRoute>
+              }
+            />
           </Route>
 
           {/* Admin routes — requires authenticated admin role
@@ -74,6 +99,7 @@ function App() {
               </ProtectedRoute>
             }
           >
+            <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
             <Route path="/admin/dashboard" element={<AdminDashboard />} />
             <Route path="/admin/inventory" element={<AdminInventory />} />
             <Route path="/admin/orders" element={<AdminOrders />} />

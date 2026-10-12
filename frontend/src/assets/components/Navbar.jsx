@@ -11,6 +11,9 @@ export const Navbar = ({ currentPage }) => {
   const dispatch = useDispatch();
 
   const { isAuthenticated, user } = useSelector((state) => state.auth);
+  const { cartItems } = useSelector((state) => state.cart || { cartItems: [] });
+  const cartCount = cartItems?.length || 0;
+
 
   const displayName = user
     ? `${user.firstName || ""} ${user.lastName || ""}`.trim()
@@ -116,23 +119,25 @@ export const Navbar = ({ currentPage }) => {
               <path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12" />
             </svg>
             <span className="hidden sm:inline">Cart</span>
-            <span className="px-1.5 py-0.2 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 text-[10px] font-bold">
-              3
-            </span>
+            {cartCount > 0 && (
+              <span className="px-1.5 py-0.2 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 text-[10px] font-bold">
+                {cartCount}
+              </span>
+            )}
           </Link>
 
           {/* Dealership Operations Quick Access */}
-          <button
-            type="button"
+          <Link
+            to="/admin/dashboard"
             className={`hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors cursor-pointer border ${currentPage === "admin"
               ? "bg-emerald-50 text-emerald-900 border-emerald-300 font-semibold shadow-2xs"
               : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50 hover:text-zinc-900"
               }`}
-            title="Dealership Operations"
+            title="Dealership Operations (Admin Dashboard)"
           >
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
             <span>Operations</span>
-          </button>
+          </Link>
 
           {isAuthenticated && user ? (
             /* User Account Menu with Avatar, Name & Separated Dropdown */
@@ -431,9 +436,11 @@ export const Navbar = ({ currentPage }) => {
             }`}
         >
           <span>Cart</span>
-          <span className="w-4 h-4 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold flex items-center justify-center">
-            3
-          </span>
+          {cartCount > 0 && (
+            <span className="w-4 h-4 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold flex items-center justify-center">
+              {cartCount}
+            </span>
+          )}
         </Link>
         <Link
           to="/orders"

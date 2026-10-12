@@ -9,6 +9,19 @@ import {
   productDetailsReducer,
   catalogReducer,
 } from "./reducers/productReducers";
+import { cartReducer } from "./reducers/cartReducers";
+import {
+  checkoutReducer,
+  myOrdersReducer,
+  orderDetailsReducer,
+  applicationDetailsReducer,
+  adminOrdersReducer,
+  adminApplicationsReducer,
+  updateOrderStatusReducer,
+  approveApplicationReducer,
+  rejectApplicationReducer,
+  confirmInstallmentOrderReducer,
+} from "./reducers/orderReducers";
 
 const rootReducer = combineReducers({
   auth: authReducer,
@@ -19,6 +32,20 @@ const rootReducer = combineReducers({
   product: productReducer,
   productDetails: productDetailsReducer,
   catalog: catalogReducer,
+  // Cart
+  cart: cartReducer,
+  // Order / checkout
+  checkout: checkoutReducer,
+  myOrders: myOrdersReducer,
+  orderDetails: orderDetailsReducer,
+  applicationDetails: applicationDetailsReducer,
+  // Admin order management
+  adminOrders: adminOrdersReducer,
+  adminApplications: adminApplicationsReducer,
+  updateOrderStatus: updateOrderStatusReducer,
+  approveApplication: approveApplicationReducer,
+  rejectApplication: rejectApplicationReducer,
+  confirmInstallmentOrder: confirmInstallmentOrderReducer,
 });
 
 const store = createStore(rootReducer, applyMiddleware(thunk));

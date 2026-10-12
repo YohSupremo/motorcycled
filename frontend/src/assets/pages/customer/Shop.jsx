@@ -4,6 +4,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { ScrollReveal } from "../../components/ScrollReveal";
 import { ProductImagePlaceholder } from "../../components/ProductImagePlaceholder";
 import { getProducts, getCategories, getBrands } from "../../../actions/productActions";
+import { addToCart } from "../../../actions/cartActions";
 
 export const Shop = ({ onNavigate }) => {
   const dispatch = useDispatch();
@@ -123,6 +124,7 @@ export const Shop = ({ onNavigate }) => {
   };
 
   const handleAddToCart = (product) => {
+    dispatch(addToCart(product._id, 1));
     setAddedNotice(`Added "${product.name}" to cart`);
     setTimeout(() => setAddedNotice(""), 2500);
   };

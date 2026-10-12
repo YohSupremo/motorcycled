@@ -1,170 +1,128 @@
-import { useState } from "react";
-import { Navbar } from "../../components/Navbar";
-import { Footer } from "../../components/Footer";
-import { ScrollReveal } from "../../components/ScrollReveal";
+import { useState, useMemo } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { useDispatch, useSelector } from "react-redux";
+import {
+  removeFromCart,
+  updateCartItemQuantity,
+  selectCartItem,
+  selectAllCartItems,
+  setItemPurchaseMethod,
+  setItemTermMonths,
+  clearCart,
+  addToCart,
+} from "../../../actions/cartActions";
 import { ProductImagePlaceholder } from "../../components/ProductImagePlaceholder";
+import { ScrollReveal } from "../../components/ScrollReveal";
 
-export const Cart = ({ onNavigate }) => {
-  // Initial realistic dealership cart items
-  const [cartItems, setCartItems] = useState([
-    {
-      id: "cart-1",
-      name: "Yamaha NMAX 155 ABS",
-      category: "Motorcycles",
-      brand: "Yamaha",
-      unitPrice: 151900,
-      quantity: 1,
-      isVehicle: true,
-      installmentEligible: true,
-      monthlyEstimate: "₱11,340/mo (12 mos)",
-      minDownpayment: 30380,
-      inStock: 4,
-    },
-    {
-      id: "cart-2",
-      name: "Brembo 4-Piston Caliper Kit",
-      category: "Brakes",
-      brand: "Brembo",
-      unitPrice: 8450,
-      quantity: 2,
-      isVehicle: false,
-      installmentEligible: false,
-      inStock: 12,
-    },
-    {
-      id: "cart-3",
-      name: "Motul 7100 4T 10W-40 Synthetic (1L)",
-      category: "Lubricants",
-      brand: "Motul",
-      unitPrice: 780,
-      quantity: 3,
-      isVehicle: false,
-      installmentEligible: false,
-      inStock: 30,
-    },
-  ]);
+const fmt = (n) =>
+  `₱${Number(n).toLocaleString("en-US", { minimumFractionDigits: 2 })}`;
 
-  const [deliveryMethod, setDeliveryMethod] = useState("shipping"); // "shipping" | "pickup"
-  const [selectedBranch, setSelectedBranch] = useState(
-    "Pasig City - Central Dealership",
+// Compute financing preview (client-side display only; backend recalculates authoritatively)
+const computeInstallmentPreview = (price, termMonths) => {
+  const RATES = { 12: 0.07, 24: 0.08, 36: 0.09 };
+  const rate = RATES[termMonths] || 0.07;
+  const downPayment = Math.round(price * 0.2);
+  const financed = price - downPayment;
+  const monthly = Math.round((financed * (1 + rate)) / termMonths);
+  const processingFee = 1500;
+  const total = downPayment + monthly * termMonths + processingFee;
+  return { downPayment, financed, monthly, processingFee, total, rate };
+};
+
+export const Cart = () => {
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+
+  const { cartItems } = useSelector((state) => state.cart);
+  const { isAuthenticated } = useSelector((state) => state.auth);
+
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+
+  // Selected items
+  const selectedItems = useMemo(
+    () => cartItems.filter((i) => i.selected),
+    [cartItems]
   );
-  const [paymentOption, setPaymentOption] = useState("cash"); // "cash" | "installment" | "cod"
-  const [orderConfirmed, setOrderConfirmed] = useState(false);
-  const [confirmedOrderId, setConfirmedOrderId] = useState("");
 
-  // Quantity Handlers
-  const handleUpdateQuantity = (id, delta) => {
-    setCartItems((prev) =>
-      prev.map((item) => {
-        if (item.id === id) {
-          const current = Number(item.quantity) || 1;
-          const newQty = Math.max(
-            1,
-            Math.min(item.inStock, current + delta),
-          );
-          return { ...item, quantity: newQty };
-        }
-        return item;
-      }),
-    );
+  const allSelected =
+    cartItems.length > 0 && cartItems.every((i) => i.selected);
+  const someSelected = selectedItems.length > 0;
+
+  // Separate selected into motorcycles and parts
+  const selectedMotorcycles = selectedItems.filter((i) => i.isVehicle);
+  const selectedParts = selectedItems.filter((i) => !i.isVehicle);
+
+  // Preview totals for selected items
+  const partsCashTotal = selectedParts.reduce(
+    (acc, i) => acc + i.price * i.quantity,
+    0
+  );
+  const motorcycleCashTotal = selectedMotorcycles
+    .filter((i) => i.purchaseMethod === "cash")
+    .reduce((acc, i) => acc + i.price * i.quantity, 0);
+  const selectedGrandTotal = partsCashTotal + motorcycleCashTotal;
+
+  const handleRemove = (cartItemId) => dispatch(removeFromCart(cartItemId));
+
+  const handleQty = (item, delta) => {
+    const current = Number(item.quantity) || 1;
+    const newQty = Math.max(1, Math.min(item.inStock, current + delta));
+    dispatch(updateCartItemQuantity(item.cartItemId, newQty));
   };
 
-  const handleDirectQuantityChange = (id, valStr) => {
-    const item = cartItems.find((i) => i.id === id);
-    if (!item) return;
-    if (valStr === "") {
-      setCartItems((prev) =>
-        prev.map((i) => (i.id === id ? { ...i, quantity: "" } : i))
-      );
+  const handleQtyDirect = (item, val) => {
+    if (val === "") {
+      dispatch(updateCartItemQuantity(item.cartItemId, 1));
       return;
     }
-    const num = parseInt(valStr, 10);
-    if (isNaN(num)) return;
-    const clamped = Math.max(1, Math.min(item.inStock, num));
-    setCartItems((prev) =>
-      prev.map((i) => (i.id === id ? { ...i, quantity: clamped } : i))
+    const n = parseInt(val, 10);
+    if (isNaN(n)) return;
+    dispatch(
+      updateCartItemQuantity(
+        item.cartItemId,
+        Math.max(1, Math.min(item.inStock, n))
+      )
     );
   };
 
-  const handleQuantityBlur = (id) => {
-    setCartItems((prev) =>
-      prev.map((i) => {
-        if (i.id === id) {
-          const num = Number(i.quantity);
-          const clamped = !num || num < 1 ? 1 : Math.min(i.inStock, num);
-          return { ...i, quantity: clamped };
-        }
-        return i;
-      })
-    );
-  };
+  const handleSelect = (cartItemId, val) =>
+    dispatch(selectCartItem(cartItemId, val));
 
-  const handleRemoveItem = (id) => {
-    setCartItems((prev) => prev.filter((item) => item.id !== id));
-  };
+  const handleSelectAll = () => dispatch(selectAllCartItems(!allSelected));
 
   const handleClearCart = () => {
-    if (window.confirm("Are you sure you want to empty your cart?")) {
-      setCartItems([]);
+    dispatch(clearCart());
+    setShowClearConfirm(false);
+  };
+
+  const handlePurchaseMethod = (cartItemId, method) =>
+    dispatch(setItemPurchaseMethod(cartItemId, method));
+
+  const handleTermMonths = (cartItemId, months) =>
+    dispatch(setItemTermMonths(cartItemId, parseInt(months, 10)));
+
+  const handleProceedToCheckout = () => {
+    if (!isAuthenticated) {
+      navigate(`/login?redirect=${encodeURIComponent("/checkout/shipping")}`);
+      return;
     }
+    if (!someSelected) return;
+    navigate("/checkout/shipping");
   };
 
-  // Financial Computations
-  const subtotal = cartItems.reduce(
-    (acc, item) => acc + item.unitPrice * (Number(item.quantity) || 1),
-    0,
-  );
-  const shippingFee = deliveryMethod === "shipping" ? 350 : 0;
-  const vatAmount = subtotal * 0.12; // 12% Philippine VAT included in computation
-  const totalAmount = subtotal + shippingFee;
-
-  // Check if any vehicle is in the cart
-  const hasVehicle = cartItems.some((item) => item.isVehicle);
-
-  const handleCheckout = (e) => {
-    e.preventDefault();
-    const newId = `ORD-2026-${Math.floor(1000 + Math.random() * 9000)}`;
-    setConfirmedOrderId(newId);
-    setOrderConfirmed(true);
-  };
-
-  return (
-    <div className="min-h-screen bg-white text-zinc-900 antialiased flex flex-col font-sans selection:bg-emerald-100 selection:text-emerald-900">
-      <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-8 space-y-8">
-        {/* Header Breadcrumb / Meta */}
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-4 border-b border-zinc-900">
-          <div>
+  if (cartItems.length === 0) {
+    return (
+      <div className="min-h-screen bg-white text-zinc-900 antialiased flex flex-col font-sans">
+        <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-8">
+          <div className="pb-4 border-b border-zinc-900 mb-8">
             <h1 className="text-2xl sm:text-3xl font-extrabold text-zinc-900 tracking-tight">
-              Shopping Cart & Booking
+              Shopping Cart
             </h1>
-            <p className="text-xs text-zinc-500 mt-1 max-w-xl">
+            <p className="text-xs text-zinc-500 mt-1">
               Review certified motorcycle units, genuine replacement parts, and
-              configure your preferred delivery destination or branch pickup.
+              configure your purchase.
             </p>
           </div>
-
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => onNavigate("shop")}
-              className="text-xs font-semibold text-emerald-700 hover:text-emerald-800 hover:underline cursor-pointer"
-            >
-              ← Continue Shopping
-            </button>
-            {cartItems.length > 0 && (
-              <button
-                type="button"
-                onClick={handleClearCart}
-                className="text-xs text-zinc-400 hover:text-red-600 transition-colors cursor-pointer"
-              >
-                Empty Cart
-              </button>
-            )}
-          </div>
-        </div>
-
-        {cartItems.length === 0 ? (
-          /* Empty Cart State */
           <ScrollReveal threshold={0.1} duration={500}>
             <div className="border border-zinc-200 rounded-md p-16 text-center space-y-4 bg-zinc-50/50">
               <div className="w-14 h-14 mx-auto rounded-full bg-zinc-100 border border-zinc-200 flex items-center justify-center text-zinc-400">
@@ -189,60 +147,127 @@ export const Cart = ({ onNavigate }) => {
                   brakes, and certified riding safety gear.
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={() => onNavigate("shop")}
-                className="inline-flex items-center gap-2 h-9! px-5 rounded-md bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-xs font-semibold transition-colors cursor-pointer shadow-2xs"
+              <Link
+                to="/shop"
+                className="inline-flex items-center gap-2 h-9 px-5 rounded-md bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-xs font-semibold transition-colors shadow-sm"
               >
                 <span>Browse Inventory Catalog</span>
                 <span>&rarr;</span>
-              </button>
+              </Link>
             </div>
           </ScrollReveal>
-        ) : (
-          /* Populated Cart Layout: Items Table on Left, Sticky Summary on Right */
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-            {/* Left Column: Cart Items List / Table */}
-            <div className="lg:col-span-8 space-y-6">
-              <ScrollReveal threshold={0.08} duration={600}>
-                {/* Structured Items Table */}
-                <div className="border border-zinc-200 rounded-md overflow-hidden bg-white">
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left text-xs border-collapse">
-                      <thead>
-                        <tr className="bg-zinc-50 border-b border-zinc-200 text-zinc-600 uppercase tracking-wider text-[11px] font-semibold">
-                          <th className="py-3 px-4">Item Details</th>
-                          <th className="py-3 px-4 font-mono">Unit Price</th>
-                          <th className="py-3 px-4 text-center">Quantity</th>
-                          <th className="py-3 px-4 font-mono text-right">
-                            Subtotal
-                          </th>
-                          <th className="py-3 px-4 text-center w-10">Remove</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-zinc-200">
-                        {cartItems.map((item) => (
+        </main>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-white text-zinc-900 antialiased flex flex-col font-sans selection:bg-emerald-100 selection:text-emerald-900">
+      <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-8 space-y-8">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-4 border-b border-zinc-900">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-zinc-900 tracking-tight">
+              Shopping Cart
+            </h1>
+            <p className="text-xs text-zinc-500 mt-1 max-w-xl">
+              Review certified motorcycle units, genuine replacement parts, and
+              configure your purchase method.
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <Link
+              to="/shop"
+              className="text-xs font-semibold text-emerald-700 hover:text-emerald-800 hover:underline"
+            >
+              ← Continue Shopping
+            </Link>
+            <button
+              type="button"
+              onClick={() => setShowClearConfirm(true)}
+              className="text-xs text-zinc-400 hover:text-red-600 transition-colors cursor-pointer"
+            >
+              Empty Cart
+            </button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+          {/* Left: Item List */}
+          <div className="lg:col-span-8 space-y-4">
+            <ScrollReveal threshold={0.05} duration={500}>
+              <div className="border border-zinc-200 rounded-md overflow-hidden bg-white">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="bg-zinc-50 border-b border-zinc-200 text-zinc-600 uppercase tracking-wider text-[11px] font-semibold">
+                        <th className="py-3 px-4 w-8">
+                          <input
+                            type="checkbox"
+                            checked={allSelected}
+                            onChange={handleSelectAll}
+                            className="accent-emerald-600 cursor-pointer"
+                            aria-label="Select all"
+                          />
+                        </th>
+                        <th className="py-3 px-4">Item Details</th>
+                        <th className="py-3 px-4 font-mono">Unit Price</th>
+                        <th className="py-3 px-4 text-center">Qty</th>
+                        <th className="py-3 px-4 font-mono text-right">Subtotal</th>
+                        <th className="py-3 px-4 w-10 text-center">Del</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-zinc-200">
+                      {cartItems.map((item) => {
+                        const lineTotal = item.price * (Number(item.quantity) || 1);
+                        const preview =
+                          item.isVehicle && item.purchaseMethod === "installment"
+                            ? computeInstallmentPreview(item.price, item.termMonths || 12)
+                            : null;
+                        return (
                           <tr
-                            key={item.id}
-                            className="hover:bg-zinc-50/70 transition-colors"
+                            key={item.cartItemId}
+                            className={`transition-colors ${
+                              item.selected ? "bg-emerald-50/20" : "hover:bg-zinc-50/50"
+                            }`}
                           >
-                            {/* Item & Thumbnail */}
+                            {/* Checkbox */}
                             <td className="py-3.5 px-4">
-                              <div className="flex items-center gap-3">
+                              <input
+                                type="checkbox"
+                                checked={!!item.selected}
+                                onChange={(e) =>
+                                  handleSelect(item.cartItemId, e.target.checked)
+                                }
+                                className="accent-emerald-600 cursor-pointer"
+                              />
+                            </td>
+
+                            {/* Item Info */}
+                            <td className="py-3.5 px-4">
+                              <div className="flex items-start gap-3">
                                 <div className="w-12 h-12 shrink-0 rounded bg-zinc-100 border border-zinc-200 overflow-hidden">
-                                  <ProductImagePlaceholder
-                                    category={item.category}
-                                    name={item.name}
-                                    brand={item.brand}
-                                    compact
-                                  />
+                                  {item.image ? (
+                                    <img
+                                      src={item.image}
+                                      alt={item.name}
+                                      className="w-full h-full object-cover"
+                                    />
+                                  ) : (
+                                    <ProductImagePlaceholder
+                                      category={item.category}
+                                      name={item.name}
+                                      brand={item.brand}
+                                      compact
+                                    />
+                                  )}
                                 </div>
-                                <div className="space-y-0.5">
-                                  <div className="flex items-baseline gap-1.5">
+                                <div className="space-y-0.5 min-w-0">
+                                  <div className="flex items-baseline gap-1.5 flex-wrap">
                                     <span className="font-bold text-zinc-900 text-xs sm:text-sm">
                                       {item.name}
                                     </span>
-                                    <span className="text-[10px] font-mono uppercase px-1.5 py-0.2 rounded bg-zinc-100 text-zinc-600 border border-zinc-200">
+                                    <span className="text-[10px] font-mono uppercase px-1.5 py-0.5 rounded bg-zinc-100 text-zinc-600 border border-zinc-200 shrink-0">
                                       {item.brand}
                                     </span>
                                   </div>
@@ -250,15 +275,94 @@ export const Cart = ({ onNavigate }) => {
                                     <span>{item.category}</span>
                                     <span>•</span>
                                     <span className="text-emerald-700 font-medium">
-                                      {item.inStock} in showroom
+                                      {item.inStock} in stock
                                     </span>
                                   </div>
-                                  {item.installmentEligible && (
-                                    <div className="pt-0.5">
-                                      <span className="inline-block text-[10px] font-medium text-emerald-800 bg-emerald-50 border border-emerald-200 px-1.5 py-0.2 rounded">
-                                        Financing: {item.monthlyEstimate}
-                                      </span>
+
+                                  {/* Purchase method selector for motorcycles */}
+                                  {item.isVehicle && item.installmentEligible && (
+                                    <div className="pt-1 space-y-1">
+                                      <div className="flex items-center gap-3 text-[11px]">
+                                        <label className="flex items-center gap-1 cursor-pointer">
+                                          <input
+                                            type="radio"
+                                            name={`method-${item.cartItemId}`}
+                                            value="cash"
+                                            checked={item.purchaseMethod === "cash"}
+                                            onChange={() =>
+                                              handlePurchaseMethod(item.cartItemId, "cash")
+                                            }
+                                            className="accent-emerald-600"
+                                          />
+                                          <span className="font-medium text-zinc-700">
+                                            Cash
+                                          </span>
+                                        </label>
+                                        <label className="flex items-center gap-1 cursor-pointer">
+                                          <input
+                                            type="radio"
+                                            name={`method-${item.cartItemId}`}
+                                            value="installment"
+                                            checked={item.purchaseMethod === "installment"}
+                                            onChange={() =>
+                                              handlePurchaseMethod(
+                                                item.cartItemId,
+                                                "installment"
+                                              )
+                                            }
+                                            className="accent-emerald-600"
+                                          />
+                                          <span className="font-medium text-zinc-700">
+                                            Installment
+                                          </span>
+                                        </label>
+                                      </div>
+
+                                      {/* Term selector for installment */}
+                                      {item.purchaseMethod === "installment" && (
+                                        <div className="flex flex-col gap-1">
+                                          <select
+                                            value={item.termMonths || 12}
+                                            onChange={(e) =>
+                                              handleTermMonths(item.cartItemId, e.target.value)
+                                            }
+                                            className="h-7 px-2 border border-zinc-300 rounded text-[11px] bg-white text-zinc-800 focus:outline-none focus:border-emerald-600 cursor-pointer w-36"
+                                          >
+                                            <option value={12}>12 months</option>
+                                            <option value={24}>24 months</option>
+                                            <option value={36}>36 months</option>
+                                          </select>
+                                          {preview && (
+                                            <div className="text-[10px] text-emerald-800 bg-emerald-50 border border-emerald-200 rounded px-2 py-1 space-y-0.5">
+                                              <div>
+                                                Down: {fmt(preview.downPayment)} (20%)
+                                              </div>
+                                              <div>
+                                                Monthly: {fmt(preview.monthly)} ×{" "}
+                                                {item.termMonths || 12}
+                                              </div>
+                                              <div className="text-zinc-500">
+                                                Est. total: {fmt(preview.total)} (incl. fees)
+                                              </div>
+                                            </div>
+                                          )}
+                                        </div>
+                                      )}
                                     </div>
+                                  )}
+
+                                  {/* Non-installment-eligible motorcycle badge */}
+                                  {item.isVehicle && !item.installmentEligible && (
+                                    <span className="inline-block text-[10px] font-medium text-zinc-600 bg-zinc-100 border border-zinc-200 px-1.5 py-0.5 rounded">
+                                      Cash only
+                                    </span>
+                                  )}
+
+                                  {/* Parts/accessories badge */}
+                                  {!item.isVehicle && (
+                                    <span className="inline-block text-[10px] font-medium text-zinc-600 bg-zinc-100 border border-zinc-200 px-1.5 py-0.5 rounded">
+                                      Cash purchase
+                                    </span>
                                   )}
                                 </div>
                               </div>
@@ -266,409 +370,229 @@ export const Cart = ({ onNavigate }) => {
 
                             {/* Unit Price */}
                             <td className="py-3.5 px-4 font-mono text-zinc-900 font-semibold whitespace-nowrap">
-                              ₱
-                              {item.unitPrice.toLocaleString("en-US", {
-                                minimumFractionDigits: 2,
-                              })}
+                              {fmt(item.price)}
                             </td>
 
-                            {/* Quantity Controls */}
+                            {/* Quantity — motorcycles fixed at 1 */}
                             <td className="py-3.5 px-4 text-center whitespace-nowrap">
-                              <div className="inline-flex items-center border border-zinc-300 rounded-md bg-white shadow-2xs overflow-hidden">
-                                <button
-                                  type="button"
-                                  disabled={Number(item.quantity) <= 1}
-                                  onClick={() =>
-                                    handleUpdateQuantity(item.id, -1)
-                                  }
-                                  aria-label="Decrease quantity"
-                                  className="w-7 h-7 flex items-center justify-center text-zinc-600 hover:bg-zinc-100 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-colors text-xs font-bold"
-                                >
-                                  −
-                                </button>
-                                <input
-                                  type="number"
-                                  min="1"
-                                  max={item.inStock}
-                                  value={item.quantity}
-                                  onChange={(e) =>
-                                    handleDirectQuantityChange(item.id, e.target.value)
-                                  }
-                                  onBlur={() => handleQuantityBlur(item.id)}
-                                  aria-label="Quantity"
-                                  className="w-10 h-7 text-center font-mono font-semibold text-xs text-zinc-900 border-x border-zinc-200 focus:outline-none focus:bg-emerald-50/50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                                />
-                                <button
-                                  type="button"
-                                  disabled={Number(item.quantity) >= item.inStock}
-                                  onClick={() =>
-                                    handleUpdateQuantity(item.id, 1)
-                                  }
-                                  aria-label="Increase quantity"
-                                  className="w-7 h-7 flex items-center justify-center text-zinc-600 hover:bg-zinc-100 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-colors text-xs font-bold"
-                                >
-                                  +
-                                </button>
-                              </div>
-                            </td>
-
-                            {/* Line Subtotal */}
-                            <td className="py-3.5 px-4 font-mono font-bold text-zinc-900 text-right whitespace-nowrap">
-                              ₱
-                              {(item.unitPrice * item.quantity).toLocaleString(
-                                "en-US",
-                                { minimumFractionDigits: 2 },
+                              {item.isVehicle ? (
+                                <span className="font-mono font-semibold text-zinc-700 px-3">
+                                  1
+                                </span>
+                              ) : (
+                                <div className="inline-flex items-center border border-zinc-300 rounded-md bg-white shadow-sm overflow-hidden">
+                                  <button
+                                    type="button"
+                                    disabled={Number(item.quantity) <= 1}
+                                    onClick={() => handleQty(item, -1)}
+                                    className="w-7 h-7 flex items-center justify-center text-zinc-600 hover:bg-zinc-100 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-colors text-xs font-bold"
+                                  >
+                                    −
+                                  </button>
+                                  <input
+                                    type="number"
+                                    min="1"
+                                    max={item.inStock}
+                                    value={item.quantity}
+                                    onChange={(e) =>
+                                      handleQtyDirect(item, e.target.value)
+                                    }
+                                    className="w-10 h-7 text-center font-mono font-semibold text-xs text-zinc-900 border-x border-zinc-200 focus:outline-none focus:bg-emerald-50/50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                  />
+                                  <button
+                                    type="button"
+                                    disabled={Number(item.quantity) >= item.inStock}
+                                    onClick={() => handleQty(item, 1)}
+                                    className="w-7 h-7 flex items-center justify-center text-zinc-600 hover:bg-zinc-100 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-colors text-xs font-bold"
+                                  >
+                                    +
+                                  </button>
+                                </div>
                               )}
                             </td>
 
-                            {/* Action Remove */}
+                            {/* Subtotal */}
+                            <td className="py-3.5 px-4 font-mono font-bold text-zinc-900 text-right whitespace-nowrap">
+                              {item.purchaseMethod === "installment" && preview
+                                ? fmt(item.price)
+                                : fmt(lineTotal)}
+                            </td>
+
+                            {/* Remove */}
                             <td className="py-3.5 px-4 text-center">
                               <button
                                 type="button"
-                                onClick={() => handleRemoveItem(item.id)}
-                                className="w-7 h-7 rounded text-zinc-400 hover:text-red-600 hover:bg-red-50 flex items-center justify-center transition-colors cursor-pointer text-xs"
+                                onClick={() => handleRemove(item.cartItemId)}
+                                className="w-7 h-7 rounded text-zinc-400 hover:text-red-600 hover:bg-red-50 flex items-center justify-center transition-colors cursor-pointer"
                                 title="Remove item"
                               >
                                 ✕
                               </button>
                             </td>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                        );
+                      })}
+                    </tbody>
+                  </table>
                 </div>
-              </ScrollReveal>
-
-              {/* Delivery Destination & Fulfillment Configuration */}
-              <ScrollReveal threshold={0.08} delay={50} duration={600}>
-                <div className="border border-zinc-200 rounded-md p-5 bg-white space-y-4">
-                  <div className="flex items-center justify-between pb-3 border-b border-zinc-200">
-                    <h2 className="text-sm font-bold text-zinc-900 uppercase tracking-wider">
-                      Fulfillment Method
-                    </h2>
-                    <span className="text-[11px] text-zinc-500 font-mono">
-                      STEP 02 OF 03
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                    {/* Option 1: Door Delivery */}
-                    <label
-                      className={`border rounded-md p-3.5 flex flex-col justify-between cursor-pointer transition-colors ${
-                        deliveryMethod === "shipping"
-                          ? "border-emerald-600 bg-emerald-50/30 ring-1 ring-emerald-600"
-                          : "border-zinc-200 hover:bg-zinc-50"
-                      }`}
-                    >
-                      <div className="flex items-start gap-2.5">
-                        <input
-                          type="radio"
-                          name="deliveryMethod"
-                          value="shipping"
-                          checked={deliveryMethod === "shipping"}
-                          onChange={() => setDeliveryMethod("shipping")}
-                          className="mt-0.5 accent-emerald-600"
-                        />
-                        <div>
-                          <span className="font-bold text-zinc-900 block">
-                            Inspected Door-to-Door Delivery
-                          </span>
-                          <p className="text-[11px] text-zinc-500 mt-0.5 leading-relaxed">
-                            Official transport carrier with mechanical
-                            inspection before unloading.
-                          </p>
-                        </div>
-                      </div>
-                      <span className="mt-2 text-[11px] font-mono font-bold text-emerald-800 self-end">
-                        ₱350.00 Freight
-                      </span>
-                    </label>
-
-                    {/* Option 2: Branch Pickup */}
-                    <label
-                      className={`border rounded-md p-3.5 flex flex-col justify-between cursor-pointer transition-colors ${
-                        deliveryMethod === "pickup"
-                          ? "border-emerald-600 bg-emerald-50/30 ring-1 ring-emerald-600"
-                          : "border-zinc-200 hover:bg-zinc-50"
-                      }`}
-                    >
-                      <div className="flex items-start gap-2.5">
-                        <input
-                          type="radio"
-                          name="deliveryMethod"
-                          value="pickup"
-                          checked={deliveryMethod === "pickup"}
-                          onChange={() => setDeliveryMethod("pickup")}
-                          className="mt-0.5 accent-emerald-600"
-                        />
-                        <div>
-                          <span className="font-bold text-zinc-900 block">
-                            Dealership Showroom Pickup
-                          </span>
-                          <p className="text-[11px] text-zinc-500 mt-0.5 leading-relaxed">
-                            Pick up directly from service bay with complimentary
-                            technician unboxing.
-                          </p>
-                        </div>
-                      </div>
-                      <span className="mt-2 text-[11px] font-mono font-bold text-emerald-800 self-end">
-                        FREE (₱0.00)
-                      </span>
-                    </label>
-                  </div>
-
-                  {/* Destination Details */}
-                  {deliveryMethod === "shipping" ? (
-                    <div className="pt-3 border-t border-zinc-100 flex flex-col sm:flex-row sm:items-center justify-between text-xs gap-2">
-                      <div className="space-y-0.5">
-                        <span className="font-semibold text-zinc-700">
-                          Dispatch Address:
-                        </span>
-                        <p className="text-zinc-900 font-medium">
-                          Block 14 Lot 8 Emerald Avenue, Pasig City, 1600
-                          Philippines
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => onNavigate("profile", "address")}
-                        className="text-xs font-semibold text-emerald-700 hover:text-emerald-800 hover:underline cursor-pointer self-start sm:self-auto"
-                      >
-                        Change Address →
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="pt-3 border-t border-zinc-100 space-y-1.5 text-xs">
-                      <label className="block font-semibold text-zinc-700">
-                        Select Dealership Handover Branch:
-                      </label>
-                      <select
-                        value={selectedBranch}
-                        onChange={(e) => setSelectedBranch(e.target.value)}
-                        className="w-full h-9! px-3 border border-zinc-300 rounded-md bg-white text-zinc-900 text-xs focus:outline-none focus:border-emerald-600 cursor-pointer"
-                      >
-                        <option value="Pasig City - Central Dealership">
-                          Pasig City — Central Dealership & Service Bay
-                        </option>
-                        <option value="Quezon City - North Hub">
-                          Quezon City — North Boulevard Showroom
-                        </option>
-                        <option value="Cebu City - Regional Hub">
-                          Cebu City — Visayas Releasing Depot
-                        </option>
-                      </select>
-                    </div>
-                  )}
-                </div>
-              </ScrollReveal>
-
-              {/* Installment Financing Advisory if Vehicle in Cart */}
-              {hasVehicle && (
-                <ScrollReveal threshold={0.08} delay={70} duration={600}>
-                  <div className="border border-emerald-200 rounded-md p-4 bg-emerald-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-1.5 font-bold text-emerald-900">
-                        <span className="w-2 h-2 rounded-full bg-emerald-600" />
-                        <span>In-House Installment Financing Available</span>
-                      </div>
-                      <p className="text-emerald-800 text-[11px] leading-relaxed">
-                        Motorcycle units qualify for structured 12, 24, or
-                        36-month repayment terms starting at 20% downpayment.
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => onNavigate("orders")}
-                      className="!h-8 px-4 rounded bg-emerald-700 hover:bg-emerald-800 text-white font-medium whitespace-nowrap cursor-pointer transition-colors shadow-2xs self-start sm:self-auto"
-                    >
-                      Calculate Amortization →
-                    </button>
-                  </div>
-                </ScrollReveal>
-              )}
-            </div>
-
-            {/* Right Column: Sticky Order Summary Panel */}
-            <div className="lg:col-span-4 lg:sticky lg:top-20 self-start">
-              <ScrollReveal threshold={0.1} duration={600}>
-                <div className="border border-zinc-200 rounded-md p-5 bg-white space-y-5">
-                  <div className="pb-3 border-b border-zinc-900">
-                    <h2 className="text-base font-bold text-zinc-900 tracking-tight">
-                      Order Summary
-                    </h2>
-                    <span className="text-[11px] text-zinc-500 font-mono">
-                      {cartItems.reduce((acc, item) => acc + item.quantity, 0)}{" "}
-                      total line items
-                    </span>
-                  </div>
-
-                  {/* Financial Breakdown */}
-                  <div className="space-y-2 text-xs divide-y divide-zinc-100">
-                    <div className="flex justify-between py-1 text-zinc-600">
-                      <span>Items Subtotal:</span>
-                      <span className="font-mono text-zinc-900 font-semibold">
-                        ₱
-                        {subtotal.toLocaleString("en-US", {
-                          minimumFractionDigits: 2,
-                        })}
-                      </span>
-                    </div>
-
-                    <div className="flex justify-between py-1 text-zinc-600">
-                      <span>Delivery & Freight:</span>
-                      <span className="font-mono text-zinc-900 font-semibold">
-                        {shippingFee === 0
-                          ? "FREE"
-                          : `₱${shippingFee.toFixed(2)}`}
-                      </span>
-                    </div>
-
-                    <div className="flex justify-between py-1 text-zinc-600">
-                      <span>VAT Inclusive (12%):</span>
-                      <span className="font-mono text-zinc-500">
-                        ₱
-                        {vatAmount.toLocaleString("en-US", {
-                          minimumFractionDigits: 2,
-                        })}
-                      </span>
-                    </div>
-
-                    <div className="flex justify-between pt-3 pb-1 text-sm font-bold text-zinc-900">
-                      <span>Total Amount:</span>
-                      <span className="font-mono text-base text-zinc-900">
-                        ₱
-                        {totalAmount.toLocaleString("en-US", {
-                          minimumFractionDigits: 2,
-                        })}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Payment Method Selector */}
-                  <div className="pt-2 border-t border-zinc-200 space-y-2 text-xs">
-                    <label className="block font-bold text-zinc-900 uppercase tracking-wider text-[11px]">
-                      Payment Settlement Method
-                    </label>
-                    <div className="space-y-1.5">
-                      <label className="flex items-center gap-2 p-2 rounded border border-zinc-200 hover:bg-zinc-50 cursor-pointer">
-                        <input
-                          type="radio"
-                          name="paymentOption"
-                          value="cash"
-                          checked={paymentOption === "cash"}
-                          onChange={() => setPaymentOption("cash")}
-                          className="accent-emerald-600"
-                        />
-                        <span className="text-zinc-800 font-medium">
-                          Online Bank Deposit / GCash / Maya
-                        </span>
-                      </label>
-
-                      <label className="flex items-center gap-2 p-2 rounded border border-zinc-200 hover:bg-zinc-50 cursor-pointer">
-                        <input
-                          type="radio"
-                          name="paymentOption"
-                          value="cod"
-                          checked={paymentOption === "cod"}
-                          onChange={() => setPaymentOption("cod")}
-                          className="accent-emerald-600"
-                        />
-                        <span className="text-zinc-800 font-medium">
-                          Over-the-Counter Cash on Releasing
-                        </span>
-                      </label>
-                    </div>
-                  </div>
-
-                  {/* Checkout Button */}
-                  <button
-                    type="button"
-                    onClick={handleCheckout}
-                    className="w-full !h-10 rounded-md bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-semibold text-xs transition-colors cursor-pointer shadow-2xs flex items-center justify-center gap-2"
-                  >
-                    <span>Confirm Order & Booking</span>
-                    <span>&rarr;</span>
-                  </button>
-
-                  {/* Dealer Security Guarantee */}
-                  <div className="pt-2 border-t border-zinc-100 flex items-center gap-2 text-[11px] text-zinc-500">
-                    <svg
-                      className="w-4 h-4 text-emerald-600 shrink-0"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                    >
-                      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                    </svg>
-                    <span>
-                      LTO Registration assistance & genuine OEM warranty
-                      included.
-                    </span>
-                  </div>
-                </div>
-              </ScrollReveal>
-            </div>
-          </div>
-        )}
-      </main>
-
-      {/* Order Confirmation Modal */}
-      {orderConfirmed && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white border border-zinc-200 rounded-lg max-w-md w-full p-6 shadow-xl space-y-4">
-            <div className="flex items-center gap-3 pb-3 border-b border-zinc-100">
-              <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-lg">
-                ✓
               </div>
-              <div>
-                <h3 className="text-base font-bold text-zinc-900">
-                  Order Booking Confirmed
-                </h3>
-                <p className="text-xs font-mono text-zinc-500">
-                  Reference: {confirmedOrderId}
+            </ScrollReveal>
+
+            {/* Info notices */}
+            {selectedMotorcycles.some((m) => m.purchaseMethod === "installment") && (
+              <div className="border border-amber-200 bg-amber-50/60 rounded-md p-3 text-xs text-amber-800 space-y-0.5">
+                <p className="font-semibold">Installment Application Notice</p>
+                <p>
+                  Financing applications are subject to admin review and approval.
+                  Submission does not guarantee approval or reserve inventory.
+                  Amounts shown are estimates — confirmed terms are set upon approval.
                 </p>
               </div>
-            </div>
+            )}
 
-            <p className="text-xs text-zinc-600 leading-relaxed">
-              Your official order voucher has been submitted to the Motorcycled
-              fulfillment hub. An SMS notification and booking invoice have been
-              dispatched to your registered contact number.
+            {selectedParts.length > 0 && selectedMotorcycles.length > 0 && (
+              <div className="border border-zinc-200 bg-zinc-50/60 rounded-md p-3 text-xs text-zinc-600">
+                <p>
+                  <span className="font-semibold">Mixed Checkout:</span> Your
+                  motorcycle(s) and parts will be processed as separate
+                  orders/applications. Parts use the cash-only checkout flow.
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Right: Summary Panel */}
+          <div className="lg:col-span-4 lg:sticky lg:top-20 self-start">
+            <ScrollReveal threshold={0.1} duration={500}>
+              <div className="border border-zinc-200 rounded-md p-5 bg-white space-y-5">
+                <div className="pb-3 border-b border-zinc-900">
+                  <h2 className="text-base font-bold text-zinc-900 tracking-tight">
+                    Order Summary
+                  </h2>
+                  <span className="text-[11px] text-zinc-500 font-mono">
+                    {selectedItems.length} of {cartItems.length} items selected
+                  </span>
+                </div>
+
+                {/* Breakdown */}
+                <div className="space-y-2 text-xs divide-y divide-zinc-100">
+                  {selectedMotorcycles.filter((m) => m.purchaseMethod === "cash")
+                    .length > 0 && (
+                    <div className="flex justify-between py-1 text-zinc-600">
+                      <span>
+                        Motorcycle(s) — Cash (
+                        {
+                          selectedMotorcycles.filter(
+                            (m) => m.purchaseMethod === "cash"
+                          ).length
+                        }
+                        ):
+                      </span>
+                      <span className="font-mono text-zinc-900 font-semibold">
+                        {fmt(motorcycleCashTotal)}
+                      </span>
+                    </div>
+                  )}
+                  {selectedMotorcycles.filter(
+                    (m) => m.purchaseMethod === "installment"
+                  ).length > 0 && (
+                    <div className="flex justify-between py-1 text-zinc-600">
+                      <span>
+                        Motorcycle(s) — Installment (
+                        {
+                          selectedMotorcycles.filter(
+                            (m) => m.purchaseMethod === "installment"
+                          ).length
+                        }
+                        ):
+                      </span>
+                      <span className="font-mono text-zinc-500 italic text-[11px]">
+                        Pending approval
+                      </span>
+                    </div>
+                  )}
+                  {selectedParts.length > 0 && (
+                    <div className="flex justify-between py-1 text-zinc-600">
+                      <span>Parts & Accessories ({selectedParts.length} items):</span>
+                      <span className="font-mono text-zinc-900 font-semibold">
+                        {fmt(partsCashTotal)}
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex justify-between pt-3 pb-1 text-sm font-bold text-zinc-900">
+                    <span>Cash Total:</span>
+                    <span className="font-mono text-base text-zinc-900">
+                      {fmt(selectedGrandTotal)}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Checkout button */}
+                <button
+                  type="button"
+                  disabled={!someSelected}
+                  onClick={handleProceedToCheckout}
+                  className="w-full h-10 rounded-md bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-semibold text-xs transition-colors cursor-pointer shadow-sm flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <span>
+                    {someSelected
+                      ? `Proceed to Checkout (${selectedItems.length})`
+                      : "Select items to checkout"}
+                  </span>
+                  <span>&rarr;</span>
+                </button>
+
+                {!isAuthenticated && someSelected && (
+                  <p className="text-[11px] text-amber-700 text-center">
+                    You will be asked to log in before checkout.
+                  </p>
+                )}
+
+                {/* Guarantee */}
+                <div className="pt-2 border-t border-zinc-100 flex items-center gap-2 text-[11px] text-zinc-500">
+                  <svg
+                    className="w-4 h-4 text-emerald-600 shrink-0"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                  </svg>
+                  <span>
+                    LTO Registration assistance & genuine OEM warranty included.
+                  </span>
+                </div>
+              </div>
+            </ScrollReveal>
+          </div>
+        </div>
+      </main>
+
+      {/* Clear cart confirmation modal */}
+      {showClearConfirm && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white border border-zinc-200 rounded-lg max-w-sm w-full p-6 shadow-xl space-y-4">
+            <h3 className="text-base font-bold text-zinc-900">Empty Cart?</h3>
+            <p className="text-xs text-zinc-600">
+              This will remove all{" "}
+              <span className="font-semibold">{cartItems.length}</span> item(s)
+              from your cart. This action cannot be undone.
             </p>
-
-            <div className="border border-zinc-200 rounded p-3 bg-zinc-50 space-y-1 text-xs">
-              <div className="flex justify-between">
-                <span className="text-zinc-500">Fulfillment:</span>
-                <span className="font-semibold text-zinc-900 capitalize">
-                  {deliveryMethod === "shipping"
-                    ? "Courier Dispatch"
-                    : "Showroom Pickup"}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-zinc-500">Settlement Total:</span>
-                <span className="font-mono font-bold text-zinc-900">
-                  ₱
-                  {totalAmount.toLocaleString("en-US", {
-                    minimumFractionDigits: 2,
-                  })}
-                </span>
-              </div>
-            </div>
-
-            <div className="pt-2 flex justify-end gap-2">
+            <div className="flex justify-end gap-2 pt-2">
               <button
                 type="button"
-                onClick={() => {
-                  setOrderConfirmed(false);
-                  setCartItems([]);
-                  onNavigate("orders");
-                }}
-                className="h-9! px-4 rounded bg-zinc-900 hover:bg-zinc-800 text-white font-medium text-xs transition-colors cursor-pointer"
+                onClick={() => setShowClearConfirm(false)}
+                className="h-9 px-4 rounded border border-zinc-200 text-zinc-700 text-xs font-medium hover:bg-zinc-50 cursor-pointer"
               >
-                Track in My Orders &rarr;
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleClearCart}
+                className="h-9 px-4 rounded bg-red-600 hover:bg-red-700 text-white text-xs font-semibold cursor-pointer"
+              >
+                Empty Cart
               </button>
             </div>
           </div>
