@@ -13,6 +13,8 @@ import axios from "axios";
 import { ScrollReveal } from "../../components/ScrollReveal";
 import { ProductImagePlaceholder } from "../../components/ProductImagePlaceholder";
 import { getProducts } from "../../../actions/productActions";
+import { addToCart } from "../../../actions/cartActions";
+import { toast } from "react-toastify";
 
 export const Homepage = ({ onNavigate }) => {
   const dispatch = useDispatch();
@@ -21,6 +23,8 @@ export const Homepage = ({ onNavigate }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedBrandFilter, setSelectedBrandFilter] = useState("All");
   const [carouselIndex, setCarouselIndex] = useState(0);
+
+  const { cartItems = [] } = useSelector((state) => state.cart || {});
 
   // Infinite Scroll State (15pts deliverable via react-infinite-scroll-component)
   const [infiniteProducts, setInfiniteProducts] = useState([]);
@@ -98,6 +102,27 @@ export const Homepage = ({ onNavigate }) => {
       setHasMore(false);
     } finally {
       setLoadingMore(false);
+    }
+  };
+
+  const handleAddToCart = async (product) => {
+    const inCart = (cartItems || [])
+      .filter((i) => i.productId === product._id)
+      .reduce((sum, i) => sum + (i.quantity || 1), 0);
+
+    if (inCart >= product.stock) {
+      toast.warning(
+        `Stock limit reached! You already have all ${product.stock} units of "${product.name}" in your cart.`,
+        { icon: "⚠️" }
+      );
+      return;
+    }
+
+    const result = await dispatch(addToCart(product._id, 1));
+    if (result && result.success === false) {
+      toast.warning(result.message || `Cannot add "${product.name}": Stock limit reached!`, { icon: "⚠️" });
+    } else {
+      toast.success(`Added "${product.name}" to cart!`, { icon: "🛒" });
     }
   };
 
@@ -542,16 +567,26 @@ export const Homepage = ({ onNavigate }) => {
                         </div>
                       </div>
 
-                      <div className="pt-2 border-t border-zinc-100 flex items-center justify-between">
+                      <div className="pt-2 border-t border-zinc-100 flex items-center justify-between gap-2">
                         <span className="text-xs font-bold text-zinc-900 font-mono">
                           ₱{Number(p.price).toLocaleString("en-US", { minimumFractionDigits: 2 })}
                         </span>
-                        <Link
-                          to={`/product/${p._id}`}
-                          className="text-[11px] font-semibold text-emerald-700 hover:text-emerald-800 hover:underline"
-                        >
-                          View &rarr;
-                        </Link>
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            disabled={p.stock === 0}
+                            onClick={() => handleAddToCart(p)}
+                            className="px-2 py-1 rounded bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 disabled:bg-zinc-200 disabled:text-zinc-400 disabled:cursor-not-allowed text-white text-[10px] font-semibold transition-colors cursor-pointer"
+                          >
+                            {p.stock === 0 ? "Out" : "+ Cart"}
+                          </button>
+                          <Link
+                            to={`/product/${p._id}`}
+                            className="text-[11px] font-semibold text-zinc-600 hover:text-emerald-700 hover:underline"
+                          >
+                            View &rarr;
+                          </Link>
+                        </div>
                       </div>
                     </div>
                   </div>

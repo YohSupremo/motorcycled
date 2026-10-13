@@ -1,8 +1,23 @@
 import { useMemo, useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
+import {
+  Stepper,
+  Step,
+  StepLabel,
+  Card,
+  CardContent,
+  Alert,
+  CircularProgress,
+  Chip,
+  Button,
+  Divider,
+  Box,
+  Typography,
+} from "@mui/material";
 import { submitCheckout, resetCheckout } from "../../../actions/orderActions";
 import { clearSuccessfulItems } from "../../../actions/cartActions";
+import { toast } from "react-toastify";
 import { ScrollReveal } from "../../components/ScrollReveal";
 
 const generateSessionId = () =>
@@ -10,6 +25,7 @@ const generateSessionId = () =>
     ? crypto.randomUUID()
     : `cs_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 
+const CHECKOUT_STEPS = ["Cart", "Fulfillment & Shipping", "Review & Pay", "Complete"];
 
 const fmt = (n) =>
   `₱${Number(n).toLocaleString("en-US", { minimumFractionDigits: 2 })}`;
@@ -94,6 +110,9 @@ export const ConfirmOrder = () => {
           .map((r) => r.productId)
       );
       if (successfulProductIds.size > 0) {
+        toast.success("Order / Financing application submitted successfully!", {
+          icon: "🎉",
+        });
         const itemIdsToRemove = cartItems
           .filter((item) => successfulProductIds.has(item.productId))
           .map((item) => item.cartItemId);
@@ -103,6 +122,12 @@ export const ConfirmOrder = () => {
       }
     }
   }, [success, results]);
+
+  useEffect(() => {
+    if (error) {
+      toast.error(error || "Checkout failed. Please try again.", { icon: "❌" });
+    }
+  }, [error]);
 
   // After success, render results breakdown
   if (success && results) {
@@ -114,6 +139,30 @@ export const ConfirmOrder = () => {
     return (
       <div className="min-h-screen bg-white text-zinc-900 antialiased font-sans">
         <main className="max-w-3xl w-full mx-auto px-4 sm:px-6 py-8 space-y-6">
+          {/* MUI Stepper on Completion */}
+          <Box sx={{ width: "100%", pb: 2 }}>
+            <Stepper activeStep={3} alternativeLabel>
+              {CHECKOUT_STEPS.map((label) => (
+                <Step key={label}>
+                  <StepLabel
+                    sx={{
+                      "& .MuiStepLabel-label": {
+                        fontSize: "0.75rem",
+                        fontWeight: 600,
+                      },
+                      "& .Mui-completed": {
+                        color: "#059669 !important",
+                        fontWeight: 700,
+                      },
+                    }}
+                  >
+                    {label}
+                  </StepLabel>
+                </Step>
+              ))}
+            </Stepper>
+          </Box>
+
           <div className="pb-4 border-b border-zinc-900">
             <h1 className="text-2xl font-extrabold text-zinc-900 tracking-tight">
               Order Submitted
@@ -201,21 +250,42 @@ export const ConfirmOrder = () => {
           )}
 
           <div className="flex items-center gap-3 pt-2">
-            <Link
-              to="/orders"
-              onClick={() => dispatch(resetCheckout())}
-              className="h-9 px-5 rounded-md bg-zinc-900 hover:bg-zinc-800 text-white font-semibold text-xs transition-colors cursor-pointer inline-flex items-center"
+            <Button
+              variant="contained"
+              onClick={() => {
+                dispatch(resetCheckout());
+                navigate("/orders");
+              }}
+              sx={{
+                bgcolor: "#18181b",
+                textTransform: "none",
+                fontWeight: 600,
+                fontSize: "0.8rem",
+                px: 3,
+                py: 1,
+                "&:hover": { bgcolor: "#27272a" },
+              }}
             >
               View My Orders →
-            </Link>
+            </Button>
             {results.results?.some((r) => r.status === "error") && (
-              <Link
-                to="/cart"
-                onClick={() => dispatch(resetCheckout())}
-                className="h-9 px-5 rounded-md border border-zinc-200 text-zinc-700 hover:bg-zinc-50 font-medium text-xs transition-colors cursor-pointer inline-flex items-center"
+              <Button
+                variant="outlined"
+                onClick={() => {
+                  dispatch(resetCheckout());
+                  navigate("/cart");
+                }}
+                sx={{
+                  borderColor: "#d4d4d8",
+                  color: "#3f3f46",
+                  textTransform: "none",
+                  fontWeight: 600,
+                  fontSize: "0.8rem",
+                  "&:hover": { borderColor: "#a1a1aa", bgcolor: "#f4f4f5" },
+                }}
               >
                 ← Back to Cart
-              </Link>
+              </Button>
             )}
           </div>
         </main>
@@ -239,29 +309,48 @@ export const ConfirmOrder = () => {
   return (
     <div className="min-h-screen bg-white text-zinc-900 antialiased flex flex-col font-sans">
       <main className="flex-1 max-w-3xl w-full mx-auto px-4 sm:px-6 py-8 space-y-6">
-        {/* Progress */}
+        {/* MUI Stepper (20pts requirement) */}
+        <Box sx={{ width: "100%", pb: 2 }}>
+          <Stepper activeStep={2} alternativeLabel>
+            {CHECKOUT_STEPS.map((label) => (
+              <Step key={label}>
+                <StepLabel
+                  sx={{
+                    "& .MuiStepLabel-label": {
+                      fontSize: "0.75rem",
+                      fontWeight: 600,
+                    },
+                    "& .Mui-active": {
+                      color: "#059669 !important",
+                      fontWeight: 700,
+                    },
+                    "& .Mui-completed": {
+                      color: "#059669 !important",
+                    },
+                  }}
+                >
+                  {label}
+                </StepLabel>
+              </Step>
+            ))}
+          </Stepper>
+        </Box>
+
+        {/* Progress & Header */}
         <div className="pb-4 border-b border-zinc-900">
-          <div className="flex items-center gap-2 text-[11px] text-zinc-500 font-mono uppercase tracking-wider mb-2">
-            <span>Cart</span>
-            <span>→</span>
-            <span>Shipping</span>
-            <span>→</span>
-            <span className="text-zinc-900 font-semibold">Review & Pay</span>
-          </div>
           <h1 className="text-2xl font-extrabold text-zinc-900 tracking-tight">
             Confirm Your Order
           </h1>
           <p className="text-xs text-zinc-500 mt-1">
-            Review everything before placing your order. Backend will
-            independently verify all prices and availability.
+            Review everything before placing your order. Backend independently verifies all prices and live inventory.
           </p>
         </div>
 
-        {/* Error banner */}
+        {/* Error banner via MUI Alert */}
         {error && (
-          <div className="border border-red-200 bg-red-50 rounded-md p-3 text-xs text-red-700">
+          <Alert severity="error" variant="filled" sx={{ borderRadius: "8px", fontSize: "0.8rem", fontWeight: 600 }}>
             {error}
-          </div>
+          </Alert>
         )}
 
         {/* Motorcycles section */}
@@ -418,7 +507,7 @@ export const ConfirmOrder = () => {
         )}
 
         {/* Grand total summary */}
-        <div className="border border-zinc-900 rounded-md p-4 bg-white flex items-center justify-between">
+        <div className="border border-zinc-900 rounded-md p-4 bg-white flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <p className="text-xs text-zinc-500">Cash total (orders only):</p>
             <p className="text-xl font-extrabold font-mono text-zinc-900">
@@ -431,48 +520,49 @@ export const ConfirmOrder = () => {
               </p>
             )}
           </div>
-          <button
+          <Button
             type="button"
+            variant="contained"
             disabled={loading}
             onClick={handlePlaceOrder}
-            className="h-11 px-8 rounded-md bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-semibold text-sm transition-colors cursor-pointer shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            sx={{
+              bgcolor: "#059669",
+              textTransform: "none",
+              fontWeight: 700,
+              fontSize: "0.9rem",
+              px: 4,
+              py: 1.2,
+              borderRadius: "6px",
+              boxShadow: "0 2px 6px rgba(5, 150, 105, 0.25)",
+              "&:hover": { bgcolor: "#047857" },
+              "&:disabled": { bgcolor: "#d4d4d8", color: "#a1a1aa" },
+            }}
           >
             {loading ? (
-              <>
-                <svg
-                  className="animate-spin w-4 h-4"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                >
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="3"
-                  />
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8v8H4z"
-                  />
-                </svg>
-                Processing…
-              </>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                <CircularProgress size={18} sx={{ color: "#ffffff" }} />
+                <span>Processing Order…</span>
+              </Box>
             ) : (
               "Place Order →"
             )}
-          </button>
+          </Button>
         </div>
 
         <div className="flex justify-start">
-          <Link
-            to="/checkout/shipping"
-            className="text-xs font-semibold text-emerald-700 hover:text-emerald-800 hover:underline cursor-pointer"
+          <Button
+            variant="text"
+            onClick={() => navigate("/checkout/shipping")}
+            sx={{
+              color: "#059669",
+              textTransform: "none",
+              fontWeight: 600,
+              fontSize: "0.8rem",
+              "&:hover": { bgcolor: "#ecfdf5", textDecoration: "underline" },
+            }}
           >
             ← Back to Shipping
-          </Link>
+          </Button>
         </div>
       </main>
     </div>

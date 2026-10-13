@@ -3,6 +3,7 @@ import { useParams, Link, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { getProductDetails, clearErrors } from "../../../actions/productActions";
 import { addToCart } from "../../../actions/cartActions";
+import { toast } from "react-toastify";
 import { ProductImagePlaceholder } from "../../components/ProductImagePlaceholder";
 import { ScrollReveal } from "../../components/ScrollReveal";
 
@@ -16,6 +17,7 @@ export const ProductDetails = () => {
   const { loading, error, product } = useSelector(
     (state) => state.productDetails || {}
   );
+  const { cartItems = [] } = useSelector((state) => state.cart || {});
 
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [quantity, setQuantity] = useState(1);
@@ -78,12 +80,34 @@ export const ProductDetails = () => {
   };
 
 
-  const handleAddToCart = () => {
+  const handleAddToCart = async () => {
     const finalQty = Number(quantity) || 1;
     setQuantity(finalQty);
-    dispatch(addToCart(product._id, finalQty));
-    setAddedNotice(`Added ${finalQty} × "${product.name}" to cart!`);
-    setTimeout(() => setAddedNotice(""), 3000);
+
+    const inCart = (cartItems || [])
+      .filter((i) => i.productId === product._id)
+      .reduce((sum, i) => sum + (i.quantity || 1), 0);
+
+    if (inCart + finalQty > inStock) {
+      const remaining = Math.max(0, inStock - inCart);
+      const warnMsg =
+        inCart >= inStock
+          ? `Stock limit reached! You already have all ${inStock} available units of "${product.name}" in your cart.`
+          : `Cannot add ${finalQty} units. Stock limit is ${inStock} (${inCart} already in cart, only ${remaining} available).`;
+      toast.warning(warnMsg, { icon: "⚠️" });
+      return;
+    }
+
+    const result = await dispatch(addToCart(product._id, finalQty));
+    if (result && result.success === false) {
+      toast.warning(result.message || `Cannot add to cart: Stock limit reached!`, { icon: "⚠️" });
+    } else {
+      setAddedNotice(`Added ${finalQty} × "${product.name}" to cart!`);
+      toast.success(`Added ${finalQty} × "${product.name}" to your cart!`, {
+        icon: "🛒",
+      });
+      setTimeout(() => setAddedNotice(""), 3000);
+    }
   };
 
 

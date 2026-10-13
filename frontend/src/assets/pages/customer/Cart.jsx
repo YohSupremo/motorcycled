@@ -2,6 +2,22 @@ import { useState, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import {
+  Stepper,
+  Step,
+  StepLabel,
+  Card,
+  CardContent,
+  Button,
+  Checkbox,
+  Chip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Box,
+  Typography,
+} from "@mui/material";
+import {
   removeFromCart,
   updateCartItemQuantity,
   selectCartItem,
@@ -11,8 +27,11 @@ import {
   clearCart,
   addToCart,
 } from "../../../actions/cartActions";
+import { toast } from "react-toastify";
 import { ProductImagePlaceholder } from "../../components/ProductImagePlaceholder";
 import { ScrollReveal } from "../../components/ScrollReveal";
+
+const CHECKOUT_STEPS = ["Cart", "Fulfillment & Shipping", "Review & Pay", "Complete"];
 
 const fmt = (n) =>
   `₱${Number(n).toLocaleString("en-US", { minimumFractionDigits: 2 })}`;
@@ -62,10 +81,17 @@ export const Cart = () => {
     .reduce((acc, i) => acc + i.price * i.quantity, 0);
   const selectedGrandTotal = partsCashTotal + motorcycleCashTotal;
 
-  const handleRemove = (cartItemId) => dispatch(removeFromCart(cartItemId));
+  const handleRemove = (item) => {
+    dispatch(removeFromCart(item.cartItemId));
+    toast.info(`Removed "${item.name}" from cart`, { icon: "🗑️" });
+  };
 
   const handleQty = (item, delta) => {
     const current = Number(item.quantity) || 1;
+    if (delta > 0 && current >= item.inStock) {
+      toast.warning(`Cannot add more: Max available stock is ${item.inStock} units`, { icon: "⚠️" });
+      return;
+    }
     const newQty = Math.max(1, Math.min(item.inStock, current + delta));
     dispatch(updateCartItemQuantity(item.cartItemId, newQty));
   };
@@ -77,6 +103,9 @@ export const Cart = () => {
     }
     const n = parseInt(val, 10);
     if (isNaN(n)) return;
+    if (n > item.inStock) {
+      toast.warning(`Adjusted to max available stock (${item.inStock} units)`, { icon: "⚠️" });
+    }
     dispatch(
       updateCartItemQuantity(
         item.cartItemId,
@@ -93,20 +122,31 @@ export const Cart = () => {
   const handleClearCart = () => {
     dispatch(clearCart());
     setShowClearConfirm(false);
+    toast.info("Cart has been cleared", { icon: "🧹" });
   };
 
-  const handlePurchaseMethod = (cartItemId, method) =>
+  const handlePurchaseMethod = (cartItemId, method) => {
     dispatch(setItemPurchaseMethod(cartItemId, method));
+    toast.info(`Switched to ${method === "installment" ? "Installment Financing" : "Cash Payment"}`, {
+      icon: "💳",
+    });
+  };
 
-  const handleTermMonths = (cartItemId, months) =>
+  const handleTermMonths = (cartItemId, months) => {
     dispatch(setItemTermMonths(cartItemId, parseInt(months, 10)));
+    toast.info(`Financing term set to ${months} Months`, { icon: "📅" });
+  };
 
   const handleProceedToCheckout = () => {
     if (!isAuthenticated) {
+      toast.info("Please log in to proceed with checkout", { icon: "🔐" });
       navigate(`/login?redirect=${encodeURIComponent("/checkout/shipping")}`);
       return;
     }
-    if (!someSelected) return;
+    if (!someSelected) {
+      toast.warning("Please select at least one item to proceed to checkout", { icon: "⚠️" });
+      return;
+    }
     navigate("/checkout/shipping");
   };
 
@@ -164,6 +204,30 @@ export const Cart = () => {
   return (
     <div className="min-h-screen bg-white text-zinc-900 antialiased flex flex-col font-sans selection:bg-emerald-100 selection:text-emerald-900">
       <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-8 space-y-8">
+        {/* MUI Stepper (20pts requirement) */}
+        <Box sx={{ width: "100%", maxWidth: "600px", mx: "auto", pb: 1 }}>
+          <Stepper activeStep={0} alternativeLabel>
+            {CHECKOUT_STEPS.map((label) => (
+              <Step key={label}>
+                <StepLabel
+                  sx={{
+                    "& .MuiStepLabel-label": {
+                      fontSize: "0.75rem",
+                      fontWeight: 600,
+                    },
+                    "& .Mui-active": {
+                      color: "#059669 !important",
+                      fontWeight: 700,
+                    },
+                  }}
+                >
+                  {label}
+                </StepLabel>
+              </Step>
+            ))}
+          </Stepper>
+        </Box>
+
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-4 border-b border-zinc-900">
           <div>
@@ -171,8 +235,7 @@ export const Cart = () => {
               Shopping Cart
             </h1>
             <p className="text-xs text-zinc-500 mt-1 max-w-xl">
-              Review certified motorcycle units, genuine replacement parts, and
-              configure your purchase method.
+              Review certified motorcycle units, genuine replacement parts, and configure your purchase method.
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -422,7 +485,7 @@ export const Cart = () => {
                             <td className="py-3.5 px-4 text-center">
                               <button
                                 type="button"
-                                onClick={() => handleRemove(item.cartItemId)}
+                                onClick={() => handleRemove(item)}
                                 className="w-7 h-7 rounded text-zinc-400 hover:text-red-600 hover:bg-red-50 flex items-center justify-center transition-colors cursor-pointer"
                                 title="Remove item"
                               >
@@ -527,20 +590,28 @@ export const Cart = () => {
                   </div>
                 </div>
 
-                {/* Checkout button */}
-                <button
-                  type="button"
+                {/* Checkout button via MUI Button */}
+                <Button
+                  variant="contained"
+                  fullWidth
                   disabled={!someSelected}
                   onClick={handleProceedToCheckout}
-                  className="w-full h-10 rounded-md bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-semibold text-xs transition-colors cursor-pointer shadow-sm flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
+                  sx={{
+                    bgcolor: "#059669",
+                    textTransform: "none",
+                    fontWeight: 700,
+                    fontSize: "0.85rem",
+                    py: 1.2,
+                    borderRadius: "6px",
+                    boxShadow: "0 2px 6px rgba(5, 150, 105, 0.25)",
+                    "&:hover": { bgcolor: "#047857" },
+                    "&:disabled": { bgcolor: "#e4e4e7", color: "#a1a1aa" },
+                  }}
                 >
-                  <span>
-                    {someSelected
-                      ? `Proceed to Checkout (${selectedItems.length})`
-                      : "Select items to checkout"}
-                  </span>
-                  <span>&rarr;</span>
-                </button>
+                  {someSelected
+                    ? `Proceed to Checkout (${selectedItems.length} items) →`
+                    : "Select items to checkout"}
+                </Button>
 
                 {!isAuthenticated && someSelected && (
                   <p className="text-[11px] text-amber-700 text-center">
@@ -569,35 +640,52 @@ export const Cart = () => {
         </div>
       </main>
 
-      {/* Clear cart confirmation modal */}
-      {showClearConfirm && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white border border-zinc-200 rounded-lg max-w-sm w-full p-6 shadow-xl space-y-4">
-            <h3 className="text-base font-bold text-zinc-900">Empty Cart?</h3>
-            <p className="text-xs text-zinc-600">
-              This will remove all{" "}
-              <span className="font-semibold">{cartItems.length}</span> item(s)
-              from your cart. This action cannot be undone.
-            </p>
-            <div className="flex justify-end gap-2 pt-2">
-              <button
-                type="button"
-                onClick={() => setShowClearConfirm(false)}
-                className="h-9 px-4 rounded border border-zinc-200 text-zinc-700 text-xs font-medium hover:bg-zinc-50 cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleClearCart}
-                className="h-9 px-4 rounded bg-red-600 hover:bg-red-700 text-white text-xs font-semibold cursor-pointer"
-              >
-                Empty Cart
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Clear cart confirmation via MUI Dialog */}
+      <Dialog
+        open={showClearConfirm}
+        onClose={() => setShowClearConfirm(false)}
+        maxWidth="xs"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: "10px", p: 1 } }}
+      >
+        <DialogTitle sx={{ fontWeight: 800, fontSize: "1.05rem", color: "#18181b" }}>
+          Empty Shopping Cart?
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" sx={{ fontSize: "0.85rem", color: "#52525b" }}>
+            This will remove all {cartItems.length} item(s) from your shopping cart. This action cannot be undone.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button
+            variant="outlined"
+            size="small"
+            onClick={() => setShowClearConfirm(false)}
+            sx={{
+              borderColor: "#d4d4d8",
+              color: "#3f3f46",
+              textTransform: "none",
+              fontWeight: 600,
+              fontSize: "0.8rem",
+            }}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            color="error"
+            size="small"
+            onClick={handleClearCart}
+            sx={{
+              textTransform: "none",
+              fontWeight: 700,
+              fontSize: "0.8rem",
+            }}
+          >
+            Yes, Empty Cart
+          </Button>
+        </DialogActions>
+      </Dialog>
     </div>
   );
 };

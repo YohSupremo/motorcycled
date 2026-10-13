@@ -14,6 +14,7 @@ import { ScrollReveal } from "../../components/ScrollReveal";
 import { ProductImagePlaceholder } from "../../components/ProductImagePlaceholder";
 import { getProducts, getCategories, getBrands } from "../../../actions/productActions";
 import { addToCart } from "../../../actions/cartActions";
+import { toast } from "react-toastify";
 
 export const Shop = ({ onNavigate }) => {
   const dispatch = useDispatch();
@@ -162,20 +163,25 @@ export const Shop = ({ onNavigate }) => {
       .reduce((sum, i) => sum + (i.quantity || 1), 0);
 
     if (inCart >= product.stock) {
-      setStockWarning(
-        `Cannot add "${product.name}" to cart: Available stock limit (${product.stock} units) already reached in your cart!`
-      );
+      const warnMsg = `Stock limit reached! You already have all ${product.stock} units of "${product.name}" in your cart.`;
+      setStockWarning(warnMsg);
+      toast.warning(warnMsg, { icon: "⚠️" });
       setTimeout(() => setStockWarning(""), 4000);
       return;
     }
 
     const result = await dispatch(addToCart(product._id, 1));
     if (result && result.success === false) {
-      setStockWarning(result.message || `Cannot add "${product.name}": Stock limit reached!`);
+      const warnMsg = result.message || `Cannot add "${product.name}": Stock limit reached!`;
+      setStockWarning(warnMsg);
+      toast.warning(warnMsg, { icon: "⚠️" });
       setTimeout(() => setStockWarning(""), 4000);
     } else {
       setStockWarning("");
       setAddedNotice(`Added "${product.name}" to cart`);
+      toast.success(`Added "${product.name}" to cart!`, {
+        icon: "🛒",
+      });
       setTimeout(() => setAddedNotice(""), 2500);
     }
   };

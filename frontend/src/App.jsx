@@ -14,6 +14,8 @@ import { ConfirmOrder } from "./assets/pages/customer/ConfirmOrder";
 import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
 import { Layout } from "./assets/components/Layout";
 import "./App.css";
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 import { AdminLayout } from "./assets/components/AdminLayout";
 import { AdminDashboard } from "./assets/pages/admin/AdminDashboard";
 import { AdminInventory } from "./assets/pages/admin/AdminInventory";
@@ -112,6 +114,19 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
         </Routes>
+        <ToastContainer
+          position="bottom-right"
+          autoClose={3500}
+          hideProgressBar={false}
+          newestOnTop
+          closeOnClick
+          rtl={false}
+          pauseOnFocusLoss
+          draggable
+          pauseOnHover
+          theme="light"
+          toastClassName="text-xs font-sans font-medium"
+        />
       </BrowserRouter>
     </>
   );
