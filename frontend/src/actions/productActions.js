@@ -62,11 +62,13 @@ export const getProducts =
     category = "",
     brand = "",
     onlyInstallment = false,
+    ratings = 0,
+    limit = 12,
   ) =>
   async (dispatch) => {
     try {
       dispatch({ type: ALL_PRODUCTS_REQUEST });
-      let link = `${API}/products?page=${currentPage}&price[gte]=${price[0]}&price[lte]=${price[1]}`;
+      let link = `${API}/products?page=${currentPage}&limit=${limit}&price[gte]=${price[0]}&price[lte]=${price[1]}`;
       if (keyword && keyword.trim() !== "") {
         link += `&keyword=${encodeURIComponent(keyword.trim())}`;
       }
@@ -78,6 +80,9 @@ export const getProducts =
       }
       if (onlyInstallment) {
         link += `&onlyInstallment=true`;
+      }
+      if (ratings && ratings > 0) {
+        link += `&ratings=${ratings}`;
       }
       const { data } = await axios.get(link);
       dispatch({ type: ALL_PRODUCTS_SUCCESS, payload: data });

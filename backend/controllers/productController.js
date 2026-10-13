@@ -262,11 +262,26 @@ export const getProducts = async (req, res) => {
     filter.installmentEligible = true;
   }
 
-  // Price range filter (Reference: apiFeatures.js filter)
-  if (req.query["price[gte]"] || req.query["price[lte]"]) {
+  // Price range filter (Supports price[gte], price[lte], minPrice, maxPrice)
+  if (
+    req.query["price[gte]"] !== undefined ||
+    req.query["price[lte]"] !== undefined ||
+    req.query.minPrice !== undefined ||
+    req.query.maxPrice !== undefined
+  ) {
     filter.price = {};
-    if (req.query["price[gte]"]) filter.price.$gte = Number(req.query["price[gte]"]);
-    if (req.query["price[lte]"]) filter.price.$lte = Number(req.query["price[lte]"]);
+    const minP = req.query["price[gte]"] ?? req.query.minPrice;
+    const maxP = req.query["price[lte]"] ?? req.query.maxPrice;
+    if (minP !== undefined && minP !== "") filter.price.$gte = Number(minP);
+    if (maxP !== undefined && maxP !== "") filter.price.$lte = Number(maxP);
+  }
+
+  // Ratings filter (e.g. 4 stars and above)
+  if (req.query.ratings || req.query["ratings[gte]"]) {
+    const minRating = Number(req.query.ratings || req.query["ratings[gte]"]);
+    if (!isNaN(minRating) && minRating > 0) {
+      filter.ratings = { $gte: minRating };
+    }
   }
 
   const productsCount = await Product.countDocuments(filter);

@@ -22,13 +22,41 @@ const getErrorMessage = (error) =>
 const makeCartItemId = (productId, isVehicle) =>
   isVehicle ? `${productId}-${Date.now()}` : productId
 
-// Add a product to the cart (fetches fresh data from backend)
+// Add a product to the cart (fetches fresh data from backend & enforces stock limit)
 export const addToCart = (productId, quantity = 1) => async (dispatch, getState) => {
   try {
     const { data } = await axios.get(`${api}/product/${productId}`, {
       withCredentials: true,
     })
     const p = data.product
+    if (!p) return { success: false, message: 'Product not found' }
+
+    if (p.stock <= 0) {
+      return {
+        success: false,
+        message: `"${p.name}" is currently Out of Stock.`,
+        stock: 0,
+      }
+    }
+
+    const { cart } = getState()
+    const currentInCart = (cart.cartItems || [])
+      .filter((i) => i.productId === productId)
+      .reduce((sum, i) => sum + (i.quantity || 1), 0)
+
+    if (currentInCart + quantity > p.stock) {
+      const remaining = Math.max(0, p.stock - currentInCart)
+      return {
+        success: false,
+        message:
+          currentInCart >= p.stock
+            ? `Stock limit reached! You already have all ${p.stock} available units of "${p.name}" in your cart.`
+            : `Cannot add ${quantity} more. Stock limit of ${p.stock} reached (${currentInCart} already in cart, only ${remaining} available).`,
+        stock: p.stock,
+        currentInCart,
+      }
+    }
+
     const categoryName = p?.category?.name || p?.category || ''
     const isVehicle = categoryName === 'Motorcycles'
     const isInstallmentEligible = p.installmentEligible && isVehicle
@@ -51,8 +79,11 @@ export const addToCart = (productId, quantity = 1) => async (dispatch, getState)
     }
 
     dispatch({ type: ADD_TO_CART, payload: item })
+    return { success: true, message: `Added "${p.name}" to cart!` }
   } catch (error) {
-    console.error('addToCart error:', getErrorMessage(error))
+    const err = getErrorMessage(error)
+    console.error('addToCart error:', err)
+    return { success: false, message: err }
   }
 }
 

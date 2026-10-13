@@ -1,6 +1,15 @@
 import { useEffect, useState, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import {
+  Slider,
+  Rating,
+  Chip,
+  Alert,
+  Box,
+  Typography,
+  Button,
+} from "@mui/material";
 import { ScrollReveal } from "../../components/ScrollReveal";
 import { ProductImagePlaceholder } from "../../components/ProductImagePlaceholder";
 import { getProducts, getCategories, getBrands } from "../../../actions/productActions";
@@ -16,9 +25,14 @@ export const Shop = ({ onNavigate }) => {
   const initialBrand = searchParams.get("brand") || "All";
   const initialKeyword = searchParams.get("keyword") || searchParams.get("search") || "";
   const initialPage = Number(searchParams.get("page")) || 1;
+  const initialMinPrice = Number(searchParams.get("minPrice")) || 0;
+  const initialMaxPrice = Number(searchParams.get("maxPrice")) || 350000;
+  const initialRating = Number(searchParams.get("ratings")) || 0;
 
   const [selectedCategory, setSelectedCategory] = useState(initialCategory);
   const [selectedBrand, setSelectedBrand] = useState(initialBrand);
+  const [priceRange, setPriceRange] = useState([initialMinPrice, initialMaxPrice]);
+  const [selectedRating, setSelectedRating] = useState(initialRating);
   const [onlyInstallment, setOnlyInstallment] = useState(
     searchParams.get("installment") === "true"
   );
@@ -26,6 +40,7 @@ export const Shop = ({ onNavigate }) => {
   const [currentPage, setCurrentPage] = useState(initialPage);
   const [viewMode, setViewMode] = useState("grid"); // "grid" or "table"
   const [addedNotice, setAddedNotice] = useState("");
+  const [stockWarning, setStockWarning] = useState("");
 
   // Select live data from Redux store
   // Reference: itcp318-s3a-2026/frontend/src/Components/Home.jsx
@@ -35,6 +50,8 @@ export const Shop = ({ onNavigate }) => {
     productsCount = 0,
     resPerPage = 12,
   } = useSelector((state) => state.products || {});
+
+  const { cartItems = [] } = useSelector((state) => state.cart || {});
 
   const { categories: dbCategories = [], brands: dbBrands = [] } = useSelector(
     (state) => state.catalog || {}
@@ -52,19 +69,22 @@ export const Shop = ({ onNavigate }) => {
       getProducts(
         currentPage,
         searchQuery,
-        [0, 9999999],
+        priceRange,
         selectedCategory,
         selectedBrand,
-        onlyInstallment
+        onlyInstallment,
+        selectedRating
       )
     );
   }, [
     dispatch,
     currentPage,
     searchQuery,
+    priceRange,
     selectedCategory,
     selectedBrand,
     onlyInstallment,
+    selectedRating,
   ]);
 
   // Sync state changes back to search params (without page refresh)
@@ -74,9 +94,21 @@ export const Shop = ({ onNavigate }) => {
     if (selectedBrand && selectedBrand !== "All") params.set("brand", selectedBrand);
     if (searchQuery.trim()) params.set("keyword", searchQuery.trim());
     if (onlyInstallment) params.set("installment", "true");
+    if (priceRange[0] > 0) params.set("minPrice", String(priceRange[0]));
+    if (priceRange[1] < 350000) params.set("maxPrice", String(priceRange[1]));
+    if (selectedRating > 0) params.set("ratings", String(selectedRating));
     if (currentPage > 1) params.set("page", String(currentPage));
     setSearchParams(params, { replace: true });
-  }, [selectedCategory, selectedBrand, searchQuery, onlyInstallment, currentPage, setSearchParams]);
+  }, [
+    selectedCategory,
+    selectedBrand,
+    searchQuery,
+    onlyInstallment,
+    priceRange,
+    selectedRating,
+    currentPage,
+    setSearchParams,
+  ]);
 
   // Available categories list (fallback to defaults if DB is still seeding)
   const categoriesList = useMemo(() => {
@@ -123,10 +155,29 @@ export const Shop = ({ onNavigate }) => {
     }
   };
 
-  const handleAddToCart = (product) => {
-    dispatch(addToCart(product._id, 1));
-    setAddedNotice(`Added "${product.name}" to cart`);
-    setTimeout(() => setAddedNotice(""), 2500);
+  const handleAddToCart = async (product) => {
+    // Check local stock limits first
+    const inCart = (cartItems || [])
+      .filter((i) => i.productId === product._id)
+      .reduce((sum, i) => sum + (i.quantity || 1), 0);
+
+    if (inCart >= product.stock) {
+      setStockWarning(
+        `Cannot add "${product.name}" to cart: Available stock limit (${product.stock} units) already reached in your cart!`
+      );
+      setTimeout(() => setStockWarning(""), 4000);
+      return;
+    }
+
+    const result = await dispatch(addToCart(product._id, 1));
+    if (result && result.success === false) {
+      setStockWarning(result.message || `Cannot add "${product.name}": Stock limit reached!`);
+      setTimeout(() => setStockWarning(""), 4000);
+    } else {
+      setStockWarning("");
+      setAddedNotice(`Added "${product.name}" to cart`);
+      setTimeout(() => setAddedNotice(""), 2500);
+    }
   };
 
   const handleNavigate = (path) => {
@@ -140,9 +191,12 @@ export const Shop = ({ onNavigate }) => {
   const handleResetFilters = () => {
     setSelectedCategory("All");
     setSelectedBrand("All");
+    setPriceRange([0, 350000]);
+    setSelectedRating(0);
     setOnlyInstallment(false);
     setSearchQuery("");
     setCurrentPage(1);
+    setStockWarning("");
   };
 
   return (
@@ -175,6 +229,23 @@ export const Shop = ({ onNavigate }) => {
             </div>
           )}
         </div>
+
+        {/* Stock limit warning or added notice */}
+        {stockWarning && (
+          <Alert
+            severity="warning"
+            variant="filled"
+            onClose={() => setStockWarning("")}
+            sx={{
+              fontWeight: 600,
+              fontSize: "0.85rem",
+              borderRadius: "8px",
+              boxShadow: "0 2px 8px rgba(245, 158, 11, 0.2)",
+            }}
+          >
+            ⚠️ {stockWarning}
+          </Alert>
+        )}
 
         {/* Catalog Layout: Integrated Sidebar Filter + Unboxed Directory */}
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 items-start">
@@ -211,7 +282,52 @@ export const Shop = ({ onNavigate }) => {
               </div>
             </div>
 
-            {/* Category Filter */}
+            {/* Price Filter (MUI Slider - 5pts) */}
+            <div className="pt-4 border-t border-zinc-200 space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="block text-xs font-bold text-zinc-900 uppercase tracking-wider">
+                  Price Range (PHP)
+                </label>
+                {(priceRange[0] > 0 || priceRange[1] < 350000) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPriceRange([0, 350000]);
+                      setCurrentPage(1);
+                    }}
+                    className="text-[11px] text-zinc-500 hover:text-zinc-900 underline cursor-pointer"
+                  >
+                    Reset
+                  </button>
+                )}
+              </div>
+              <Box sx={{ px: 1, pt: 1 }}>
+                <Slider
+                  value={priceRange}
+                  onChange={(e, newValue) => {
+                    setPriceRange(newValue);
+                    setCurrentPage(1);
+                  }}
+                  valueLabelDisplay="auto"
+                  min={0}
+                  max={350000}
+                  step={5000}
+                  valueLabelFormat={(val) => `₱${val.toLocaleString()}`}
+                  sx={{
+                    color: "#059669", // emerald-600
+                    "& .MuiSlider-thumb": {
+                      boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
+                    },
+                  }}
+                />
+              </Box>
+              <div className="flex items-center justify-between text-[11px] font-mono text-zinc-600">
+                <span>₱{priceRange[0].toLocaleString()}</span>
+                <span>₱{priceRange[1].toLocaleString()}</span>
+              </div>
+            </div>
+
+            {/* Category Filter (MUI Chips - 5pts) */}
             <div className="pt-4 border-t border-zinc-200 space-y-2">
               <div className="flex items-center justify-between">
                 <label className="block text-xs font-bold text-zinc-900 uppercase tracking-wider">
@@ -230,23 +346,84 @@ export const Shop = ({ onNavigate }) => {
                   </button>
                 )}
               </div>
-              <div className="space-y-0.5">
-                {categoriesList.map((cat) => (
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                {categoriesList.map((cat) => {
+                  const isSelected = selectedCategory === cat;
+                  return (
+                    <Chip
+                      key={cat}
+                      label={cat}
+                      size="small"
+                      clickable
+                      onClick={() => {
+                        setSelectedCategory(cat);
+                        setCurrentPage(1);
+                      }}
+                      color={isSelected ? "success" : "default"}
+                      variant={isSelected ? "filled" : "outlined"}
+                      sx={{
+                        fontSize: "0.72rem",
+                        fontWeight: isSelected ? 700 : 500,
+                        borderColor: isSelected ? "#059669" : "#e4e4e7",
+                        bgcolor: isSelected ? "#059669" : "transparent",
+                        color: isSelected ? "#ffffff" : "#3f3f46",
+                        "&:hover": {
+                          bgcolor: isSelected ? "#047857" : "#f4f4f5",
+                        },
+                      }}
+                    />
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Ratings Filter (MUI Rating - 5pts) */}
+            <div className="pt-4 border-t border-zinc-200 space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="block text-xs font-bold text-zinc-900 uppercase tracking-wider">
+                  Customer Ratings
+                </label>
+                {selectedRating > 0 && (
                   <button
-                    key={cat}
                     type="button"
                     onClick={() => {
-                      setSelectedCategory(cat);
+                      setSelectedRating(0);
                       setCurrentPage(1);
                     }}
-                    className={`w-full text-left px-2.5 py-1.5 rounded text-xs transition-colors cursor-pointer flex items-center justify-between ${
-                      selectedCategory === cat
-                        ? "bg-emerald-50 text-emerald-900 border border-emerald-300 font-semibold"
-                        : "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 border border-transparent"
+                    className="text-[11px] text-zinc-500 hover:text-zinc-900 underline cursor-pointer"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+              <div className="space-y-1">
+                {[5, 4, 3, 2, 1].map((star) => (
+                  <button
+                    key={star}
+                    type="button"
+                    onClick={() => {
+                      setSelectedRating(selectedRating === star ? 0 : star);
+                      setCurrentPage(1);
+                    }}
+                    className={`w-full text-left px-2 py-1 rounded text-xs transition-colors cursor-pointer flex items-center justify-between ${
+                      selectedRating === star
+                        ? "bg-emerald-50 text-emerald-900 font-semibold border border-emerald-300"
+                        : "text-zinc-700 hover:bg-zinc-50 border border-transparent"
                     }`}
                   >
-                    <span>{cat}</span>
-                    {selectedCategory === cat && (
+                    <div className="flex items-center gap-1.5">
+                      <Rating
+                        value={star}
+                        readOnly
+                        size="small"
+                        precision={0.5}
+                        sx={{ fontSize: "0.95rem" }}
+                      />
+                      <span className="text-[11px] text-zinc-600">
+                        {star === 5 ? "5 Stars" : `& Up`}
+                      </span>
+                    </div>
+                    {selectedRating === star && (
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
                     )}
                   </button>
@@ -319,15 +496,30 @@ export const Shop = ({ onNavigate }) => {
             {(selectedCategory !== "All" ||
               selectedBrand !== "All" ||
               onlyInstallment ||
+              priceRange[0] > 0 ||
+              priceRange[1] < 350000 ||
+              selectedRating > 0 ||
               searchQuery) && (
               <div className="pt-2">
-                <button
-                  type="button"
+                <Button
+                  variant="outlined"
+                  fullWidth
+                  size="small"
                   onClick={handleResetFilters}
-                  className="w-full h-8 rounded border border-zinc-300 text-xs text-zinc-700 font-medium hover:bg-zinc-50 cursor-pointer"
+                  sx={{
+                    borderColor: "#d4d4d8",
+                    color: "#3f3f46",
+                    fontSize: "0.75rem",
+                    textTransform: "none",
+                    fontWeight: 600,
+                    "&:hover": {
+                      borderColor: "#a1a1aa",
+                      bgcolor: "#f4f4f5",
+                    },
+                  }}
                 >
                   Reset all filters
-                </button>
+                </Button>
               </div>
             )}
           </aside>
@@ -485,6 +677,23 @@ export const Shop = ({ onNavigate }) => {
                             >
                               {p.name}
                             </Link>
+
+                            {/* MUI Rating display (5pts deliverable) */}
+                            <div className="flex items-center gap-1.5 pt-0.5">
+                              <Rating
+                                value={Number(p.ratings) || 0}
+                                precision={0.1}
+                                readOnly
+                                size="small"
+                                sx={{ fontSize: "0.85rem" }}
+                              />
+                              <span className="text-[11px] font-semibold text-zinc-700">
+                                {p.ratings ? Number(p.ratings).toFixed(1) : "0.0"}
+                              </span>
+                              <span className="text-[10px] text-zinc-400">
+                                ({p.numOfReviews || 0})
+                              </span>
+                            </div>
 
                             {p.compatibleModels && p.compatibleModels.length > 0 && (
                               <p className="text-[11px] text-zinc-500 line-clamp-1 font-mono">

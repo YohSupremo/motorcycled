@@ -37,6 +37,16 @@ const productSchema = new mongoose.Schema(
       required: [true, "Please enter product price"],
       min: [0, "Price cannot be negative"],
     },
+    ratings: {
+      type: Number,
+      default: 0,
+      min: [0, "Rating cannot be negative"],
+      max: [5, "Rating cannot exceed 5"],
+    },
+    numOfReviews: {
+      type: Number,
+      default: 0,
+    },
     stock: {
       type: Number,
       required: [true, "Please enter product stock"],

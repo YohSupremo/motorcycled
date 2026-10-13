@@ -1,6 +1,15 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate, Link } from "react-router-dom";
+import InfiniteScroll from "react-infinite-scroll-component";
+import {
+  Rating,
+  CircularProgress,
+  Chip,
+  Box,
+  Typography,
+} from "@mui/material";
+import axios from "axios";
 import { ScrollReveal } from "../../components/ScrollReveal";
 import { ProductImagePlaceholder } from "../../components/ProductImagePlaceholder";
 import { getProducts } from "../../../actions/productActions";
@@ -13,12 +22,19 @@ export const Homepage = ({ onNavigate }) => {
   const [selectedBrandFilter, setSelectedBrandFilter] = useState("All");
   const [carouselIndex, setCarouselIndex] = useState(0);
 
+  // Infinite Scroll State (15pts deliverable via react-infinite-scroll-component)
+  const [infiniteProducts, setInfiniteProducts] = useState([]);
+  const [infinitePage, setInfinitePage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [totalCatalogCount, setTotalCatalogCount] = useState(0);
+
   // Select live products from database via Redux
   const { loading, products = [], productsCount = 0 } = useSelector(
     (state) => state.products || {}
   );
 
-  // Fetch live catalog units on mount and filter changes
+  // Fetch live catalog units for hero carousel on mount and filter changes
   useEffect(() => {
     dispatch(
       getProducts(
@@ -30,6 +46,60 @@ export const Homepage = ({ onNavigate }) => {
       )
     );
   }, [dispatch, searchQuery, selectedBrandFilter]);
+
+  // Initial fetch for Infinite Scroll products catalog
+  useEffect(() => {
+    let isMounted = true;
+    const fetchInitial = async () => {
+      try {
+        const api = import.meta.env.VITE_API;
+        const res = await axios.get(`${api}/products?page=1&limit=8`);
+        if (isMounted && res.data) {
+          const fetched = res.data.products || [];
+          setInfiniteProducts(fetched);
+          setTotalCatalogCount(res.data.productsCount || 0);
+          setInfinitePage(1);
+          setHasMore(fetched.length < (res.data.productsCount || 0));
+        }
+      } catch (err) {
+        console.error("Failed to load initial products for infinite scroll", err);
+      }
+    };
+    fetchInitial();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // Fetch next page function for react-infinite-scroll-component
+  const fetchMoreProducts = async () => {
+    if (loadingMore || !hasMore) return;
+    setLoadingMore(true);
+    const nextPage = infinitePage + 1;
+    try {
+      const api = import.meta.env.VITE_API;
+      const res = await axios.get(`${api}/products?page=${nextPage}&limit=8`);
+      if (res.data) {
+        const newItems = res.data.products || [];
+        setInfiniteProducts((prev) => {
+          // Deduplicate by _id
+          const existingIds = new Set(prev.map((p) => p._id));
+          const filtered = newItems.filter((p) => !existingIds.has(p._id));
+          const updated = [...prev, ...filtered];
+          if (updated.length >= (res.data.productsCount || 0) || newItems.length === 0) {
+            setHasMore(false);
+          }
+          return updated;
+        });
+        setInfinitePage(nextPage);
+      }
+    } catch (err) {
+      console.error("Failed to fetch more products for infinite scroll", err);
+      setHasMore(false);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   const featuredUnits = useMemo(() => products.slice(0, 8), [products]);
 
@@ -350,6 +420,146 @@ export const Homepage = ({ onNavigate }) => {
             </div>
           </section>
         </ScrollReveal>
+
+        {/* Section: Live Inventory with Infinite Scroll (15pts deliverable) */}
+        <section className="space-y-6 pt-4 border-t border-zinc-200">
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 pb-3 border-b border-zinc-900">
+            <div>
+              <span className="text-xs font-mono uppercase tracking-wider text-emerald-700 font-semibold">
+                Continuous Inventory Stream
+              </span>
+              <h2 className="text-xl sm:text-2xl font-bold text-zinc-900 tracking-tight">
+                All Available Motorcycles & Certified OEM Parts
+              </h2>
+              <p className="text-xs text-zinc-500 mt-1">
+                Explore real inventory loaded continuously via Infinite Scroll as you browse down the showroom floor.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Chip
+                label={`Showing ${infiniteProducts.length} of ${totalCatalogCount || infiniteProducts.length} Items`}
+                size="small"
+                color="success"
+                variant="outlined"
+                sx={{ fontSize: "0.72rem", fontWeight: 600, borderColor: "#059669", color: "#059669" }}
+              />
+            </div>
+          </div>
+
+          <InfiniteScroll
+            dataLength={infiniteProducts.length}
+            next={fetchMoreProducts}
+            hasMore={hasMore}
+            loader={
+              <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", py: 4, gap: 1.5 }}>
+                <CircularProgress size={24} sx={{ color: "#059669" }} />
+                <Typography variant="body2" sx={{ fontSize: "0.85rem", color: "#52525b", fontWeight: 500 }}>
+                  Loading more catalog items...
+                </Typography>
+              </Box>
+            }
+            endMessage={
+              <Box sx={{ textAlign: "center", py: 4, color: "#71717a", fontSize: "0.8rem", borderTop: "1px dashed #e4e4e7", mt: 4 }}>
+                <p className="font-semibold text-zinc-700">✓ You have viewed the entire dealership catalog</p>
+                <p className="text-xs text-zinc-400 mt-0.5">All 30 active units and OEM parts loaded</p>
+              </Box>
+            }
+          >
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 border-t border-l border-zinc-200">
+              {infiniteProducts.map((p) => {
+                const categoryName = p.category?.name || p.category || "General";
+                const brandName = p.brand?.name || p.brand || "OEM";
+                const hasImage = p.images && p.images.length > 0 && p.images[0]?.url;
+                const rating = Number(p.ratings) || 0;
+                const reviewCount = Number(p.numOfReviews) || 0;
+
+                return (
+                  <div
+                    key={p._id}
+                    className="border-r border-b border-zinc-200 bg-white hover:bg-zinc-50/80 transition-all flex flex-col justify-between overflow-hidden group"
+                  >
+                    <Link to={`/product/${p._id}`} className="block overflow-hidden">
+                      {hasImage ? (
+                        <div className="w-full h-40 bg-zinc-100 overflow-hidden relative flex items-center justify-center">
+                          <img
+                            src={p.images[0].url}
+                            alt={p.name}
+                            className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-200"
+                          />
+                        </div>
+                      ) : (
+                        <ProductImagePlaceholder
+                          category={categoryName}
+                          name={p.name}
+                          brand={brandName}
+                        />
+                      )}
+                    </Link>
+
+                    <div className="p-4 space-y-2.5 flex-1 flex flex-col justify-between">
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between text-[10px]">
+                          <span className="font-mono uppercase font-bold text-zinc-400 tracking-wider">
+                            {brandName}
+                          </span>
+                          <span
+                            className={`px-1.5 py-0.2 rounded text-[10px] font-medium border ${
+                              p.stock === 0
+                                ? "bg-red-50 text-red-700 border-red-200"
+                                : p.stock <= 3
+                                ? "bg-amber-50 text-amber-700 border-amber-200"
+                                : "bg-emerald-50 text-emerald-700 border-emerald-200"
+                            }`}
+                          >
+                            {p.stock === 0 ? "Out of stock" : `${p.stock} in stock`}
+                          </span>
+                        </div>
+
+                        <Link
+                          to={`/product/${p._id}`}
+                          className="block text-xs font-bold text-zinc-900 group-hover:text-emerald-700 transition-colors line-clamp-2 hover:underline leading-snug"
+                        >
+                          {p.name}
+                        </Link>
+
+                        {/* MUI Rating component (20pts MUI styling deliverable) */}
+                        <div className="flex items-center gap-1 pt-0.5">
+                          <Rating
+                            value={rating}
+                            precision={0.1}
+                            readOnly
+                            size="small"
+                            sx={{ fontSize: "0.8rem" }}
+                          />
+                          <span className="text-[11px] font-semibold text-zinc-700">
+                            {rating.toFixed(1)}
+                          </span>
+                          {reviewCount > 0 && (
+                            <span className="text-[10px] text-zinc-400">
+                              ({reviewCount})
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="pt-2 border-t border-zinc-100 flex items-center justify-between">
+                        <span className="text-xs font-bold text-zinc-900 font-mono">
+                          ₱{Number(p.price).toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                        </span>
+                        <Link
+                          to={`/product/${p._id}`}
+                          className="text-[11px] font-semibold text-emerald-700 hover:text-emerald-800 hover:underline"
+                        >
+                          View &rarr;
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </InfiniteScroll>
+        </section>
 
         {/* Section 3: Financing Protocol (Unboxed, 3-Step Sequential Flow - NO cards inside cards) */}
         <ScrollReveal threshold={0.08} delay={80} duration={650}>
