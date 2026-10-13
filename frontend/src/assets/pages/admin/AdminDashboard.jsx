@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 
-export const AdminDashboard = ({ onNavigateTab, onSelectOrder }) => {
+export const AdminDashboard = ({ onSelectOrder }) => {
   const pendingApprovals = [
     {
       id: "ORD-2026-0891",
@@ -287,8 +287,9 @@ export const AdminDashboard = ({ onNavigateTab, onSelectOrder }) => {
                     </p>
                   </td>
                   <td className="py-3 px-4 space-y-0.5">
-                    <span className="inline-flex items-center gap-1 text-[11px] text-emerald-800 font-medium bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
-                      ✓ {app.validId}
+                    <span className="inline-flex items-center gap-1 text-[11px] text-emerald-800 font-medium bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                      <svg className="w-3 h-3 text-emerald-600 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12" /></svg>
+                      {app.validId}
                     </span>
                     <p className="text-[10px] text-zinc-500 truncate">
                       {app.incomeProof}

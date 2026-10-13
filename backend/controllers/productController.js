@@ -297,7 +297,7 @@ export const getProducts = async (req, res) => {
     success: true,
     productsCount,
     resPerPage,
-    filteredProductsCount: products.length,
+    filteredProductsCount: productsCount,
     products,
   });
 };

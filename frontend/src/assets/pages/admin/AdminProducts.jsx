@@ -35,7 +35,7 @@ const ProductImageManager = ({
       <label className="font-semibold text-zinc-900 text-xs flex items-center gap-2">
         <span>Product Images ({imageList.length})</span>
         <span className="text-[10px] text-zinc-400 font-normal">
-          First image (★) is primary
+          First image is primary showroom thumbnail
         </span>
       </label>
       <label
@@ -81,7 +81,7 @@ const ProductImageManager = ({
     ) : (
       <div className="space-y-2">
         <p className="text-[11px] text-zinc-500 bg-zinc-50 border border-zinc-200 rounded px-2.5 py-1.5 flex items-center gap-1.5">
-          <span className="text-emerald-600 font-bold">★</span>
+          <svg className="w-3.5 h-3.5 text-emerald-600 shrink-0" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
           <span>
             The first photo is the <strong>Primary Showroom Thumbnail</strong>. Click <strong>"Set Primary"</strong> on any other photo to change it.
           </span>
@@ -110,8 +110,9 @@ const ProductImageManager = ({
                   {/* Primary Badge or Position Tag */}
                   <div className="absolute top-1.5 left-1.5 flex items-center gap-1">
                     {isPrimary ? (
-                      <span className="bg-emerald-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded shadow-xs flex items-center gap-0.5">
-                        ★ Primary
+                      <span className="bg-emerald-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded shadow-xs flex items-center gap-1">
+                        <svg className="w-2.5 h-2.5 fill-current" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                        Primary
                       </span>
                     ) : (
                       <span className="bg-black/60 backdrop-blur-xs text-white text-[9px] font-mono px-1.5 py-0.5 rounded">
@@ -127,7 +128,7 @@ const ProductImageManager = ({
                     title="Remove this photo"
                     className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-red-600 hover:bg-red-700 text-white text-[10px] flex items-center justify-center shadow-xs cursor-pointer transition-transform hover:scale-110"
                   >
-                    ✕
+                    <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                   </button>
                 </div>
 
@@ -142,7 +143,7 @@ const ProductImageManager = ({
                       title="Move left"
                       className="w-5 h-5 rounded hover:bg-zinc-100 text-zinc-600 disabled:opacity-30 disabled:hover:bg-transparent flex items-center justify-center cursor-pointer font-bold"
                     >
-                      ‹
+                      <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="15 18 9 12 15 6"/></svg>
                     </button>
                     <button
                       type="button"
@@ -151,7 +152,7 @@ const ProductImageManager = ({
                       title="Move right"
                       className="w-5 h-5 rounded hover:bg-zinc-100 text-zinc-600 disabled:opacity-30 disabled:hover:bg-transparent flex items-center justify-center cursor-pointer font-bold"
                     >
-                      ›
+                      <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 18 15 12 9 6"/></svg>
                     </button>
                   </div>
 
@@ -164,9 +165,10 @@ const ProductImageManager = ({
                     <button
                       type="button"
                       onClick={() => onSetPrimary(idx)}
-                      className="px-2 py-0.5 rounded bg-zinc-100 hover:bg-emerald-600 hover:text-white text-zinc-700 font-semibold text-[10px] transition-colors cursor-pointer"
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-zinc-100 hover:bg-emerald-600 hover:text-white text-zinc-700 font-semibold text-[10px] transition-colors cursor-pointer"
                     >
-                      ★ Set Primary
+                      <svg className="w-2.5 h-2.5 fill-current" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                      Set Primary
                     </button>
                   )}
                 </div>
@@ -209,30 +211,33 @@ const ProductModal = ({
 
   // Populate form and existing images when editing
   useEffect(() => {
-    if (editingProduct) {
-      setForm({
-        name: editingProduct.name || "",
-        description: editingProduct.description || "",
-        price: editingProduct.price ?? "",
-        stock: editingProduct.stock ?? "",
-        lowStockThreshold: editingProduct.lowStockThreshold ?? 5,
-        compatibleModels: (editingProduct.compatibleModels || []).join(", "),
-        installmentEligible: editingProduct.installmentEligible || false,
-        minInstallmentPrice: editingProduct.minInstallmentPrice ?? "",
-        category: editingProduct.category?._id || editingProduct.category || "",
-        brand: editingProduct.brand?._id || editingProduct.brand || "",
-      });
-      const existing = (editingProduct.images || []).map((img, idx) => ({
-        id: img.publicId || `existing-${idx}`,
-        preview: img.url,
-        data: { url: img.url, publicId: img.publicId },
-        isNew: false,
-      }));
-      setImageList(existing);
-    } else {
-      setForm(EMPTY_FORM);
-      setImageList([]);
-    }
+    const timer = setTimeout(() => {
+      if (editingProduct) {
+        setForm({
+          name: editingProduct.name || "",
+          description: editingProduct.description || "",
+          price: editingProduct.price ?? "",
+          stock: editingProduct.stock ?? "",
+          lowStockThreshold: editingProduct.lowStockThreshold ?? 5,
+          compatibleModels: (editingProduct.compatibleModels || []).join(", "),
+          installmentEligible: editingProduct.installmentEligible || false,
+          minInstallmentPrice: editingProduct.minInstallmentPrice ?? "",
+          category: editingProduct.category?._id || editingProduct.category || "",
+          brand: editingProduct.brand?._id || editingProduct.brand || "",
+        });
+        const existing = (editingProduct.images || []).map((img, idx) => ({
+          id: img.publicId || `existing-${idx}`,
+          preview: img.url,
+          data: { url: img.url, publicId: img.publicId },
+          isNew: false,
+        }));
+        setImageList(existing);
+      } else {
+        setForm(EMPTY_FORM);
+        setImageList([]);
+      }
+    }, 0);
+    return () => clearTimeout(timer);
   }, [editingProduct]);
 
   // Handle adding multiple images via file picker (preserves and appends to existing list)
@@ -539,7 +544,6 @@ export const AdminProducts = () => {
   const [onlyLowStock, setOnlyLowStock] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
-  const [modalLoading, setModalLoading] = useState(false);
 
   // Fetch data on mount
   // Reference: itcp318-s3a-2026/frontend/src/Components/Admin/ProductsList.jsx line 55
@@ -567,16 +571,22 @@ export const AdminProducts = () => {
     if (success) {
       toast.success("Product created successfully!", { position: "bottom-right" });
       dispatch({ type: NEW_PRODUCT_RESET });
-      setIsModalOpen(false);
-      setEditingProduct(null);
-      dispatch(getAdminProducts());
+      const timer = setTimeout(() => {
+        setIsModalOpen(false);
+        setEditingProduct(null);
+        dispatch(getAdminProducts());
+      }, 0);
+      return () => clearTimeout(timer);
     }
     if (isUpdated) {
       toast.success("Product updated successfully!", { position: "bottom-right" });
       dispatch({ type: UPDATE_PRODUCT_RESET });
-      setIsModalOpen(false);
-      setEditingProduct(null);
-      dispatch(getAdminProducts());
+      const timer = setTimeout(() => {
+        setIsModalOpen(false);
+        setEditingProduct(null);
+        dispatch(getAdminProducts());
+      }, 0);
+      return () => clearTimeout(timer);
     }
     if (isDeleted) {
       toast.success("Product deleted successfully!", { position: "bottom-right" });

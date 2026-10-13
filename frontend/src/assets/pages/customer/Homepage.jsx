@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate, Link } from "react-router-dom";
 import InfiniteScroll from "react-infinite-scroll-component";
@@ -112,29 +112,34 @@ export const Homepage = ({ onNavigate }) => {
 
     if (inCart >= product.stock) {
       toast.warning(
-        `Stock limit reached! You already have all ${product.stock} units of "${product.name}" in your cart.`,
-        { icon: "⚠️" }
+        `Stock limit reached! You already have all ${product.stock} units of "${product.name}" in your cart.`
       );
       return;
     }
 
     const result = await dispatch(addToCart(product._id, 1));
     if (result && result.success === false) {
-      toast.warning(result.message || `Cannot add "${product.name}": Stock limit reached!`, { icon: "⚠️" });
+      toast.warning(result.message || `Cannot add "${product.name}": Stock limit reached!`);
     } else {
-      toast.success(`Added "${product.name}" to cart!`, { icon: "🛒" });
+      toast.success(`Added "${product.name}" to cart!`);
     }
   };
 
   const featuredUnits = useMemo(() => products.slice(0, 8), [products]);
 
   useEffect(() => {
-    setCarouselIndex(0);
+    const timer = setTimeout(() => {
+      setCarouselIndex(0);
+    }, 0);
+    return () => clearTimeout(timer);
   }, [selectedBrandFilter, searchQuery]);
 
   useEffect(() => {
     if (featuredUnits.length > 0 && carouselIndex >= featuredUnits.length) {
-      setCarouselIndex(0);
+      const timer = setTimeout(() => {
+        setCarouselIndex(0);
+      }, 0);
+      return () => clearTimeout(timer);
     }
   }, [featuredUnits.length, carouselIndex]);
 
@@ -485,7 +490,10 @@ export const Homepage = ({ onNavigate }) => {
             }
             endMessage={
               <Box sx={{ textAlign: "center", py: 4, color: "#71717a", fontSize: "0.8rem", borderTop: "1px dashed #e4e4e7", mt: 4 }}>
-                <p className="font-semibold text-zinc-700">✓ You have viewed the entire dealership catalog</p>
+                <p className="font-semibold text-zinc-700 flex items-center justify-center gap-1.5">
+                  <svg className="w-3.5 h-3.5 text-emerald-600 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12" /></svg>
+                  <span>You have viewed the entire dealership catalog</span>
+                </p>
                 <p className="text-xs text-zinc-400 mt-0.5">All 30 active units and OEM parts loaded</p>
               </Box>
             }
@@ -691,7 +699,11 @@ export const Homepage = ({ onNavigate }) => {
                 </p>
               </div>
               <div className="flex items-center gap-2 text-xs text-zinc-600">
-                <span className="flex text-amber-500 text-sm">★★★★★</span>
+                <div className="flex items-center gap-0.5">
+                  {[...Array(5)].map((_, i) => (
+                    <svg key={i} className="w-3.5 h-3.5 text-amber-500 fill-amber-500" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></svg>
+                  ))}
+                </div>
                 <span className="font-bold text-zinc-900">4.9 / 5.0</span>
                 <span className="text-zinc-400">
                   • Over 1,240 Verified Releases
@@ -709,9 +721,11 @@ export const Homepage = ({ onNavigate }) => {
                   <div className="space-y-2.5">
                     {/* Rating stars & badge */}
                     <div className="flex items-center justify-between text-xs">
-                      <span className="text-amber-500 tracking-wider">
-                        ★★★★★
-                      </span>
+                      <div className="flex items-center gap-0.5">
+                        {[...Array(5)].map((_, i) => (
+                          <svg key={i} className="w-3 h-3 text-amber-500 fill-amber-500" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></svg>
+                        ))}
+                      </div>
                       <span className="inline-block text-[10px] font-medium text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">
                         {t.verifiedTag}
                       </span>
@@ -866,8 +880,11 @@ const FeaturedProductCarousel = ({
 
   useEffect(() => {
     animatingRef.current = false;
-    setIsAnimating(false);
-    setVisualIndex(units.length > 1 ? 1 : 0);
+    const timer = setTimeout(() => {
+      setIsAnimating(false);
+      setVisualIndex(units.length > 1 ? 1 : 0);
+    }, 0);
+    return () => clearTimeout(timer);
   }, [units]);
 
   const go = (direction) => {
@@ -1021,10 +1038,17 @@ const FeaturedProductCarousel = ({
           </span>
           {rating > 0 && (
             <span className="inline-flex items-center gap-1">
-              <span className="text-amber-500 tracking-tight">
-                {"★".repeat(Math.max(0, roundedRating))}
-                {"☆".repeat(Math.max(0, 5 - roundedRating))}
-              </span>
+              <div className="flex items-center gap-0.5">
+                {[...Array(5)].map((_, i) => (
+                  <svg
+                    key={i}
+                    className={`w-3 h-3 ${i < roundedRating ? "text-amber-500 fill-amber-500" : "text-zinc-200 fill-zinc-200"}`}
+                    viewBox="0 0 24 24"
+                  >
+                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                  </svg>
+                ))}
+              </div>
               <span className="text-zinc-500">
                 {rating.toFixed(1)}
                 {reviewCount > 0 ? ` (${reviewCount})` : ""}

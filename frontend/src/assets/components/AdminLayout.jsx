@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Outlet } from "react-router-dom";
 import { Link } from "react-router-dom";
 import { useSelector } from "react-redux";
-export const AdminLayout = ({ activeTab, onTabChange, onNavigate }) => {
+export const AdminLayout = ({ activeTab }) => {
   const { user } = useSelector((state) => state.auth);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);

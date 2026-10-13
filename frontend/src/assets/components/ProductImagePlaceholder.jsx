@@ -1,4 +1,3 @@
-import React from "react";
 
 /**
  * ProductImagePlaceholder Component
@@ -12,7 +11,8 @@ export function ProductImagePlaceholder({
   compact = false,
   className = "",
 }) {
-  const normCategory = (category || "").toLowerCase();
+  const catStr = typeof category === "string" ? category : (category?.name || "");
+  const normCategory = catStr.toLowerCase();
 
   // Category specific icons
   const renderIcon = () => {

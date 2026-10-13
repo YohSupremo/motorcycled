@@ -5,7 +5,6 @@ import { getProductDetails, clearErrors } from "../../../actions/productActions"
 import { addToCart } from "../../../actions/cartActions";
 import { toast } from "react-toastify";
 import { ProductImagePlaceholder } from "../../components/ProductImagePlaceholder";
-import { ScrollReveal } from "../../components/ScrollReveal";
 
 // Reference: itcp318-s3a-2026/frontend/src/Components/Product/ProductDetails.jsx
 // Styled with Dealership & OEM aesthetic (zinc/emerald, monospace technical badges)
@@ -94,18 +93,16 @@ export const ProductDetails = () => {
         inCart >= inStock
           ? `Stock limit reached! You already have all ${inStock} available units of "${product.name}" in your cart.`
           : `Cannot add ${finalQty} units. Stock limit is ${inStock} (${inCart} already in cart, only ${remaining} available).`;
-      toast.warning(warnMsg, { icon: "⚠️" });
+      toast.warning(warnMsg);
       return;
     }
 
     const result = await dispatch(addToCart(product._id, finalQty));
     if (result && result.success === false) {
-      toast.warning(result.message || `Cannot add to cart: Stock limit reached!`, { icon: "⚠️" });
+      toast.warning(result.message || `Cannot add to cart: Stock limit reached!`);
     } else {
       setAddedNotice(`Added ${finalQty} × "${product.name}" to cart!`);
-      toast.success(`Added ${finalQty} × "${product.name}" to your cart!`, {
-        icon: "🛒",
-      });
+      toast.success(`Added ${finalQty} × "${product.name}" to your cart!`);
       setTimeout(() => setAddedNotice(""), 3000);
     }
   };
@@ -371,9 +368,16 @@ export const ProductDetails = () => {
 
               {/* Ratings Summary (Reference: itcp318-s3a-2026/frontend/src/Components/Product/ProductDetails.jsx) */}
               <div className="flex items-center gap-2 pt-1 text-xs text-zinc-600 font-mono">
-                <div className="flex items-center text-amber-400">
-                  {"★".repeat(Math.round(product.ratings || 5))}
-                  {"☆".repeat(5 - Math.round(product.ratings || 5))}
+                <div className="flex items-center gap-0.5">
+                  {[...Array(5)].map((_, i) => (
+                    <svg
+                      key={i}
+                      className={`w-3.5 h-3.5 ${i < Math.round(product.ratings || 5) ? "text-amber-400 fill-amber-400" : "text-zinc-200 fill-zinc-200"}`}
+                      viewBox="0 0 24 24"
+                    >
+                      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                    </svg>
+                  ))}
                 </div>
                 <span>
                   {(product.ratings || 5).toFixed(1)} ({product.numOfReviews || 0} reviews)
@@ -522,14 +526,14 @@ export const ProductDetails = () => {
             {/* Dealership Assurance Badges */}
             <div className="grid grid-cols-2 gap-3 pt-4 border-t border-zinc-200 text-xs">
               <div className="flex items-start gap-2 text-zinc-600">
-                <span className="text-emerald-600 font-bold">✓</span>
+                <svg className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12" /></svg>
                 <div>
                   <span className="font-semibold text-zinc-900 block">Official Dealership Release</span>
                   <span className="text-[11px] text-zinc-500">100% Genuine OEM with factory serial</span>
                 </div>
               </div>
               <div className="flex items-start gap-2 text-zinc-600">
-                <span className="text-emerald-600 font-bold">✓</span>
+                <svg className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12" /></svg>
                 <div>
                   <span className="font-semibold text-zinc-900 block">Nationwide Delivery & Pickup</span>
                   <span className="text-[11px] text-zinc-500">Pick up at local hub or secure doorstep courier</span>

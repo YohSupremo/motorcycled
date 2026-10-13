@@ -129,8 +129,9 @@ export const AdminSettings = () => {
         </div>
 
         {saveFeedback && (
-          <span className="text-xs font-semibold text-emerald-800 bg-emerald-50 border border-emerald-300 px-3 py-1.5 rounded animate-fadeIn">
-            ✓ Settings Saved Successfully
+          <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-800 bg-emerald-50 border border-emerald-300 px-3 py-1.5 rounded animate-fadeIn">
+            <svg className="w-3.5 h-3.5 text-emerald-600 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            Settings Saved Successfully
           </span>
         )}
       </div>
@@ -431,7 +432,7 @@ export const AdminSettings = () => {
                 onClick={() => setIsPlanModalOpen(false)}
                 className="w-6 h-6 rounded flex items-center justify-center text-zinc-400 hover:text-zinc-700 hover:bg-zinc-200/60 text-xs"
               >
-                ✕
+                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
               </button>
             </div>
 

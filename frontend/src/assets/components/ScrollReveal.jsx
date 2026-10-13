@@ -15,14 +15,13 @@ export function ScrollReveal({
   distance = 20, // pixels to translate
 }) {
   const elementRef = useRef(null);
-  const [isVisible, setIsVisible] = useState(false);
+  const [isVisible, setIsVisible] = useState(
+    () => typeof window === "undefined" || !("IntersectionObserver" in window)
+  );
 
   useEffect(() => {
     const node = elementRef.current;
-    if (!node) return;
-
-    if (typeof window === "undefined" || !("IntersectionObserver" in window)) {
-      setIsVisible(true);
+    if (!node || typeof window === "undefined" || !("IntersectionObserver" in window)) {
       return;
     }
 
@@ -67,43 +66,4 @@ export function ScrollReveal({
       {children}
     </div>
   );
-}
-
-/**
- * Custom Hook: useScrollReveal
- * For custom elements or lists where you want to attach an observer to a ref.
- */
-export function useScrollReveal(options = {}) {
-  const { threshold = 0.1, rootMargin = "0px 0px -40px 0px" } = options;
-  const ref = useRef(null);
-  const [isRevealed, setIsRevealed] = useState(false);
-
-  useEffect(() => {
-    const node = ref.current;
-    if (!node) return;
-
-    if (typeof window === "undefined" || !("IntersectionObserver" in window)) {
-      setIsRevealed(true);
-      return;
-    }
-
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setIsRevealed(true);
-          observer.unobserve(entry.target);
-        }
-      },
-      { threshold, rootMargin }
-    );
-
-    observer.observe(node);
-
-    return () => {
-      if (node) observer.unobserve(node);
-      observer.disconnect();
-    };
-  }, [threshold, rootMargin]);
-
-  return [ref, isRevealed];
 }

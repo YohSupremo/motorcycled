@@ -68,7 +68,7 @@ export const AdminInventory = () => {
     },
   ]);
 
-  const [suppliers, setSuppliers] = useState([
+  const [suppliers] = useState([
     {
       id: "SUP-01",
       name: "Apex Moto Distributors Inc.",

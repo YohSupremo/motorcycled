@@ -9,12 +9,11 @@ import {
   confirmInstallmentOrder,
 } from "../../../actions/orderActions";
 
-export const AdminOrders = ({ initialSelectedOrderId }) => {
+export const AdminOrders = () => {
   const dispatch = useDispatch();
   const [activeStatusTab, setActiveStatusTab] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedOrder, setSelectedOrder] = useState(null);
-  const [reviewAction, setReviewAction] = useState(null);
   const [rejectionReason, setRejectionReason] = useState("");
   const [actionSuccess, setActionSuccess] = useState("");
 
@@ -31,17 +30,14 @@ export const AdminOrders = ({ initialSelectedOrderId }) => {
   };
 
   useEffect(() => {
-    reloadData();
+    dispatch(getAdminOrders());
+    dispatch(getAdminApplications());
   }, [dispatch]);
 
   // Transform backend orders and applications into unified table items
   const unifiedOrders = [
     // Regular orders
     ...orders.map((o) => {
-      const itemsPrice = (o.orderItems || []).reduce(
-        (sum, item) => sum + (item.price || 0) * (item.quantity || 1),
-        0
-      );
       const customerName = o.user
         ? `${o.user.firstName || ""} ${o.user.lastName || ""}`.trim()
         : "Customer";
@@ -242,15 +238,17 @@ export const AdminOrders = ({ initialSelectedOrderId }) => {
         <button
           type="button"
           onClick={reloadData}
-          className="h-8 px-3 rounded text-xs font-semibold border border-zinc-300 hover:bg-zinc-50 text-zinc-700 cursor-pointer"
+          className="inline-flex items-center gap-1.5 h-8 px-3 rounded text-xs font-semibold border border-zinc-300 hover:bg-zinc-50 text-zinc-700 cursor-pointer"
         >
-          ↻ Refresh Records
+          <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+          Refresh Records
         </button>
       </div>
 
       {actionSuccess && (
-        <div className="p-3 bg-emerald-50 border border-emerald-300 text-emerald-800 text-xs font-medium rounded-md">
-          ✓ {actionSuccess}
+        <div className="flex items-center gap-1.5 p-3 bg-emerald-50 border border-emerald-300 text-emerald-800 text-xs font-medium rounded-md">
+          <svg className="w-4 h-4 text-emerald-600 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12" /></svg>
+          <span>{actionSuccess}</span>
         </div>
       )}
 

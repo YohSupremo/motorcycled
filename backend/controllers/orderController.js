@@ -4,6 +4,7 @@ import Order from "../model/Order.js";
 import InstallmentApplication from "../model/InstallmentApplication.js";
 import Category from "../model/Category.js";
 import User from "../model/User.js";
+import { cloudConf } from "../config/cloudinary.js";
 import { notifyOrderPlaced, notifyInstallmentUpdate } from "../services/notificationService.js";
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
@@ -169,8 +170,28 @@ export const newCheckout = async (req, res) => {
       }
     }
 
+    // ── 3.5. Separate logistics for Parts vs Motorcycles ─────────────────────
+    // Motorcycles are ALWAYS released at the authorized showroom bay (pickup + PDI)
+    const motorcycleShippingInfo = {
+      ...shippingInfo,
+      fulfillmentMethod: "pickup",
+      branch: shippingInfo.branch,
+    };
+
+    // Parts can be courier delivery (to customer home) or showroom pickup
+    const partsFulfillmentMethod =
+      shippingInfo.partsFulfillmentMethod ||
+      shippingInfo.fulfillmentMethod ||
+      "pickup";
+
+    const partsShippingInfo = {
+      ...shippingInfo,
+      fulfillmentMethod: partsFulfillmentMethod,
+      branch: partsFulfillmentMethod === "pickup" ? shippingInfo.branch : undefined,
+    };
+
     const shippingPrice =
-      shippingInfo.fulfillmentMethod === "delivery" ? SHIPPING_DELIVERY : 0;
+      partsFulfillmentMethod === "delivery" ? SHIPPING_DELIVERY : 0;
 
     // ── 4. Create parts Order (grouped) ──────────────────────────────────────
     if (partsItems.length > 0) {
@@ -216,7 +237,7 @@ export const newCheckout = async (req, res) => {
           checkoutSessionId,
           user: req.user._id,
           orderItems,
-          shippingInfo,
+          shippingInfo: partsShippingInfo,
           paymentMethod,
           itemsPrice,
           shippingPrice,
@@ -271,7 +292,7 @@ export const newCheckout = async (req, res) => {
             itemType: mi.itemType,
           },
         ],
-        shippingInfo,
+        shippingInfo: motorcycleShippingInfo,
         paymentMethod,
         itemsPrice,
         shippingPrice: 0,
@@ -293,6 +314,9 @@ export const newCheckout = async (req, res) => {
     for (const ii of motorcycleInstallmentItems) {
       const financing = computeFinancing(ii.product.price, ii.termMonths);
 
+      const documentUploads = req.body.documentUploads || {};
+      const verificationMethod = documentUploads.verificationMethod || "showroom_physical";
+
       const app = new InstallmentApplication({
         checkoutSessionId,
         user: req.user._id,
@@ -307,7 +331,13 @@ export const newCheckout = async (req, res) => {
         monthlyPayment: financing.monthlyPayment,
         processingFee: PROCESSING_FEE,
         totalRepayment: financing.totalRepayment,
-        shippingInfo,
+        shippingInfo: motorcycleShippingInfo,
+        documentUploads: {
+          verificationMethod,
+          idCard: documentUploads.idCard || null,
+          proofOfIncome: documentUploads.proofOfIncome || null,
+          documentVerified: false,
+        },
       });
       await app.save();
 
@@ -570,6 +600,29 @@ export const approveApplication = async (req, res) => {
     application.applicationStatus = "approved";
     application.approvedAt = new Date();
     application.confirmedTerms = confirmedTerms;
+
+    // Ephemeral document purge (DPA compliance)
+    if (application.documentUploads) {
+      if (application.documentUploads.idCard?.publicId) {
+        try {
+          await cloudConf.uploader.destroy(application.documentUploads.idCard.publicId);
+        } catch (cErr) {
+          console.error("Cloudinary purge error for idCard:", cErr);
+        }
+      }
+      if (application.documentUploads.proofOfIncome?.publicId) {
+        try {
+          await cloudConf.uploader.destroy(application.documentUploads.proofOfIncome.publicId);
+        } catch (cErr) {
+          console.error("Cloudinary purge error for proofOfIncome:", cErr);
+        }
+      }
+      application.documentUploads.documentVerified = true;
+      application.documentUploads.purgedAt = new Date();
+      application.documentUploads.idCard = undefined;
+      application.documentUploads.proofOfIncome = undefined;
+    }
+
     await application.save();
 
     const applicant = await User.findById(application.user);
@@ -579,7 +632,7 @@ export const approveApplication = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: "Installment application approved",
+      message: "Installment application approved and sensitive documents securely purged",
       data: { application },
     });
   } catch (error) {
@@ -619,6 +672,28 @@ export const rejectApplication = async (req, res) => {
     if (rejectionReason) {
       application.rejectionReason = rejectionReason;
     }
+
+    // Ephemeral document purge (DPA compliance)
+    if (application.documentUploads) {
+      if (application.documentUploads.idCard?.publicId) {
+        try {
+          await cloudConf.uploader.destroy(application.documentUploads.idCard.publicId);
+        } catch (cErr) {
+          console.error("Cloudinary purge error for idCard:", cErr);
+        }
+      }
+      if (application.documentUploads.proofOfIncome?.publicId) {
+        try {
+          await cloudConf.uploader.destroy(application.documentUploads.proofOfIncome.publicId);
+        } catch (cErr) {
+          console.error("Cloudinary purge error for proofOfIncome:", cErr);
+        }
+      }
+      application.documentUploads.purgedAt = new Date();
+      application.documentUploads.idCard = undefined;
+      application.documentUploads.proofOfIncome = undefined;
+    }
+
     await application.save();
 
     const applicant = await User.findById(application.user);
@@ -867,3 +942,62 @@ export const getOrderReceipt = async (req, res) => {
     return res.status(500).send("Error generating receipt");
   }
 };
+
+/**
+ * POST /api/v1/application/:id/pay-installment
+ * Allows a customer to pay their monthly amortization or settle installments online.
+ */
+export const payInstallment = async (req, res) => {
+  try {
+    const { paymentMethod = "gcash", referenceNumber } = req.body;
+
+    const application = await InstallmentApplication.findById(req.params.id);
+    if (!application) {
+      return res.status(404).json({ success: false, message: "Installment application not found" });
+    }
+
+    if (
+      application.user.toString() !== req.user._id.toString() &&
+      req.user.role !== "admin"
+    ) {
+      return res.status(403).json({ success: false, message: "Unauthorized access" });
+    }
+
+    const currentPaid = application.installmentsPaid || 0;
+    const termMonths = application.termMonths || 12;
+
+    if (currentPaid >= termMonths) {
+      return res.status(400).json({
+        success: false,
+        message: "This motorcycle financing has already been fully paid!",
+      });
+    }
+
+    const nextNumber = currentPaid + 1;
+    application.installmentsPaid = nextNumber;
+
+    if (!application.paymentHistory) {
+      application.paymentHistory = [];
+    }
+
+    application.paymentHistory.push({
+      paidAt: new Date(),
+      amount: application.monthlyPayment,
+      paymentMethod,
+      referenceNumber: referenceNumber || `MC-PAY-${Date.now().toString().slice(-6)}`,
+      installmentNumber: nextNumber,
+    });
+
+    await application.save();
+
+    return res.status(200).json({
+      success: true,
+      message: `Installment #${nextNumber} of ${termMonths} paid successfully!`,
+      data: { application },
+    });
+  } catch (error) {
+    console.error("payInstallment error:", error);
+    return res.status(500).json({ success: false, message: "Error processing installment payment" });
+  }
+};
+

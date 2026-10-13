@@ -5,7 +5,7 @@ import cookieParser from "cookie-parser";
 import mongoose from "mongoose";
 import connection from "./config/db.js";
 import authRoutes from "./routes/authRoutes.js";
-import useRoutes from "./routes/useRoutes.js";
+import userRoutes from "./routes/userRoutes.js";
 import productRoutes from "./routes/productRoutes.js";
 import catalogRoutes from "./routes/catalogRoutes.js";
 import orderRoutes from "./routes/orderRoutes.js";
@@ -32,7 +32,7 @@ connection();
 mongoose.connection.once("open", () => seedCatalogDefaults());
 
 app.use("/api/v1", authRoutes);
-app.use("/api/v1/profile", useRoutes);
+app.use("/api/v1/profile", userRoutes);
 app.use("/api/v1", productRoutes);
 app.use("/api/v1", catalogRoutes);
 app.use("/api/v1", orderRoutes);

@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import InfiniteScroll from "react-infinite-scroll-component";
 import {
   Slider,
   Rating,
@@ -9,7 +10,9 @@ import {
   Box,
   Typography,
   Button,
+  CircularProgress,
 } from "@mui/material";
+import axios from "axios";
 import { ScrollReveal } from "../../components/ScrollReveal";
 import { ProductImagePlaceholder } from "../../components/ProductImagePlaceholder";
 import { getProducts, getCategories, getBrands } from "../../../actions/productActions";
@@ -43,13 +46,19 @@ export const Shop = ({ onNavigate }) => {
   const [addedNotice, setAddedNotice] = useState("");
   const [stockWarning, setStockWarning] = useState("");
 
+  // Infinite Scroll State
+  const [infiniteProducts, setInfiniteProducts] = useState([]);
+  const [infinitePage, setInfinitePage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+
   // Select live data from Redux store
   // Reference: itcp318-s3a-2026/frontend/src/Components/Home.jsx
   const {
     loading,
     products = [],
     productsCount = 0,
-    resPerPage = 12,
+    filteredProductsCount = 0,
   } = useSelector((state) => state.products || {});
 
   const { cartItems = [] } = useSelector((state) => state.cart || {});
@@ -64,11 +73,22 @@ export const Shop = ({ onNavigate }) => {
     dispatch(getBrands());
   }, [dispatch]);
 
+  // Sync initial Redux products with infiniteProducts on filter change
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setInfiniteProducts(products || []);
+      setInfinitePage(1);
+      const totalAvailable = productsCount || filteredProductsCount || 0;
+      setHasMore((products || []).length < totalAvailable);
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [products, filteredProductsCount, productsCount]);
+
   // Fetch products from database whenever query parameters change
   useEffect(() => {
     dispatch(
       getProducts(
-        currentPage,
+        1,
         searchQuery,
         priceRange,
         selectedCategory,
@@ -79,7 +99,6 @@ export const Shop = ({ onNavigate }) => {
     );
   }, [
     dispatch,
-    currentPage,
     searchQuery,
     priceRange,
     selectedCategory,
@@ -87,6 +106,43 @@ export const Shop = ({ onNavigate }) => {
     onlyInstallment,
     selectedRating,
   ]);
+
+  // Fetch more products for Infinite Scroll
+  const fetchMoreProducts = async () => {
+    if (loadingMore || !hasMore) return;
+    setLoadingMore(true);
+    const nextPage = infinitePage + 1;
+    try {
+      const api = import.meta.env.VITE_API;
+      let url = `${api}/products?page=${nextPage}&limit=12&price[gte]=${priceRange[0]}&price[lte]=${priceRange[1]}`;
+      if (searchQuery.trim()) url += `&keyword=${encodeURIComponent(searchQuery.trim())}`;
+      if (selectedCategory && selectedCategory !== "All") url += `&category=${encodeURIComponent(selectedCategory)}`;
+      if (selectedBrand && selectedBrand !== "All") url += `&brand=${encodeURIComponent(selectedBrand)}`;
+      if (onlyInstallment) url += `&onlyInstallment=true`;
+      if (selectedRating > 0) url += `&ratings=${selectedRating}`;
+
+      const res = await axios.get(url);
+      if (res.data) {
+        const newItems = res.data.products || [];
+        setInfiniteProducts((prev) => {
+          const existingIds = new Set(prev.map((p) => p._id));
+          const filtered = newItems.filter((p) => !existingIds.has(p._id));
+          const updated = [...prev, ...filtered];
+          const totalAvail = res.data.productsCount || res.data.filteredProductsCount || 0;
+          if (updated.length >= totalAvail || newItems.length === 0) {
+            setHasMore(false);
+          }
+          return updated;
+        });
+        setInfinitePage(nextPage);
+      }
+    } catch (err) {
+      console.error("Failed to load more products via infinite scroll", err);
+      setHasMore(false);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   // Sync state changes back to search params (without page refresh)
   useEffect(() => {
@@ -146,16 +202,6 @@ export const Shop = ({ onNavigate }) => {
     return names;
   }, [dbBrands]);
 
-  // Pagination calculation (Reference: itcp318-s3a-2026/frontend/src/Components/Home.jsx)
-  const totalPages = Math.max(1, Math.ceil((productsCount || 0) / (resPerPage || 12)));
-
-  const handlePageChange = (newPage) => {
-    if (newPage >= 1 && newPage <= totalPages) {
-      setCurrentPage(newPage);
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    }
-  };
-
   const handleAddToCart = async (product) => {
     // Check local stock limits first
     const inCart = (cartItems || [])
@@ -165,7 +211,7 @@ export const Shop = ({ onNavigate }) => {
     if (inCart >= product.stock) {
       const warnMsg = `Stock limit reached! You already have all ${product.stock} units of "${product.name}" in your cart.`;
       setStockWarning(warnMsg);
-      toast.warning(warnMsg, { icon: "⚠️" });
+      toast.warning(warnMsg);
       setTimeout(() => setStockWarning(""), 4000);
       return;
     }
@@ -174,14 +220,12 @@ export const Shop = ({ onNavigate }) => {
     if (result && result.success === false) {
       const warnMsg = result.message || `Cannot add "${product.name}": Stock limit reached!`;
       setStockWarning(warnMsg);
-      toast.warning(warnMsg, { icon: "⚠️" });
+      toast.warning(warnMsg);
       setTimeout(() => setStockWarning(""), 4000);
     } else {
       setStockWarning("");
       setAddedNotice(`Added "${product.name}" to cart`);
-      toast.success(`Added "${product.name}" to cart!`, {
-        icon: "🛒",
-      });
+      toast.success(`Added "${product.name}" to cart.`);
       setTimeout(() => setAddedNotice(""), 2500);
     }
   };
@@ -229,8 +273,9 @@ export const Shop = ({ onNavigate }) => {
 
           {addedNotice && (
             <div className="flex items-center">
-              <span className="text-xs font-medium text-emerald-800 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-md animate-fade-in-subtle">
-                ✓ {addedNotice}
+              <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-800 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-md animate-fade-in-subtle">
+                <svg className="w-3.5 h-3.5 text-emerald-600 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12" /></svg>
+                {addedNotice}
               </span>
             </div>
           )}
@@ -249,7 +294,7 @@ export const Shop = ({ onNavigate }) => {
               boxShadow: "0 2px 8px rgba(245, 158, 11, 0.2)",
             }}
           >
-            ⚠️ {stockWarning}
+            {stockWarning}
           </Alert>
         )}
 
@@ -537,8 +582,8 @@ export const Shop = ({ onNavigate }) => {
               <div className="flex items-center justify-between pb-3 border-b border-zinc-200 text-xs">
                 <span className="text-zinc-600">
                   Displaying{" "}
-                  <strong>{products?.length || 0}</strong> of{" "}
-                  <strong>{productsCount || 0}</strong> items in database
+                  <strong>{infiniteProducts?.length || 0}</strong> of{" "}
+                  <strong>{filteredProductsCount || productsCount || 0}</strong> items in database
                 </span>
 
                 {/* View Switcher: Table or Grid */}
@@ -569,7 +614,7 @@ export const Shop = ({ onNavigate }) => {
               </div>
 
               {/* Loading Skeleton */}
-              {loading ? (
+              {loading && infiniteProducts.length === 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 py-4">
                   {[...Array(6)].map((_, i) => (
                     <div
@@ -583,7 +628,7 @@ export const Shop = ({ onNavigate }) => {
                     </div>
                   ))}
                 </div>
-              ) : products.length === 0 ? (
+              ) : infiniteProducts.length === 0 ? (
                 /* Empty State */
                 <div className="border border-zinc-200 rounded-md p-12 text-center space-y-3 bg-zinc-50/50">
                   <div className="w-12 h-12 mx-auto rounded-full bg-zinc-100 border border-zinc-200 flex items-center justify-center text-zinc-400">
@@ -616,10 +661,31 @@ export const Shop = ({ onNavigate }) => {
                     </button>
                   </div>
                 </div>
-              ) : viewMode === "grid" ? (
-                /* Architectural Grid - Real Cloudinary images + database attributes */
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 border-t border-l border-zinc-200">
-                  {products.map((p) => {
+              ) : (
+                <InfiniteScroll
+                  dataLength={infiniteProducts.length}
+                  next={fetchMoreProducts}
+                  hasMore={hasMore}
+                  scrollThreshold={0.7}
+                  loader={
+                    <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", py: 4, gap: 1.5 }}>
+                      <CircularProgress size={22} sx={{ color: "#059669" }} />
+                      <Typography variant="body2" sx={{ fontSize: "0.8rem", color: "#52525b", fontWeight: 500 }}>
+                        Loading more products...
+                      </Typography>
+                    </Box>
+                  }
+                  endMessage={
+                    <Box sx={{ textAlign: "center", py: 4, color: "#71717a", fontSize: "0.75rem", borderTop: "1px dashed #e4e4e7", mt: 4 }}>
+                      <p className="font-semibold text-zinc-700">All catalog products loaded</p>
+                      <p className="text-[11px] text-zinc-400 mt-0.5">Showing all {infiniteProducts.length} matching items</p>
+                    </Box>
+                  }
+                >
+                  {viewMode === "grid" ? (
+                    /* Architectural Grid - Real Cloudinary images + database attributes */
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 border-t border-l border-zinc-200">
+                      {infiniteProducts.map((p) => {
                     const categoryName = p.category?.name || p.category || "General";
                     const brandName = p.brand?.name || p.brand || "OEM";
                     const hasImage = p.images && p.images.length > 0 && p.images[0]?.url;
@@ -781,7 +847,7 @@ export const Shop = ({ onNavigate }) => {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-zinc-200">
-                        {products.map((p) => {
+                        {infiniteProducts.map((p) => {
                           const categoryName = p.category?.name || p.category || "General";
                           const brandName = p.brand?.name || p.brand || "OEM";
                           const hasImage = p.images && p.images.length > 0 && p.images[0]?.url;
@@ -880,50 +946,8 @@ export const Shop = ({ onNavigate }) => {
                     </table>
                   </div>
                 </div>
-              )}
-
-              {/* Pagination Controls (Reference: itcp318-s3a-2026/frontend/src/Components/Home.jsx) */}
-              {totalPages > 1 && (
-                <div className="flex items-center justify-between pt-6 border-t border-zinc-200">
-                  <span className="text-xs text-zinc-500 font-mono">
-                    Page {currentPage} of {totalPages}
-                  </span>
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      type="button"
-                      disabled={currentPage <= 1}
-                      onClick={() => handlePageChange(currentPage - 1)}
-                      className="px-3 h-8 rounded border border-zinc-300 text-xs text-zinc-700 hover:bg-zinc-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-                    >
-                      &larr; Previous
-                    </button>
-                    {[...Array(totalPages)].map((_, i) => {
-                      const pageNum = i + 1;
-                      return (
-                        <button
-                          key={pageNum}
-                          type="button"
-                          onClick={() => handlePageChange(pageNum)}
-                          className={`w-8 h-8 rounded text-xs font-medium cursor-pointer transition-colors ${
-                            currentPage === pageNum
-                              ? "bg-emerald-600 text-white font-bold"
-                              : "border border-zinc-200 hover:bg-zinc-50 text-zinc-700"
-                          }`}
-                        >
-                          {pageNum}
-                        </button>
-                      );
-                    })}
-                    <button
-                      type="button"
-                      disabled={currentPage >= totalPages}
-                      onClick={() => handlePageChange(currentPage + 1)}
-                      className="px-3 h-8 rounded border border-zinc-300 text-xs text-zinc-700 hover:bg-zinc-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-                    >
-                      Next &rarr;
-                    </button>
-                  </div>
-                </div>
+                  )}
+                </InfiniteScroll>
               )}
             </ScrollReveal>
           </div>

@@ -225,3 +225,17 @@ export const resetConfirmInstallmentOrder = () => (dispatch) => {
 export const clearOrderErrors = () => (dispatch) => {
   dispatch({ type: CLEAR_ERRORS })
 }
+
+export const payInstallmentAmortization = (applicationId, paymentData) => async (dispatch) => {
+  try {
+    const { data } = await axios.post(
+      `${api}/application/${applicationId}/pay-installment`,
+      paymentData,
+      { withCredentials: true }
+    );
+    dispatch(getMyOrders());
+    return { success: true, data };
+  } catch (error) {
+    return { success: false, message: getErrorMessage(error) };
+  }
+};

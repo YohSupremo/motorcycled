@@ -142,8 +142,9 @@ export const AdminReviews = () => {
                     <p className="font-semibold text-zinc-900">{r.customer}</p>
                     <span className="font-mono text-[10px] text-zinc-400 block">{r.email}</span>
                     {r.isVerifiedPurchase ? (
-                      <span className="inline-block mt-0.5 text-[9px] font-mono font-semibold px-1 rounded bg-emerald-50 text-emerald-800 border border-emerald-200">
-                        ✓ Verified Purchase
+                      <span className="inline-flex items-center gap-1 mt-0.5 text-[9px] font-mono font-semibold px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200">
+                        <svg className="w-2.5 h-2.5 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
+                        Verified Purchase
                       </span>
                     ) : (
                       <span className="inline-block mt-0.5 text-[9px] font-mono px-1 rounded bg-zinc-100 text-zinc-500">
@@ -157,9 +158,16 @@ export const AdminReviews = () => {
                   </td>
 
                   <td className="py-3 px-4">
-                    <div className="flex items-center text-amber-500 text-sm">
-                      {"★".repeat(r.rating)}
-                      <span className="text-zinc-300">{"★".repeat(5 - r.rating)}</span>
+                    <div className="flex items-center gap-0.5">
+                      {[...Array(5)].map((_, i) => (
+                        <svg
+                          key={i}
+                          className={`w-3.5 h-3.5 ${i < r.rating ? "text-amber-500 fill-amber-500" : "text-zinc-200 fill-zinc-200"}`}
+                          viewBox="0 0 24 24"
+                        >
+                          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                        </svg>
+                      ))}
                     </div>
                   </td>
 
