@@ -14,6 +14,10 @@ const brandSchema = new mongoose.Schema(
       url: { type: String },
       publicId: { type: String },
     },
+    isArchived: {
+      type: Boolean,
+      default: false,
+    },
   },
   { timestamps: true },
 );

@@ -136,7 +136,7 @@ export const ProductDetails = () => {
     );
   }
 
-  if (error || !product || !product._id) {
+  if (error || !product || !product._id || product.isArchived) {
     return (
       <div className="min-h-[60vh] bg-white flex items-center justify-center py-16 px-4">
         <div className="max-w-md w-full text-center space-y-4 border border-zinc-200 rounded-lg p-8 bg-zinc-50">
@@ -353,7 +353,7 @@ export const ProductDetails = () => {
           {/* Right Column: Spec & Action Panel */}
           <div className="lg:col-span-6 space-y-6">
             <div className="space-y-2 border-b border-zinc-200 pb-5">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-xs font-mono uppercase tracking-widest text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
                   {brandName}
                 </span>

@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
+import { DataGrid } from "@mui/x-data-grid";
 
 export const AdminInventory = () => {
   const [activeTab, setActiveTab] = useState("ledger"); // 'ledger' | 'suppliers'
@@ -141,6 +142,205 @@ export const AdminInventory = () => {
     return true;
   });
 
+  const ledgerColumns = useMemo(
+    () => [
+      {
+        field: "id",
+        headerName: "Txn ID",
+        width: 110,
+        renderCell: (params) => (
+          <span className="font-mono font-bold text-zinc-900">{params.row.id}</span>
+        ),
+      },
+      {
+        field: "date",
+        headerName: "Date & Time",
+        width: 150,
+        renderCell: (params) => (
+          <span className="font-mono text-zinc-500 text-[11px]">{params.row.date}</span>
+        ),
+      },
+      {
+        field: "type",
+        headerName: "Operation Type",
+        width: 140,
+        renderCell: (params) => {
+          const type = params.row.type;
+          return (
+            <div className="admin-table-cell-center">
+              {type === "restock" && (
+                <span className="admin-table-badge uppercase text-[10px] font-mono font-medium bg-emerald-50 text-emerald-800 border border-emerald-200">
+                  restock (+)
+                </span>
+              )}
+              {type === "sale" && (
+                <span className="admin-table-badge uppercase text-[10px] font-mono font-medium bg-blue-50 text-blue-800 border border-blue-200">
+                  sale (-)
+                </span>
+              )}
+              {type === "reserve" && (
+                <span className="admin-table-badge uppercase text-[10px] font-mono font-medium bg-amber-50 text-amber-800 border border-amber-200">
+                  reserve (hold)
+                </span>
+              )}
+              {type === "release" && (
+                <span className="admin-table-badge uppercase text-[10px] font-mono font-medium bg-purple-50 text-purple-800 border border-purple-200">
+                  release (handover)
+                </span>
+              )}
+              {type === "cancellation" && (
+                <span className="admin-table-badge uppercase text-[10px] font-mono font-medium bg-zinc-100 text-zinc-800 border border-zinc-200">
+                  cancellation (+)
+                </span>
+              )}
+              {type === "adjustment" && (
+                <span className="admin-table-badge uppercase text-[10px] font-mono font-medium bg-indigo-50 text-indigo-800 border border-indigo-200">
+                  adjustment
+                </span>
+              )}
+            </div>
+          );
+        },
+      },
+      {
+        field: "product",
+        headerName: "Item & Description",
+        flex: 1.5,
+        minWidth: 200,
+        renderCell: (params) => (
+          <span className="font-medium text-zinc-900 truncate text-xs">{params.row.product}</span>
+        ),
+      },
+      {
+        field: "quantityChange",
+        headerName: "Qty Delta",
+        width: 100,
+        type: "number",
+        headerAlign: "left",
+        align: "left",
+        renderCell: (params) => {
+          const delta = params.row.quantityChange;
+          return (
+            <span className={`font-mono font-bold text-xs ${delta > 0 ? "text-emerald-700" : "text-zinc-800"}`}>
+              {delta > 0 ? `+${delta}` : delta}
+            </span>
+          );
+        },
+      },
+      {
+        field: "orderRef",
+        headerName: "Order / PO Ref",
+        width: 140,
+        renderCell: (params) => (
+          <span className="font-mono text-[11px] text-zinc-600 truncate">{params.row.orderRef}</span>
+        ),
+      },
+      {
+        field: "note",
+        headerName: "Audit Notes",
+        flex: 1.5,
+        minWidth: 180,
+        renderCell: (params) => {
+          const tx = params.row;
+          return (
+            <div className="flex flex-col justify-center min-w-0 leading-tight">
+              <span className="text-zinc-600 text-[11px] truncate">{tx.note}</span>
+              <span className="text-[10px] font-mono text-zinc-400 truncate mt-0.5">By: {tx.performedBy}</span>
+            </div>
+          );
+        },
+      },
+    ],
+    []
+  );
+
+  const supplierColumns = useMemo(
+    () => [
+      {
+        field: "id",
+        headerName: "Supplier ID",
+        width: 110,
+        renderCell: (params) => (
+          <span className="font-mono font-bold text-zinc-900">{params.row.id}</span>
+        ),
+      },
+      {
+        field: "name",
+        headerName: "Company Name",
+        flex: 1.2,
+        minWidth: 180,
+        renderCell: (params) => (
+          <span className="font-bold text-zinc-900 truncate">{params.row.name}</span>
+        ),
+      },
+      {
+        field: "contactPerson",
+        headerName: "Contact Person",
+        flex: 1,
+        minWidth: 160,
+        valueGetter: (value, row) => row.contact?.person || "—",
+        renderCell: (params) => {
+          const c = params.row.contact;
+          return (
+            <div className="flex flex-col justify-center min-w-0 leading-tight">
+              <span className="font-semibold text-zinc-900 text-xs truncate">{c.person}</span>
+              <span className="text-[11px] text-zinc-400 font-mono truncate mt-0.5">{c.email}</span>
+            </div>
+          );
+        },
+      },
+      {
+        field: "contactLocation",
+        headerName: "Hotline & Location",
+        flex: 1.2,
+        minWidth: 180,
+        valueGetter: (value, row) => `${row.contact?.phone || ""} ${row.contact?.address || ""}`,
+        renderCell: (params) => {
+          const c = params.row.contact;
+          return (
+            <div className="flex flex-col justify-center min-w-0 leading-tight">
+              <span className="font-mono text-zinc-700 text-xs leading-tight truncate">{c.phone}</span>
+              <span className="text-[11px] text-zinc-400 truncate mt-0.5">{c.address}</span>
+            </div>
+          );
+        },
+      },
+      {
+        field: "productLines",
+        headerName: "Authorized Product Lines",
+        flex: 1.5,
+        minWidth: 200,
+        sortable: false,
+        renderCell: (params) => (
+          <div className="flex flex-wrap gap-1 py-1">
+            {(params.row.productLines || []).map((line, idx) => (
+              <span
+                key={idx}
+                className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-100 text-zinc-700 font-medium whitespace-nowrap"
+              >
+                {line}
+              </span>
+            ))}
+          </div>
+        ),
+      },
+      {
+        field: "status",
+        headerName: "Status",
+        width: 130,
+        headerAlign: "right",
+        align: "right",
+        renderCell: () => (
+          <span className="admin-table-badge gap-1.5 text-[11px] font-medium bg-emerald-50 text-emerald-800 border border-emerald-200">
+            <span className="admin-table-badge__dot w-1.5 h-1.5 rounded-full bg-emerald-500" />
+            Active
+          </span>
+        ),
+      },
+    ],
+    []
+  );
+
   return (
     <div className="space-y-6">
       
@@ -213,7 +413,7 @@ export const AdminInventory = () => {
 
       {/* TAB 1: Append-Only Stock Ledger */}
       {activeTab === "ledger" && (
-        <div className="border border-zinc-200 rounded-lg bg-white overflow-hidden shadow-2xs space-y-0">
+        <div className="border border-zinc-200 rounded-xl bg-white overflow-hidden shadow-xs space-y-0">
           <div className="p-3 bg-zinc-50 border-b border-zinc-200 text-xs text-zinc-600 flex items-center justify-between">
             <span className="font-semibold text-zinc-800">
               Immutable Ledger Stream (Strictly append-only audit trail; stock is derived)
@@ -223,139 +423,124 @@ export const AdminInventory = () => {
             </span>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead>
-                <tr className="border-b border-zinc-200 bg-zinc-50/70 text-[11px] font-mono uppercase text-zinc-500">
-                  <th className="py-2.5 px-4 font-semibold">Txn ID</th>
-                  <th className="py-2.5 px-4 font-semibold">Date & Time</th>
-                  <th className="py-2.5 px-4 font-semibold">Operation Type</th>
-                  <th className="py-2.5 px-4 font-semibold">Item & Description</th>
-                  <th className="py-2.5 px-4 font-semibold">Qty Delta</th>
-                  <th className="py-2.5 px-4 font-semibold">Order / PO Ref</th>
-                  <th className="py-2.5 px-4 font-semibold">Audit Notes</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-100">
-                {filteredLedger.map((tx) => (
-                  <tr key={tx.id} className="hover:bg-zinc-50/70 transition-colors">
-                    <td className="py-3 px-4 font-mono font-bold text-zinc-900">{tx.id}</td>
-                    <td className="py-3 px-4 font-mono text-zinc-500 text-[11px]">{tx.date}</td>
-                    
-                    <td className="py-3 px-4">
-                      {tx.type === "restock" && (
-                        <span className="inline-block uppercase text-[10px] font-mono font-bold px-1.5 py-0.2 rounded bg-emerald-50 text-emerald-800 border border-emerald-200">
-                          restock (+)
-                        </span>
-                      )}
-                      {tx.type === "sale" && (
-                        <span className="inline-block uppercase text-[10px] font-mono font-bold px-1.5 py-0.2 rounded bg-blue-50 text-blue-800 border border-blue-200">
-                          sale (-)
-                        </span>
-                      )}
-                      {tx.type === "reserve" && (
-                        <span className="inline-block uppercase text-[10px] font-mono font-bold px-1.5 py-0.2 rounded bg-amber-50 text-amber-800 border border-amber-200">
-                          reserve (hold)
-                        </span>
-                      )}
-                      {tx.type === "release" && (
-                        <span className="inline-block uppercase text-[10px] font-mono font-bold px-1.5 py-0.2 rounded bg-purple-50 text-purple-800 border border-purple-200">
-                          release (handover)
-                        </span>
-                      )}
-                      {tx.type === "cancellation" && (
-                        <span className="inline-block uppercase text-[10px] font-mono font-bold px-1.5 py-0.2 rounded bg-zinc-100 text-zinc-800 border border-zinc-200">
-                          cancellation (+)
-                        </span>
-                      )}
-                      {tx.type === "adjustment" && (
-                        <span className="inline-block uppercase text-[10px] font-mono font-bold px-1.5 py-0.2 rounded bg-indigo-50 text-indigo-800 border border-indigo-200">
-                          adjustment
-                        </span>
-                      )}
-                    </td>
-
-                    <td className="py-3 px-4 font-medium text-zinc-900 max-w-xs">
-                      {tx.product}
-                    </td>
-
-                    <td className="py-3 px-4 font-mono font-bold text-xs">
-                      <span className={tx.quantityChange > 0 ? "text-emerald-700" : "text-zinc-800"}>
-                        {tx.quantityChange > 0 ? `+${tx.quantityChange}` : tx.quantityChange}
-                      </span>
-                    </td>
-
-                    <td className="py-3 px-4 font-mono text-[11px] text-zinc-600">
-                      {tx.orderRef}
-                    </td>
-
-                    <td className="py-3 px-4 text-zinc-500 text-[11px]">
-                      <p>{tx.note}</p>
-                      <span className="text-[10px] font-mono text-zinc-400">By: {tx.performedBy}</span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <DataGrid
+            rows={filteredLedger}
+            columns={ledgerColumns}
+            getRowId={(row) => row.id}
+            rowHeight={60}
+            pageSizeOptions={[10, 25, 50]}
+            initialState={{
+              pagination: { paginationModel: { pageSize: 10 } },
+            }}
+            autoHeight
+            sx={{
+              border: "none",
+              fontFamily: "inherit",
+              fontSize: "0.75rem",
+              "& .MuiDataGrid-columnHeaders": {
+                backgroundColor: "#fafafa",
+                borderBottom: "1px solid #e4e4e7",
+                color: "#52525b",
+                fontWeight: 600,
+                fontSize: "0.6875rem",
+                textTransform: "uppercase",
+                fontFamily: "ui-monospace, monospace",
+                letterSpacing: "0.05em",
+              },
+              "& .MuiDataGrid-columnSeparator": {
+                display: "none !important",
+              },
+              "& .MuiDataGrid-columnHeader": {
+                paddingLeft: "16px",
+                paddingRight: "16px",
+              },
+              "& .MuiDataGrid-columnHeader:focus, & .MuiDataGrid-columnHeader:focus-within, & .MuiDataGrid-cell:focus, & .MuiDataGrid-cell:focus-within": {
+                outline: "none !important",
+              },
+              "& .MuiDataGrid-row": {
+                borderBottom: "1px solid #f4f4f5",
+                transition: "background-color 0.15s ease",
+              },
+              "& .MuiDataGrid-row:hover": {
+                backgroundColor: "rgba(244, 244, 245, 0.7)",
+              },
+              "& .MuiDataGrid-cell": {
+                display: "flex",
+                alignItems: "center",
+                paddingLeft: "16px",
+                paddingRight: "16px",
+              },
+              "& .MuiDataGrid-footerContainer": {
+                borderTop: "1px solid #e4e4e7",
+                backgroundColor: "#fafafa",
+              },
+              "& .MuiTablePagination-root": {
+                fontSize: "0.75rem",
+              },
+            }}
+          />
         </div>
       )}
 
-      {/* TAB 2: Suppliers Directory & Product Lines (Flat Directory Table, NO CARDS) */}
+      {/* TAB 2: Suppliers Directory & Product Lines */}
       {activeTab === "suppliers" && (
-        <div className="border border-zinc-200 bg-white overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead>
-              <tr className="border-b border-zinc-200 bg-zinc-50 text-[10px] font-mono uppercase text-zinc-500">
-                <th className="py-2.5 px-4 font-semibold">Supplier ID</th>
-                <th className="py-2.5 px-4 font-semibold">Company Name</th>
-                <th className="py-2.5 px-4 font-semibold">Contact Person</th>
-                <th className="py-2.5 px-4 font-semibold">Hotline & Location</th>
-                <th className="py-2.5 px-4 font-semibold">Authorized Product Lines</th>
-                <th className="py-2.5 px-4 font-semibold text-right">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-zinc-200">
-              {suppliers.map((s) => (
-                <tr key={s.id} className="hover:bg-zinc-50 transition-colors">
-                  <td className="py-3 px-4 font-mono font-bold text-zinc-900">{s.id}</td>
-                  
-                  <td className="py-3 px-4 font-bold text-zinc-900">
-                    {s.name}
-                  </td>
-
-                  <td className="py-3 px-4">
-                    <p className="font-semibold text-zinc-900">{s.contact.person}</p>
-                    <span className="text-[11px] text-zinc-500 font-mono">{s.contact.email}</span>
-                  </td>
-
-                  <td className="py-3 px-4 text-xs">
-                    <p className="font-mono text-zinc-700">{s.contact.phone}</p>
-                    <p className="text-[11px] text-zinc-500 mt-0.5">{s.contact.address}</p>
-                  </td>
-
-                  <td className="py-3 px-4">
-                    <div className="flex flex-wrap gap-1 max-w-xs">
-                      {s.productLines.map((line, idx) => (
-                        <span
-                          key={idx}
-                          className="text-[10px] px-2 py-0.5 rounded bg-zinc-100 text-zinc-700 font-medium"
-                        >
-                          {line}
-                        </span>
-                      ))}
-                    </div>
-                  </td>
-
-                  <td className="py-3 px-4 text-right">
-                    <span className="inline-block text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200 font-semibold">
-                      Active Supplier
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="border border-zinc-200 bg-white rounded-xl shadow-xs overflow-hidden">
+          <DataGrid
+            rows={suppliers}
+            columns={supplierColumns}
+            getRowId={(row) => row.id}
+            rowHeight={60}
+            pageSizeOptions={[10, 25, 50]}
+            initialState={{
+              pagination: { paginationModel: { pageSize: 10 } },
+            }}
+            autoHeight
+            sx={{
+              border: "none",
+              fontFamily: "inherit",
+              fontSize: "0.75rem",
+              "& .MuiDataGrid-columnHeaders": {
+                backgroundColor: "#fafafa",
+                borderBottom: "1px solid #e4e4e7",
+                color: "#52525b",
+                fontWeight: 600,
+                fontSize: "0.6875rem",
+                textTransform: "uppercase",
+                fontFamily: "ui-monospace, monospace",
+                letterSpacing: "0.05em",
+              },
+              "& .MuiDataGrid-columnSeparator": {
+                display: "none !important",
+              },
+              "& .MuiDataGrid-columnHeader": {
+                paddingLeft: "16px",
+                paddingRight: "16px",
+              },
+              "& .MuiDataGrid-columnHeader:focus, & .MuiDataGrid-columnHeader:focus-within, & .MuiDataGrid-cell:focus, & .MuiDataGrid-cell:focus-within": {
+                outline: "none !important",
+              },
+              "& .MuiDataGrid-row": {
+                borderBottom: "1px solid #f4f4f5",
+                transition: "background-color 0.15s ease",
+              },
+              "& .MuiDataGrid-row:hover": {
+                backgroundColor: "rgba(244, 244, 245, 0.7)",
+              },
+              "& .MuiDataGrid-cell": {
+                display: "flex",
+                alignItems: "center",
+                paddingLeft: "16px",
+                paddingRight: "16px",
+              },
+              "& .MuiDataGrid-footerContainer": {
+                borderTop: "1px solid #e4e4e7",
+                backgroundColor: "#fafafa",
+              },
+              "& .MuiTablePagination-root": {
+                fontSize: "0.75rem",
+              },
+            }}
+          />
         </div>
       )}
 

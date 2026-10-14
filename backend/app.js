@@ -7,7 +7,8 @@ import connection from "./config/db.js";
 import authRoutes from "./routes/authRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import productRoutes from "./routes/productRoutes.js";
-import catalogRoutes from "./routes/catalogRoutes.js";
+import categoryRoutes from "./routes/categoryRoutes.js";
+import brandRoutes from "./routes/brandRoutes.js";
 import orderRoutes from "./routes/orderRoutes.js";
 import { seedCatalogDefaults } from "./controllers/catalogController.js";
 
@@ -34,7 +35,8 @@ mongoose.connection.once("open", () => seedCatalogDefaults());
 app.use("/api/v1", authRoutes);
 app.use("/api/v1/profile", userRoutes);
 app.use("/api/v1", productRoutes);
-app.use("/api/v1", catalogRoutes);
+app.use("/api/v1", categoryRoutes);
+app.use("/api/v1", brandRoutes);
 app.use("/api/v1", orderRoutes);
 
 // Central error handler so multer/other middleware errors return a

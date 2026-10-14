@@ -1,4 +1,6 @@
+import { useMemo } from "react";
 import { Link } from "react-router-dom";
+import { DataGrid } from "@mui/x-data-grid";
 
 export const AdminDashboard = ({ onSelectOrder }) => {
   const pendingApprovals = [
@@ -108,6 +110,184 @@ export const AdminDashboard = ({ onSelectOrder }) => {
       contact: "0919 777 9876",
     },
   ];
+
+  const approvalColumns = useMemo(
+    () => [
+      {
+        field: "id",
+        headerName: "Order / Ref",
+        width: 145,
+        renderCell: (params) => (
+          <span className="font-mono font-semibold text-zinc-900">
+            {params.row.id}
+          </span>
+        ),
+      },
+      {
+        field: "customer",
+        headerName: "Applicant & Contact",
+        flex: 1.1,
+        minWidth: 160,
+        renderCell: (params) => (
+          <div className="leading-tight">
+            <p className="font-semibold text-zinc-900">{params.row.customer}</p>
+            <p className="text-[11px] text-zinc-500 font-mono">
+              {params.row.phone}
+            </p>
+          </div>
+        ),
+      },
+      {
+        field: "vehicle",
+        headerName: "Motorcycle Model",
+        flex: 1.2,
+        minWidth: 170,
+        renderCell: (params) => (
+          <div className="leading-tight">
+            <p className="font-medium text-zinc-900">{params.row.vehicle}</p>
+            <p className="text-[11px] text-zinc-500 font-mono">
+              Downpayment: ₱{params.row.downpayment.toLocaleString()}
+            </p>
+          </div>
+        ),
+      },
+      {
+        field: "term",
+        headerName: "Financing Terms",
+        width: 180,
+        renderCell: (params) => (
+          <div className="flex flex-col justify-center min-w-0 leading-tight">
+            <span className="admin-table-badge bg-zinc-100 border border-zinc-200 text-zinc-700 font-mono text-[11px]">
+              {params.row.term}
+            </span>
+            <span className="text-[11px] text-zinc-600 mt-0.5 font-mono truncate">
+              ₱{params.row.monthly.toLocaleString()} / mo
+            </span>
+          </div>
+        ),
+      },
+      {
+        field: "credentials",
+        headerName: "Uploaded Credentials",
+        flex: 1.3,
+        minWidth: 240,
+        sortable: false,
+        renderCell: (params) => (
+          <div className="flex flex-col justify-center min-w-0 leading-tight">
+            <span className="admin-table-badge gap-1 text-[11px] text-emerald-800 font-medium bg-emerald-50 border border-emerald-200">
+              <svg
+                className="w-3 h-3 text-emerald-600 shrink-0"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+              >
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+              {params.row.validId}
+            </span>
+            <span className="text-[10px] text-zinc-500 truncate mt-0.5">
+              {params.row.incomeProof}
+            </span>
+          </div>
+        ),
+      },
+      {
+        field: "actions",
+        headerName: "Actions",
+        width: 140,
+        headerAlign: "right",
+        align: "right",
+        sortable: false,
+        filterable: false,
+        disableColumnMenu: true,
+        renderCell: (params) => (
+          <div className="inline-flex items-center justify-end w-full">
+            <Link
+              to="/admin/orders"
+              onClick={() => {
+                onSelectOrder && onSelectOrder(params.row.id);
+              }}
+              className="inline-flex items-center justify-center px-2.5 py-1 rounded bg-zinc-900 hover:bg-zinc-800 text-white font-medium text-xs cursor-pointer shadow-2xs whitespace-nowrap"
+            >
+              Review &amp; Decide
+            </Link>
+          </div>
+        ),
+      },
+    ],
+    [onSelectOrder]
+  );
+
+  const transactionColumns = useMemo(
+    () => [
+      {
+        field: "id",
+        headerName: "Txn",
+        width: 100,
+        renderCell: (params) => (
+          <span className="font-mono text-zinc-500 text-[11px]">
+            {params.row.id}
+          </span>
+        ),
+      },
+      {
+        field: "type",
+        headerName: "Type",
+        width: 130,
+        renderCell: (params) => (
+          <span
+            className={`admin-table-badge text-[10px] font-mono uppercase font-bold border ${params.row.badge}`}
+          >
+            {params.row.type}
+          </span>
+        ),
+      },
+      {
+        field: "product",
+        headerName: "Product Description",
+        flex: 1.2,
+        minWidth: 170,
+        renderCell: (params) => (
+          <div className="leading-tight">
+            <p className="font-medium text-zinc-900 line-clamp-1">
+              {params.row.product}
+            </p>
+            <span className="text-[10px] text-zinc-400 font-mono">
+              {params.row.time}
+            </span>
+          </div>
+        ),
+      },
+      {
+        field: "qty",
+        headerName: "Delta",
+        width: 80,
+        renderCell: (params) => (
+          <span
+            className={`font-mono font-bold ${
+              params.row.qty > 0 ? "text-emerald-700" : "text-zinc-700"
+            }`}
+          >
+            {params.row.qty > 0 ? `+${params.row.qty}` : params.row.qty}
+          </span>
+        ),
+      },
+      {
+        field: "ref",
+        headerName: "Reference",
+        width: 120,
+        headerAlign: "right",
+        align: "right",
+        renderCell: (params) => (
+          <span className="font-mono text-zinc-500 text-[11px]">
+            {params.row.ref}
+          </span>
+        ),
+      },
+    ],
+    []
+  );
 
   return (
     <div className="space-y-8">
@@ -240,76 +420,61 @@ export const AdminDashboard = ({ onSelectOrder }) => {
           </Link>
         </div>
 
-        <div className="border border-zinc-200 bg-white overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead>
-              <tr className="border-b border-zinc-200 bg-zinc-50 text-[11px] font-mono uppercase text-zinc-500">
-                <th className="py-2.5 px-4 font-semibold">Order / Ref</th>
-                <th className="py-2.5 px-4 font-semibold">
-                  Applicant & Contact
-                </th>
-                <th className="py-2.5 px-4 font-semibold">Motorcycle Model</th>
-                <th className="py-2.5 px-4 font-semibold">Financing Terms</th>
-                <th className="py-2.5 px-4 font-semibold">
-                  Uploaded Credentials
-                </th>
-                <th className="py-2.5 px-4 font-semibold text-right whitespace-nowrap">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-zinc-200">
-              {pendingApprovals.map((app) => (
-                <tr key={app.id} className="hover:bg-zinc-50 transition-colors">
-                  <td className="py-3 px-4 font-mono font-semibold text-zinc-900">
-                    {app.id}
-                  </td>
-                  <td className="py-3 px-4">
-                    <p className="font-semibold text-zinc-900">
-                      {app.customer}
-                    </p>
-                    <p className="text-[11px] text-zinc-500 font-mono">
-                      {app.phone}
-                    </p>
-                  </td>
-                  <td className="py-3 px-4">
-                    <p className="font-medium text-zinc-900">{app.vehicle}</p>
-                    <p className="text-[11px] text-zinc-500 font-mono">
-                      Downpayment: ₱{app.downpayment.toLocaleString()}
-                    </p>
-                  </td>
-                  <td className="py-3 px-4">
-                    <span className="inline-block px-1.5 py-0.2 rounded bg-zinc-100 border border-zinc-200 text-zinc-700 font-mono text-[11px]">
-                      {app.term}
-                    </span>
-                    <p className="text-[11px] text-zinc-600 mt-0.5 font-mono">
-                      ₱{app.monthly.toLocaleString()} / mo
-                    </p>
-                  </td>
-                  <td className="py-3 px-4 space-y-0.5">
-                    <span className="inline-flex items-center gap-1 text-[11px] text-emerald-800 font-medium bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
-                      <svg className="w-3 h-3 text-emerald-600 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12" /></svg>
-                      {app.validId}
-                    </span>
-                    <p className="text-[10px] text-zinc-500 truncate">
-                      {app.incomeProof}
-                    </p>
-                  </td>
-                  <td className="py-3 px-4 text-right whitespace-nowrap">
-                    <Link
-                      to="/admin/orders"
-                      onClick={() => {
-                        onSelectOrder && onSelectOrder(app.id);
-                      }}
-                      className="inline-flex items-center justify-center !h-7 px-3 rounded bg-zinc-900 hover:bg-zinc-800 text-white font-medium text-[11px] cursor-pointer shadow-2xs whitespace-nowrap"
-                    >
-                      Review & Decide
-                    </Link>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="border border-zinc-200 bg-white rounded-xl shadow-xs overflow-hidden">
+          <DataGrid
+            rows={pendingApprovals}
+            columns={approvalColumns}
+            getRowId={(row) => row.id}
+            rowHeight={70}
+            pageSizeOptions={[5, 10]}
+            initialState={{
+              pagination: { paginationModel: { pageSize: 5 } },
+            }}
+            autoHeight
+            sx={{
+              border: "none",
+              fontFamily: "inherit",
+              fontSize: "0.75rem",
+              "& .MuiDataGrid-columnHeaders": {
+                backgroundColor: "#fafafa",
+                borderBottom: "1px solid #e4e4e7",
+                color: "#52525b",
+                fontWeight: 600,
+                fontSize: "0.6875rem",
+                textTransform: "uppercase",
+                fontFamily: "ui-monospace, monospace",
+                letterSpacing: "0.05em",
+              },
+              "& .MuiDataGrid-columnSeparator": {
+                display: "none !important",
+              },
+              "& .MuiDataGrid-columnHeader": {
+                paddingLeft: "16px",
+                paddingRight: "16px",
+              },
+              "& .MuiDataGrid-columnHeader:focus, & .MuiDataGrid-columnHeader:focus-within, & .MuiDataGrid-cell:focus, & .MuiDataGrid-cell:focus-within": {
+                outline: "none !important",
+              },
+              "& .MuiDataGrid-row": {
+                borderBottom: "1px solid #f4f4f5",
+                transition: "background-color 0.15s ease",
+              },
+              "& .MuiDataGrid-row:hover": {
+                backgroundColor: "rgba(244, 244, 245, 0.7)",
+              },
+              "& .MuiDataGrid-cell": {
+                display: "flex",
+                alignItems: "center",
+                paddingLeft: "16px",
+                paddingRight: "16px",
+              },
+              "& .MuiDataGrid-footerContainer": {
+                borderTop: "1px solid #e4e4e7",
+                backgroundColor: "#fafafa",
+                fontSize: "0.75rem",
+              },
+            }}
+          />
         </div>
       </section>
 
@@ -334,58 +499,61 @@ export const AdminDashboard = ({ onSelectOrder }) => {
             </Link>
           </div>
 
-          <div className="border border-zinc-200 bg-white overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead>
-                <tr className="border-b border-zinc-200 bg-zinc-50 text-[10px] font-mono uppercase text-zinc-500">
-                  <th className="py-2 px-3 font-semibold">Txn</th>
-                  <th className="py-2 px-3 font-semibold">Type</th>
-                  <th className="py-2 px-3 font-semibold">
-                    Product Description
-                  </th>
-                  <th className="py-2 px-3 font-semibold">Delta</th>
-                  <th className="py-2 px-3 font-semibold text-right">
-                    Reference
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-200">
-                {recentTransactions.map((tx) => (
-                  <tr key={tx.id} className="hover:bg-zinc-50">
-                    <td className="py-2.5 px-3 font-mono text-zinc-500 text-[11px]">
-                      {tx.id}
-                    </td>
-                    <td className="py-2.5 px-3">
-                      <span
-                        className={`inline-block px-1.5 py-0.2 rounded text-[10px] font-mono uppercase font-bold border ${tx.badge}`}
-                      >
-                        {tx.type}
-                      </span>
-                    </td>
-                    <td className="py-2.5 px-3">
-                      <p className="font-medium text-zinc-900 line-clamp-1">
-                        {tx.product}
-                      </p>
-                      <span className="text-[10px] text-zinc-400 font-mono">
-                        {tx.time}
-                      </span>
-                    </td>
-                    <td className="py-2.5 px-3 font-mono font-bold">
-                      <span
-                        className={
-                          tx.qty > 0 ? "text-emerald-700" : "text-zinc-700"
-                        }
-                      >
-                        {tx.qty > 0 ? `+${tx.qty}` : tx.qty}
-                      </span>
-                    </td>
-                    <td className="py-2.5 px-3 text-right font-mono text-zinc-500 text-[11px]">
-                      {tx.ref}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="border border-zinc-200 bg-white rounded-xl shadow-xs overflow-hidden">
+            <DataGrid
+              rows={recentTransactions}
+              columns={transactionColumns}
+              getRowId={(row) => row.id}
+              rowHeight={58}
+              pageSizeOptions={[5, 10]}
+              initialState={{
+                pagination: { paginationModel: { pageSize: 5 } },
+              }}
+              autoHeight
+              sx={{
+                border: "none",
+                fontFamily: "inherit",
+                fontSize: "0.75rem",
+                "& .MuiDataGrid-columnHeaders": {
+                  backgroundColor: "#fafafa",
+                  borderBottom: "1px solid #e4e4e7",
+                  color: "#52525b",
+                  fontWeight: 600,
+                  fontSize: "0.6875rem",
+                  textTransform: "uppercase",
+                  fontFamily: "ui-monospace, monospace",
+                  letterSpacing: "0.05em",
+                },
+                "& .MuiDataGrid-columnSeparator": {
+                  display: "none !important",
+                },
+                "& .MuiDataGrid-columnHeader": {
+                  paddingLeft: "16px",
+                  paddingRight: "16px",
+                },
+                "& .MuiDataGrid-columnHeader:focus, & .MuiDataGrid-columnHeader:focus-within, & .MuiDataGrid-cell:focus, & .MuiDataGrid-cell:focus-within": {
+                  outline: "none !important",
+                },
+                "& .MuiDataGrid-row": {
+                  borderBottom: "1px solid #f4f4f5",
+                  transition: "background-color 0.15s ease",
+                },
+                "& .MuiDataGrid-row:hover": {
+                  backgroundColor: "rgba(244, 244, 245, 0.7)",
+                },
+                "& .MuiDataGrid-cell": {
+                  display: "flex",
+                  alignItems: "center",
+                  paddingLeft: "16px",
+                  paddingRight: "16px",
+                },
+                "& .MuiDataGrid-footerContainer": {
+                  borderTop: "1px solid #e4e4e7",
+                  backgroundColor: "#fafafa",
+                  fontSize: "0.75rem",
+                },
+              }}
+            />
           </div>
         </div>
 
@@ -441,7 +609,7 @@ export const AdminDashboard = ({ onSelectOrder }) => {
                   </p>
                   <Link
                     to="/admin/payments"
-                    className="inline-flex items-center justify-center mt-1.5 !h-6 px-2 text-[10px] font-semibold bg-white border border-zinc-300 hover:bg-zinc-100 text-zinc-800 rounded transition-colors cursor-pointer whitespace-nowrap"
+                    className="inline-flex items-center justify-center mt-1.5 px-2.5 py-1 text-xs font-medium bg-white border border-zinc-300 hover:bg-zinc-100 text-zinc-800 rounded transition-colors cursor-pointer whitespace-nowrap shadow-2xs"
                   >
                     Post Payment
                   </Link>

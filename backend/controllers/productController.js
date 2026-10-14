@@ -22,41 +22,77 @@ const destroyFromCloudinary = (publicId) =>
 // POST /api/v1/admin/product/new
 // Reference: itcp318-s3a-2026/backend/controllers/product.js → newProduct (lines 6-64)
 export const newProduct = async (req, res) => {
-  let images = [];
+  try {
+    const { name, brand, category, price } = req.body;
 
-  // Collect Base64 data URLs sent from frontend FileReader
-  // Reference: itcp318-s3a-2026/backend/controllers/product.js lines 15-18
-  if (typeof req.body.images === "string") {
-    images.push(req.body.images);
-  } else if (Array.isArray(req.body.images)) {
-    images = req.body.images;
-  }
-
-  // Upload each image to Cloudinary, collect { url, publicId }
-  const imagesLinks = [];
-  for (const image of images) {
-    try {
-      const result = await uploadToCloudinary(image);
-      imagesLinks.push({
-        url: result.secure_url,
-        publicId: result.public_id,
-      });
-    } catch (err) {
-      console.error("Cloudinary upload error:", err);
+    if (!name || !name.trim()) {
+      return res.status(400).json({ success: false, message: "Please enter product name" });
     }
+    if (!category) {
+      return res.status(400).json({ success: false, message: "Please select a category" });
+    }
+    if (!brand) {
+      return res.status(400).json({ success: false, message: "Please select a brand" });
+    }
+    if (price === undefined || price === "" || Number(price) < 0) {
+      return res.status(400).json({ success: false, message: "Please enter a valid price" });
+    }
+
+    // Guard against rapid duplicate submissions
+    const existing = await Product.findOne({
+      name: { $regex: new RegExp(`^${name.trim()}$`, "i") },
+      brand,
+    });
+    if (existing) {
+      return res.status(400).json({
+        success: false,
+        message: `A product named "${name.trim()}" already exists for this brand`,
+      });
+    }
+
+    let images = [];
+
+    // Collect Base64 data URLs sent from frontend FileReader
+    // Reference: itcp318-s3a-2026/backend/controllers/product.js lines 15-18
+    if (typeof req.body.images === "string") {
+      images.push(req.body.images);
+    } else if (Array.isArray(req.body.images)) {
+      images = req.body.images;
+    }
+
+    // Upload each image to Cloudinary, collect { url, publicId }
+    const imagesLinks = [];
+    for (const image of images) {
+      try {
+        const result = await uploadToCloudinary(image);
+        imagesLinks.push({
+          url: result.secure_url,
+          publicId: result.public_id,
+        });
+      } catch (err) {
+        console.error("Cloudinary upload error:", err);
+      }
+    }
+
+    req.body.name = name.trim();
+    req.body.images = imagesLinks;
+    // Reference: itcp318-s3a-2026/backend/controllers/product.js line 49
+    req.body.user = req.user._id;
+
+    const product = await Product.create(req.body);
+
+    if (!product) {
+      return res.status(400).json({ success: false, message: "Product not created" });
+    }
+
+    return res.status(201).json({ success: true, product });
+  } catch (error) {
+    console.error("newProduct error:", error);
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Internal server error creating product",
+    });
   }
-
-  req.body.images = imagesLinks;
-  // Reference: itcp318-s3a-2026/backend/controllers/product.js line 49
-  req.body.user = req.user._id;
-
-  const product = await Product.create(req.body);
-
-  if (!product) {
-    return res.status(400).json({ success: false, message: "Product not created" });
-  }
-
-  return res.status(201).json({ success: true, product });
 };
 
 // ─── ADMIN: GET ALL PRODUCTS ──────────────────────────────────────────────────
@@ -83,7 +119,7 @@ export const getSingleProduct = async (req, res) => {
     .populate("category", "name description")
     .populate("brand", "name logo");
 
-  if (!product) {
+  if (!product || product.isArchived) {
     return res.status(404).json({ success: false, message: "Product not found" });
   }
 
@@ -165,10 +201,9 @@ export const updateProduct = async (req, res) => {
   return res.status(200).json({ success: true, product });
 };
 
-// ─── ADMIN: DELETE ────────────────────────────────────────────────────────────
+// ─── ADMIN: SOFT-DELETE PRODUCT ──────────────────────────────────────────────
 // DELETE /api/v1/admin/product/:id
-// Reference: itcp318-s3a-2026/backend/controllers/product.js → deleteProduct (lines 178-191)
-// Extends reference by also deleting Cloudinary images (PDF §1 Design Principles #5 adaptation)
+// Soft delete: sets isArchived to true, preserves MongoDB document and Cloudinary media
 export const deleteProduct = async (req, res) => {
   const product = await Product.findById(req.params.id);
 
@@ -176,18 +211,15 @@ export const deleteProduct = async (req, res) => {
     return res.status(404).json({ success: false, message: "Product not found" });
   }
 
-  // Remove all associated Cloudinary images before deleting the document
-  for (const img of product.images) {
-    try {
-      await destroyFromCloudinary(img.publicId);
-    } catch (err) {
-      console.error("Cloudinary destroy error:", err);
-    }
-  }
+  product.isArchived = true;
+  await product.save();
 
-  await Product.findByIdAndDelete(req.params.id);
-
-  return res.status(200).json({ success: true, message: "Product deleted successfully" });
+  return res.status(200).json({
+    success: true,
+    message: `Product "${product.name}" soft-deleted successfully`,
+    isArchived: true,
+    product,
+  });
 };
 
 // ─── ADMIN: TOGGLE ARCHIVE ───────────────────────────────────────────────────
@@ -210,6 +242,70 @@ export const toggleArchiveProduct = async (req, res) => {
   });
 };
 
+// ─── ADMIN: BULK SOFT-DELETE PRODUCTS ─────────────────────────────────────────
+// POST /api/v1/admin/products/bulk-delete
+export const bulkDeleteProducts = async (req, res) => {
+  try {
+    const { productIds } = req.body;
+
+    if (!Array.isArray(productIds) || productIds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Please provide an array of product IDs to delete",
+      });
+    }
+
+    const result = await Product.updateMany(
+      { _id: { $in: productIds } },
+      { $set: { isArchived: true } }
+    );
+
+    return res.status(200).json({
+      success: true,
+      count: result.modifiedCount,
+      message: `Successfully soft-deleted ${result.modifiedCount} product(s)`,
+    });
+  } catch (error) {
+    console.error("bulkDeleteProducts error:", error);
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Failed to bulk delete products",
+    });
+  }
+};
+
+// ─── ADMIN: BULK RESTORE PRODUCTS ───────────────────────────────────────────
+// POST /api/v1/admin/products/bulk-restore
+export const bulkRestoreProducts = async (req, res) => {
+  try {
+    const { productIds } = req.body;
+
+    if (!Array.isArray(productIds) || productIds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Please provide an array of product IDs to restore",
+      });
+    }
+
+    const result = await Product.updateMany(
+      { _id: { $in: productIds } },
+      { $set: { isArchived: false } }
+    );
+
+    return res.status(200).json({
+      success: true,
+      count: result.modifiedCount,
+      message: `Successfully restored ${result.modifiedCount} product(s)`,
+    });
+  } catch (error) {
+    console.error("bulkRestoreProducts error:", error);
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Failed to bulk restore products",
+    });
+  }
+};
+
 // ─── PUBLIC: GET PRODUCTS (Storefront) ───────────────────────────────────────
 // GET /api/v1/products
 // Supports: keyword search, category, brand, price range, pagination
@@ -221,7 +317,7 @@ export const getProducts = async (req, res) => {
   const skip = resPerPage * (currentPage - 1);
 
   // Build query filter
-  const filter = { isArchived: false };
+  const filter = { isArchived: { $ne: true } };
 
   // Keyword search (Reference: apiFeatures.js regex on name, extended to description)
   if (req.query.keyword && req.query.keyword.trim() !== "") {

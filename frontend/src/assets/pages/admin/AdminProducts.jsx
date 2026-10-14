@@ -1,12 +1,16 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { Link } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { toast } from "react-toastify";
 import Swal from "sweetalert2";
+import { DataGrid } from "@mui/x-data-grid";
 import {
   getAdminProducts,
   newProduct,
   updateProduct,
   deleteProduct,
+  bulkDeleteProducts,
+  bulkRestoreProducts,
   toggleArchiveProduct,
   getCategories,
   getBrands,
@@ -208,37 +212,50 @@ const ProductModal = ({
   const [imageList, setImageList] = useState([]); // List of { id, preview, data, isNew }
 
   const isEdit = !!editingProduct;
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Populate form and existing images when editing
+  // Populate form and existing images when editing or reset on close
   useEffect(() => {
-    const timer = setTimeout(() => {
-      if (editingProduct) {
-        setForm({
-          name: editingProduct.name || "",
-          description: editingProduct.description || "",
-          price: editingProduct.price ?? "",
-          stock: editingProduct.stock ?? "",
-          lowStockThreshold: editingProduct.lowStockThreshold ?? 5,
-          compatibleModels: (editingProduct.compatibleModels || []).join(", "),
-          installmentEligible: editingProduct.installmentEligible || false,
-          minInstallmentPrice: editingProduct.minInstallmentPrice ?? "",
-          category: editingProduct.category?._id || editingProduct.category || "",
-          brand: editingProduct.brand?._id || editingProduct.brand || "",
-        });
-        const existing = (editingProduct.images || []).map((img, idx) => ({
-          id: img.publicId || `existing-${idx}`,
-          preview: img.url,
-          data: { url: img.url, publicId: img.publicId },
-          isNew: false,
-        }));
-        setImageList(existing);
-      } else {
-        setForm(EMPTY_FORM);
-        setImageList([]);
-      }
-    }, 0);
-    return () => clearTimeout(timer);
-  }, [editingProduct]);
+    if (!isOpen) {
+      setForm(EMPTY_FORM);
+      setImageList([]);
+      setIsSubmitting(false);
+      return;
+    }
+
+    if (editingProduct) {
+      setForm({
+        name: editingProduct.name || "",
+        description: editingProduct.description || "",
+        price: editingProduct.price ?? "",
+        stock: editingProduct.stock ?? "",
+        lowStockThreshold: editingProduct.lowStockThreshold ?? 5,
+        compatibleModels: (editingProduct.compatibleModels || []).join(", "),
+        installmentEligible: editingProduct.installmentEligible || false,
+        minInstallmentPrice: editingProduct.minInstallmentPrice ?? "",
+        category: editingProduct.category?._id || editingProduct.category || "",
+        brand: editingProduct.brand?._id || editingProduct.brand || "",
+      });
+      const existing = (editingProduct.images || []).map((img, idx) => ({
+        id: img.publicId || `existing-${idx}`,
+        preview: img.url,
+        data: { url: img.url, publicId: img.publicId },
+        isNew: false,
+      }));
+      setImageList(existing);
+    } else {
+      setForm(EMPTY_FORM);
+      setImageList([]);
+    }
+    setIsSubmitting(false);
+  }, [editingProduct, isOpen]);
+
+  // Reset local submitting flag when Redux finishes loading
+  useEffect(() => {
+    if (!isLoading) {
+      setIsSubmitting(false);
+    }
+  }, [isLoading]);
 
   // Handle adding multiple images via file picker (preserves and appends to existing list)
   const handleFilesAdded = (e) => {
@@ -301,6 +318,9 @@ const ProductModal = ({
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (isLoading || isSubmitting) return; // Prevent spamming / multiple submits
+
+    setIsSubmitting(true);
 
     const payload = {
       name: form.name,
@@ -501,16 +521,26 @@ const ProductModal = ({
             <button
               type="button"
               onClick={onClose}
-              className="h-9 px-4 rounded-lg border border-zinc-200 text-zinc-700 hover:bg-zinc-50 transition-colors font-medium"
+              disabled={isLoading || isSubmitting}
+              className="h-9 px-4 rounded-lg border border-zinc-200 text-zinc-700 hover:bg-zinc-50 transition-colors font-medium disabled:opacity-50"
             >
               Cancel
             </button>
             <button
               type="submit"
-              disabled={isLoading}
-              className="h-9 px-5 rounded-lg bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-semibold transition-colors shadow-sm disabled:opacity-60"
+              disabled={isLoading || isSubmitting}
+              className="h-9 px-5 rounded-lg bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-semibold transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
-              {isLoading ? "Saving..." : isEdit ? "Update Product" : "Create Product"}
+              {isLoading || isSubmitting ? (
+                <>
+                  <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <span>{isEdit ? "Updating..." : "Creating..."}</span>
+                </>
+              ) : isEdit ? (
+                "Update Product"
+              ) : (
+                "Create Product"
+              )}
             </button>
           </div>
         </form>
@@ -527,23 +557,30 @@ export const AdminProducts = () => {
   // Redux state
   // Reference: itcp318-s3a-2026/frontend/src/Components/Admin/ProductsList.jsx lines 23-24
   const { loading, error, products = [] } = useSelector((state) => state.products);
-  const { error: createError, success } = useSelector((state) => state.newProduct);
+  const { loading: createLoading, error: createError, success } = useSelector((state) => state.newProduct);
   const {
     error: actionError,
     isDeleted,
     isUpdated,
     isArchived,
     loading: actionLoading,
+    message: actionMessage,
   } = useSelector((state) => state.product);
   const { categories = [], brands = [] } = useSelector((state) => state.catalog);
 
+  const isProductBusy = createLoading || actionLoading;
+
   // Local UI state
+  const [statusFilter, setStatusFilter] = useState("all"); // "all" | "active" | "archived"
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [selectedBrand, setSelectedBrand] = useState("all");
   const [onlyLowStock, setOnlyLowStock] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
+  const [selectedProductIds, setSelectedProductIds] = useState([]);
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const headerCheckboxRef = useRef(null);
 
   // Fetch data on mount
   // Reference: itcp318-s3a-2026/frontend/src/Components/Admin/ProductsList.jsx line 55
@@ -570,54 +607,66 @@ export const AdminProducts = () => {
     }
     if (success) {
       toast.success("Product created successfully!", { position: "bottom-right" });
+      setIsModalOpen(false);
+      setEditingProduct(null);
       dispatch({ type: NEW_PRODUCT_RESET });
-      const timer = setTimeout(() => {
-        setIsModalOpen(false);
-        setEditingProduct(null);
-        dispatch(getAdminProducts());
-      }, 0);
-      return () => clearTimeout(timer);
+      dispatch(getAdminProducts());
     }
     if (isUpdated) {
       toast.success("Product updated successfully!", { position: "bottom-right" });
+      setIsModalOpen(false);
+      setEditingProduct(null);
       dispatch({ type: UPDATE_PRODUCT_RESET });
-      const timer = setTimeout(() => {
-        setIsModalOpen(false);
-        setEditingProduct(null);
-        dispatch(getAdminProducts());
-      }, 0);
-      return () => clearTimeout(timer);
+      dispatch(getAdminProducts());
     }
     if (isDeleted) {
-      toast.success("Product deleted successfully!", { position: "bottom-right" });
+      toast.success(actionMessage || "Product soft-deleted successfully!", { position: "bottom-right" });
       dispatch({ type: DELETE_PRODUCT_RESET });
       dispatch(getAdminProducts());
+      setSelectedProductIds([]);
     }
     if (isArchived !== null && isArchived !== undefined) {
       toast.success(
-        isArchived ? "Product archived." : "Product restored.",
+        actionMessage || (isArchived ? "Product archived." : "Product restored."),
         { position: "bottom-right" },
       );
       dispatch({ type: ARCHIVE_PRODUCT_RESET });
       dispatch(getAdminProducts());
+      setSelectedProductIds([]);
     }
-  }, [error, createError, actionError, success, isUpdated, isDeleted, isArchived, dispatch]);
+  }, [error, createError, actionError, success, isUpdated, isDeleted, isArchived, actionMessage, dispatch]);
 
-  // Delete with SweetAlert2 confirmation
-  // Reference: itcp318-s3a-2026/frontend/src/Components/Admin/ProductsList.jsx line 99-101
-  const handleDelete = async (id, name) => {
+  // Soft-delete with SweetAlert2 confirmation (no permanent deletion)
+  const handleSoftDelete = async (p) => {
     const result = await Swal.fire({
-      title: "Delete product?",
-      text: `"${name}" will be permanently removed including all Cloudinary images.`,
+      title: `Delete "${p.name}"?`,
+      text: `"${p.name}" will be soft-deleted from the catalog. You can restore it at any time.`,
       icon: "warning",
       showCancelButton: true,
       confirmButtonColor: "#dc2626",
       cancelButtonColor: "#6b7280",
-      confirmButtonText: "Yes, delete it",
+      confirmButtonText: "Yes, delete",
       cancelButtonText: "Cancel",
     });
     if (result.isConfirmed) {
-      dispatch(deleteProduct(id));
+      dispatch(deleteProduct(p._id));
+    }
+  };
+
+  // Restore product with confirmation
+  const handleRestore = async (p) => {
+    const confirm = await Swal.fire({
+      title: `Restore "${p.name}"?`,
+      text: `"${p.name}" will be restored and made available in the shop catalog.`,
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonColor: "#059669",
+      cancelButtonColor: "#6b7280",
+      confirmButtonText: "Yes, restore",
+      cancelButtonText: "Cancel",
+    });
+    if (confirm.isConfirmed) {
+      dispatch(toggleArchiveProduct(p._id));
     }
   };
 
@@ -636,8 +685,14 @@ export const AdminProducts = () => {
     setEditingProduct(null);
   };
 
+  // Active & Archived counts
+  const activeProducts = products.filter((p) => !p.isArchived);
+  const archivedProducts = products.filter((p) => p.isArchived);
+
   // Filter products
   const filtered = products.filter((p) => {
+    if (statusFilter === "active" && p.isArchived) return false;
+    if (statusFilter === "archived" && !p.isArchived) return false;
     const catId = typeof p.category === "object" ? p.category?._id : p.category;
     const brandId = typeof p.brand === "object" ? p.brand?._id : p.brand;
     if (selectedCategory !== "all" && catId !== selectedCategory) return false;
@@ -653,8 +708,343 @@ export const AdminProducts = () => {
     return true;
   });
 
+  // Bulk selection calculations
+  const selectedProducts = useMemo(
+    () => products.filter((p) => selectedProductIds.includes(p._id)),
+    [products, selectedProductIds]
+  );
+  const selectedActiveProducts = useMemo(
+    () => selectedProducts.filter((p) => !p.isArchived),
+    [selectedProducts]
+  );
+  const selectedArchivedProducts = useMemo(
+    () => selectedProducts.filter((p) => p.isArchived),
+    [selectedProducts]
+  );
+
+  // Clear selections when switching status tabs
+  useEffect(() => {
+    setSelectedProductIds([]);
+  }, [statusFilter]);
+
+  const handleRowSelectionChange = useCallback(
+    (newSelectionModel) => {
+      if (!newSelectionModel) {
+        setSelectedProductIds([]);
+        return;
+      }
+      if (Array.isArray(newSelectionModel)) {
+        setSelectedProductIds(newSelectionModel);
+      } else if (newSelectionModel.ids instanceof Set) {
+        if (newSelectionModel.type === "exclude") {
+          const excluded = newSelectionModel.ids;
+          setSelectedProductIds(filtered.map((p) => p._id).filter((id) => !excluded.has(id)));
+        } else {
+          setSelectedProductIds(Array.from(newSelectionModel.ids));
+        }
+      } else if (Array.isArray(newSelectionModel.ids)) {
+        setSelectedProductIds(newSelectionModel.ids);
+      } else {
+        setSelectedProductIds([]);
+      }
+    },
+    [filtered]
+  );
+
+  const rowSelectionModel = useMemo(() => {
+    return {
+      type: "include",
+      ids: new Set(selectedProductIds),
+    };
+  }, [selectedProductIds]);
+
+  const columns = useMemo(
+    () => [
+      {
+        field: "name",
+        headerName: "Product",
+        flex: 1.6,
+        minWidth: 260,
+        renderCell: (params) => {
+          const p = params.row;
+          const catName = p.category?.name || "—";
+          return (
+            <div className="flex items-center gap-3 min-w-0 py-1">
+              <div className="w-10 h-10 rounded-md border border-zinc-200 overflow-hidden shrink-0 bg-zinc-50 relative">
+                {p.images && p.images.length > 0 ? (
+                  <>
+                    <img
+                      src={p.images[0].url}
+                      alt={p.name}
+                      className="w-full h-full object-cover"
+                    />
+                    {p.images.length > 1 && (
+                      <span className="absolute bottom-0 right-0 bg-black/75 text-white text-[8px] font-mono px-1 rounded-tl">
+                        {p.images.length}
+                      </span>
+                    )}
+                  </>
+                ) : (
+                  <ProductImagePlaceholder
+                    category={catName}
+                    name={p.name}
+                    className="w-full h-full object-cover"
+                  />
+                )}
+              </div>
+              <div className="flex flex-col justify-center min-w-0 leading-tight">
+                <p className="font-semibold text-zinc-900 leading-snug truncate">{p.name}</p>
+                {p.isArchived && (
+                  <span className="w-fit h-4 mt-1 px-1 text-[9px] leading-4 font-mono uppercase rounded bg-zinc-200 text-zinc-700">
+                    Archived
+                  </span>
+                )}
+              </div>
+            </div>
+          );
+        },
+      },
+      {
+        field: "categoryBrand",
+        headerName: "Category / Brand",
+        flex: 1,
+        minWidth: 150,
+        valueGetter: (value, row) => `${row.category?.name || "—"} ${row.brand?.name || "—"}`,
+        renderCell: (params) => {
+          const catName = params.row.category?.name || "—";
+          const brandName = params.row.brand?.name || "—";
+          return (
+            <div className="flex flex-col justify-center min-w-0 w-full leading-tight">
+              <span className="font-medium text-zinc-900 block truncate" title={catName}>{catName}</span>
+              <span className="text-[11px] text-zinc-500 block truncate" title={brandName}>{brandName}</span>
+            </div>
+          );
+        },
+      },
+      {
+        field: "isArchived",
+        headerName: "Status",
+        width: 155,
+        headerAlign: "center",
+        align: "center",
+        renderCell: (params) => {
+          return params.row.isArchived ? (
+            <span className="admin-table-badge gap-1.5 text-[11px] font-medium bg-amber-50 text-amber-700 border border-amber-200">
+              <span className="admin-table-badge__dot w-1.5 h-1.5 rounded-full bg-amber-500" />
+              Soft-Deleted
+            </span>
+          ) : (
+            <span className="admin-table-badge gap-1.5 text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+              <span className="admin-table-badge__dot w-1.5 h-1.5 rounded-full bg-emerald-500" />
+              Active
+            </span>
+          );
+        },
+      },
+      {
+        field: "compatibleModels",
+        headerName: "Compatible Models",
+        flex: 1.1,
+        minWidth: 170,
+        valueGetter: (value, row) => (row.compatibleModels || []).join(", ") || "Universal",
+        renderCell: (params) => (
+          <p className="text-[11px] text-zinc-600 line-clamp-2 max-w-xs font-mono">
+            {(params.row.compatibleModels || []).join(", ") || "Universal"}
+          </p>
+        ),
+      },
+      {
+        field: "price",
+        headerName: "Price",
+        width: 120,
+        type: "number",
+        headerAlign: "left",
+        align: "left",
+        renderCell: (params) => (
+          <span className="font-mono font-bold text-zinc-900">
+            ₱{Number(params.row.price).toLocaleString()}
+          </span>
+        ),
+      },
+      {
+        field: "stock",
+        headerName: "Stock",
+        width: 155,
+        type: "number",
+        headerAlign: "left",
+        align: "left",
+        renderCell: (params) => {
+          const p = params.row;
+          const isLow = p.stock <= p.lowStockThreshold;
+          return (
+            <div className="flex items-center gap-1.5">
+              <span className={`font-mono font-bold ${isLow ? "text-red-700" : "text-zinc-900"}`}>
+                {p.stock} units
+              </span>
+              {isLow && (
+                <span className="admin-table-badge text-[10px] font-mono font-semibold bg-red-100 text-red-800 border border-red-200">
+                  Low ≤{p.lowStockThreshold}
+                </span>
+              )}
+            </div>
+          );
+        },
+      },
+      {
+        field: "installmentEligible",
+        headerName: "Financing",
+        width: 190,
+        renderCell: (params) => {
+          const p = params.row;
+          return p.installmentEligible ? (
+            <span className="admin-table-badge text-[10px] font-medium text-emerald-800 bg-emerald-50 border border-emerald-200">
+              Eligible
+              {p.minInstallmentPrice > 0
+                ? ` (Min ₱${Number(p.minInstallmentPrice).toLocaleString()})`
+                : ""}
+            </span>
+          ) : (
+            <span className="text-[11px] text-zinc-400">Cash / COD</span>
+          );
+        },
+      },
+      {
+        field: "actions",
+        headerName: "Actions",
+        width: 100,
+        headerAlign: "right",
+        align: "right",
+        sortable: false,
+        filterable: false,
+        disableColumnMenu: true,
+        renderCell: (params) => {
+          const p = params.row;
+          return (
+            <div
+              className="flex items-center justify-end gap-1 w-full"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {p.isArchived ? (
+                <button
+                  type="button"
+                  onClick={() => handleRestore(p)}
+                  className="p-1.5 rounded-md hover:bg-emerald-50 text-emerald-600 hover:text-emerald-700 transition-colors cursor-pointer"
+                  title="Restore Product"
+                  aria-label="Restore Product"
+                >
+                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                    <path d="M3 3v5h5" />
+                  </svg>
+                </button>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => handleOpenEdit(p)}
+                    className="p-1.5 rounded-md hover:bg-zinc-100 text-zinc-600 hover:text-zinc-900 transition-colors cursor-pointer"
+                    title="Edit Product"
+                    aria-label="Edit Product"
+                  >
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                    </svg>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSoftDelete(p)}
+                    className="p-1.5 rounded-md hover:bg-red-50 text-zinc-400 hover:text-red-600 transition-colors cursor-pointer"
+                    title="Delete Product"
+                    aria-label="Delete Product"
+                  >
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="3 6 5 6 21 6" />
+                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                    </svg>
+                  </button>
+                </>
+              )}
+            </div>
+          );
+        },
+      },
+    ],
+    [handleRestore, handleOpenEdit, handleSoftDelete]
+  );
+
+  // Bulk Soft-Delete with SweetAlert2 confirmation
+  const handleBulkSoftDelete = async () => {
+    const targetIds = selectedActiveProducts.map((p) => p._id);
+    if (targetIds.length === 0) return;
+
+    const count = targetIds.length;
+    const result = await Swal.fire({
+      title: `Delete ${count} selected product(s)?`,
+      text: `These ${count} product(s) will be soft-deleted from the catalog. You can view them in the Soft-Deleted filter or restore them at any time.`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#dc2626",
+      cancelButtonColor: "#6b7280",
+      confirmButtonText: `Yes, delete (${count})`,
+      cancelButtonText: "Cancel",
+    });
+
+    if (result.isConfirmed) {
+      setBulkLoading(true);
+      await dispatch(bulkDeleteProducts(targetIds));
+      setBulkLoading(false);
+    }
+  };
+
+  // Bulk Restore with confirmation
+  const handleBulkRestore = async () => {
+    const targetIds = selectedArchivedProducts.map((p) => p._id);
+    if (targetIds.length === 0) return;
+
+    const count = targetIds.length;
+    const result = await Swal.fire({
+      title: `Restore ${count} selected product(s)?`,
+      text: `These ${count} product(s) will be restored to active status and made available in the shop catalog.`,
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonColor: "#059669",
+      cancelButtonColor: "#6b7280",
+      confirmButtonText: `Yes, restore (${count})`,
+      cancelButtonText: "Cancel",
+    });
+
+    if (result.isConfirmed) {
+      setBulkLoading(true);
+      await dispatch(bulkRestoreProducts(targetIds));
+      setBulkLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
+      {/* Catalog Subnavigation Tabs */}
+      <div className="flex items-center gap-2 border-b border-zinc-200 pb-3">
+        <Link
+          to="/admin/products"
+          className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 text-white shadow-xs"
+        >
+          Products &amp; Units ({products.length})
+        </Link>
+        <Link
+          to="/admin/categories"
+          className="px-3.5 py-1.5 rounded-lg text-xs font-semibold text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 transition-colors"
+        >
+          Categories ({categories.length})
+        </Link>
+        <Link
+          to="/admin/brands"
+          className="px-3.5 py-1.5 rounded-lg text-xs font-semibold text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 transition-colors"
+        >
+          Brands ({brands.length})
+        </Link>
+      </div>
+
       {/* Title & Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-zinc-200">
         <div>
@@ -678,8 +1068,88 @@ export const AdminProducts = () => {
         </button>
       </div>
 
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="p-4 bg-white rounded-xl border border-zinc-200 shadow-2xs">
+          <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider block">
+            Active Products
+          </span>
+          <div className="mt-1 flex items-baseline gap-2">
+            <span className="text-2xl font-extrabold text-zinc-900 font-mono">
+              {activeProducts.length}
+            </span>
+            <span className="text-xs text-zinc-400">
+              of {products.length} total units
+            </span>
+          </div>
+        </div>
+
+        <div className="p-4 bg-white rounded-xl border border-zinc-200 shadow-2xs">
+          <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider block">
+            Soft-Deleted / Archived
+          </span>
+          <div className="mt-1 flex items-baseline gap-2">
+            <span className="text-2xl font-extrabold text-amber-600 font-mono">
+              {archivedProducts.length}
+            </span>
+            <span className="text-xs text-zinc-400">recoverable</span>
+          </div>
+        </div>
+
+        <div className="p-4 bg-white rounded-xl border border-zinc-200 shadow-2xs">
+          <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider block">
+            Low Stock Alerts
+          </span>
+          <div className="mt-1 flex items-baseline gap-2">
+            <span className="text-2xl font-extrabold text-red-600 font-mono">
+              {products.filter((p) => p.stock <= p.lowStockThreshold && !p.isArchived).length}
+            </span>
+            <span className="text-xs text-zinc-400">need replenishment</span>
+          </div>
+        </div>
+      </div>
+
       {/* Filter Toolbar */}
-      <div className="py-3 border-y border-zinc-200 bg-white px-3">
+      <div className="py-3 border-y border-zinc-200 bg-white px-3 space-y-3">
+        {/* Status Filter Tabs */}
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center gap-1 bg-zinc-100 p-1 rounded-lg shrink-0">
+            <button
+              type="button"
+              onClick={() => setStatusFilter("all")}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors cursor-pointer ${
+                statusFilter === "all"
+                  ? "bg-white text-zinc-900 shadow-2xs"
+                  : "text-zinc-600 hover:text-zinc-900"
+              }`}
+            >
+              All ({products.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setStatusFilter("active")}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors cursor-pointer ${
+                statusFilter === "active"
+                  ? "bg-white text-emerald-700 shadow-2xs"
+                  : "text-zinc-600 hover:text-zinc-900"
+              }`}
+            >
+              Active ({activeProducts.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setStatusFilter("archived")}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors cursor-pointer ${
+                statusFilter === "archived"
+                  ? "bg-white text-amber-700 shadow-2xs"
+                  : "text-zinc-600 hover:text-zinc-900"
+              }`}
+            >
+              Soft-Deleted ({archivedProducts.length})
+            </button>
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           {/* Search */}
           <div className="space-y-1">
@@ -748,167 +1218,154 @@ export const AdminProducts = () => {
         </div>
       </div>
 
-      {/* Products Table */}
-      <div className="border border-zinc-200 bg-white overflow-x-auto rounded-lg">
-        <table className="w-full text-left text-xs">
-          <thead>
-            <tr className="border-b border-zinc-200 bg-zinc-50 text-[11px] font-mono uppercase text-zinc-500">
-              <th className="py-2.5 px-4 font-semibold">Product</th>
-              <th className="py-2.5 px-4 font-semibold">Category / Brand</th>
-              <th className="py-2.5 px-4 font-semibold">Compatible Models</th>
-              <th className="py-2.5 px-4 font-semibold">Price</th>
-              <th className="py-2.5 px-4 font-semibold">Stock</th>
-              <th className="py-2.5 px-4 font-semibold">Financing</th>
-              <th className="py-2.5 px-4 font-semibold text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-zinc-100">
-            {loading ? (
-              <tr>
-                <td colSpan={7} className="py-10 text-center text-xs text-zinc-400">
-                  <div className="flex items-center justify-center gap-2">
-                    <svg className="animate-spin w-4 h-4 text-emerald-600" viewBox="0 0 24 24" fill="none">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-                    </svg>
-                    Loading products...
-                  </div>
-                </td>
-              </tr>
-            ) : filtered.length === 0 ? (
-              <tr>
-                <td colSpan={7} className="py-8 text-center text-xs text-zinc-500">
-                  No matching products found. Try adjusting filters.
-                </td>
-              </tr>
-            ) : (
-              filtered.map((p) => {
-                const isLow = p.stock <= p.lowStockThreshold;
-                const catName = p.category?.name || "—";
-                const brandName = p.brand?.name || "—";
-                return (
-                  <tr
-                    key={p._id}
-                    className={`hover:bg-zinc-50/70 transition-colors ${p.isArchived ? "opacity-60 bg-zinc-50/40" : ""}`}
-                  >
-                    {/* Product thumbnail + name */}
-                    <td className="py-3 px-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-md border border-zinc-200 overflow-hidden shrink-0 bg-zinc-50 relative">
-                          {p.images && p.images.length > 0 ? (
-                            <>
-                              <img
-                                src={p.images[0].url}
-                                alt={p.name}
-                                className="w-full h-full object-cover"
-                              />
-                              {p.images.length > 1 && (
-                                <span className="absolute bottom-0 right-0 bg-black/75 text-white text-[8px] font-mono px-1 rounded-tl">
-                                  {p.images.length}
-                                </span>
-                              )}
-                            </>
-                          ) : (
-                            <ProductImagePlaceholder
-                              category={catName}
-                              name={p.name}
-                              className="w-full h-full object-cover"
-                            />
-                          )}
-                        </div>
-                        <div>
-                          <p className="font-semibold text-zinc-900 leading-snug">{p.name}</p>
-                          {p.isArchived && (
-                            <span className="inline-block mt-0.5 text-[9px] font-mono uppercase px-1 rounded bg-zinc-200 text-zinc-700">
-                              Archived
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </td>
+      {/* Bulk Actions Bar */}
+      {selectedProductIds.length > 0 && (
+        <div className="bg-zinc-900 text-white rounded-lg p-3 sm:px-4 sm:py-2.5 flex items-center justify-between gap-3 shadow-md flex-wrap animate-fade-in">
+          <div className="flex items-center gap-2.5">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="text-xs font-semibold">
+              {selectedProductIds.length} product{selectedProductIds.length > 1 ? "s" : ""} selected
+            </span>
+            <button
+              type="button"
+              onClick={() => setSelectedProductIds([])}
+              className="text-[11px] text-zinc-400 hover:text-zinc-200 underline cursor-pointer ml-1"
+            >
+              Clear selection
+            </button>
+          </div>
 
-                    {/* Category & Brand */}
-                    <td className="py-3 px-4">
-                      <span className="font-medium text-zinc-900 block">{catName}</span>
-                      <span className="text-[11px] text-zinc-500">{brandName}</span>
-                    </td>
-
-                    {/* Compatible Models */}
-                    <td className="py-3 px-4">
-                      <p className="text-[11px] text-zinc-600 line-clamp-2 max-w-xs font-mono">
-                        {(p.compatibleModels || []).join(", ") || "Universal"}
-                      </p>
-                    </td>
-
-                    {/* Price */}
-                    <td className="py-3 px-4 font-mono font-bold text-zinc-900">
-                      ₱{Number(p.price).toLocaleString()}
-                    </td>
-
-                    {/* Stock */}
-                    <td className="py-3 px-4">
-                      <div className="flex items-center gap-1.5">
-                        <span className={`font-mono font-bold ${isLow ? "text-red-700" : "text-zinc-900"}`}>
-                          {p.stock} units
-                        </span>
-                        {isLow && (
-                          <span className="text-[10px] font-mono font-semibold px-1.5 rounded bg-red-100 text-red-800 border border-red-200">
-                            Low ≤{p.lowStockThreshold}
-                          </span>
-                        )}
-                      </div>
-                    </td>
-
-                    {/* Financing */}
-                    <td className="py-3 px-4">
-                      {p.installmentEligible ? (
-                        <span className="inline-block text-[10px] font-medium text-emerald-800 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded">
-                          Eligible
-                          {p.minInstallmentPrice > 0
-                            ? ` (Min ₱${Number(p.minInstallmentPrice).toLocaleString()})`
-                            : ""}
-                        </span>
-                      ) : (
-                        <span className="text-[11px] text-zinc-400">Cash / COD</span>
-                      )}
-                    </td>
-
-                    {/* Actions */}
-                    <td className="py-3 px-4 text-right">
-                      <div className="flex items-center justify-end gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => handleOpenEdit(p)}
-                          className="h-7 px-2.5 text-[11px] font-medium border border-zinc-200 bg-white hover:bg-zinc-50 rounded-md text-zinc-700 transition-colors cursor-pointer"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => dispatch(toggleArchiveProduct(p._id))}
-                          className={`h-7 px-2.5 text-[11px] font-medium rounded-md transition-colors cursor-pointer border ${
-                            p.isArchived
-                              ? "bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100"
-                              : "bg-zinc-50 text-zinc-600 border-zinc-200 hover:bg-zinc-100"
-                          }`}
-                        >
-                          {p.isArchived ? "Restore" : "Archive"}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(p._id, p.name)}
-                          className="h-7 px-2.5 text-[11px] font-medium rounded-md bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 transition-colors cursor-pointer"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })
+          <div className="flex items-center gap-2">
+            {selectedActiveProducts.length > 0 && (
+              <button
+                type="button"
+                onClick={handleBulkSoftDelete}
+                disabled={bulkLoading}
+                className="h-8 px-3 rounded-md bg-red-600 hover:bg-red-700 active:bg-red-800 text-white text-xs font-semibold transition-colors cursor-pointer flex items-center gap-1.5 shadow-2xs disabled:opacity-50"
+                title="Soft-delete selected active products"
+              >
+                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <polyline points="3 6 5 6 21 6" />
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                </svg>
+                <span>Delete Selected ({selectedActiveProducts.length})</span>
+              </button>
             )}
-          </tbody>
-        </table>
+
+            {selectedArchivedProducts.length > 0 && (
+              <button
+                type="button"
+                onClick={handleBulkRestore}
+                disabled={bulkLoading}
+                className="h-8 px-3 rounded-md bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-xs font-semibold transition-colors cursor-pointer flex items-center gap-1.5 shadow-2xs disabled:opacity-50"
+                title="Restore selected soft-deleted products"
+              >
+                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                  <path d="M3 3v5h5" />
+                </svg>
+                <span>Restore Selected ({selectedArchivedProducts.length})</span>
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Products DataGrid */}
+      <div className="border border-zinc-200 bg-white rounded-xl shadow-xs overflow-hidden">
+        <DataGrid
+          className="admin-products-grid"
+          rows={filtered}
+          columns={columns}
+          getRowId={(row) => row._id}
+          rowHeight={64}
+          checkboxSelection
+          disableRowSelectionOnClick
+          rowSelectionModel={rowSelectionModel}
+          onRowSelectionModelChange={handleRowSelectionChange}
+          loading={loading}
+          pageSizeOptions={[10, 25, 50]}
+          initialState={{
+            pagination: { paginationModel: { pageSize: 10 } },
+          }}
+          autoHeight
+          sx={{
+            border: "none",
+            fontFamily: "inherit",
+            fontSize: "0.75rem",
+            "& .MuiDataGrid-columnHeaders": {
+              backgroundColor: "#fafafa",
+              borderBottom: "1px solid #e4e4e7",
+              color: "#52525b",
+              fontWeight: 600,
+              fontSize: "0.6875rem",
+              textTransform: "uppercase",
+              fontFamily: "ui-monospace, monospace",
+              letterSpacing: "0.05em",
+            },
+            "& .MuiDataGrid-columnSeparator": {
+              display: "none !important",
+            },
+            "& .MuiDataGrid-columnHeader": {
+              paddingLeft: "16px",
+              paddingRight: "16px",
+            },
+            "& .MuiDataGrid-columnHeaderCheckbox": {
+              width: "52px !important",
+              minWidth: "52px !important",
+              maxWidth: "52px !important",
+              paddingLeft: "0 !important",
+              paddingRight: "0 !important",
+              justifyContent: "center",
+            },
+            "& .MuiDataGrid-columnHeader:focus, & .MuiDataGrid-columnHeader:focus-within, & .MuiDataGrid-cell:focus, & .MuiDataGrid-cell:focus-within": {
+              outline: "none !important",
+            },
+            "& .MuiDataGrid-row": {
+              borderBottom: "1px solid #f4f4f5",
+              transition: "background-color 0.15s ease",
+            },
+            "& .MuiDataGrid-row:hover": {
+              backgroundColor: "rgba(244, 244, 245, 0.7)",
+            },
+            "& .MuiDataGrid-row.Mui-selected": {
+              backgroundColor: "rgba(236, 253, 245, 0.6) !important",
+              "&:hover": {
+                backgroundColor: "rgba(209, 250, 229, 0.8) !important",
+              },
+            },
+            "& .MuiDataGrid-cell": {
+              display: "flex",
+              alignItems: "center",
+              paddingLeft: "16px",
+              paddingRight: "16px",
+            },
+            "& .MuiDataGrid-cellCheckbox": {
+              width: "52px !important",
+              minWidth: "52px !important",
+              maxWidth: "52px !important",
+              paddingLeft: "0 !important",
+              paddingRight: "0 !important",
+              justifyContent: "center",
+            },
+            "& .MuiCheckbox-root": {
+              color: "#d4d4d8",
+              "&.Mui-checked": {
+                color: "#059669",
+              },
+              "&.MuiCheckbox-indeterminate": {
+                color: "#059669",
+              },
+            },
+            "& .MuiDataGrid-footerContainer": {
+              borderTop: "1px solid #e4e4e7",
+              backgroundColor: "#fafafa",
+            },
+            "& .MuiTablePagination-root": {
+              fontSize: "0.75rem",
+            },
+          }}
+        />
       </div>
 
       {/* Add / Edit Modal */}
@@ -918,7 +1375,7 @@ export const AdminProducts = () => {
         editingProduct={editingProduct}
         categories={categories}
         brands={brands}
-        isLoading={actionLoading}
+        isLoading={isProductBusy}
       />
     </div>
   );

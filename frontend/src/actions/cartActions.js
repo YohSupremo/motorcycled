@@ -31,6 +31,13 @@ export const addToCart = (productId, quantity = 1) => async (dispatch, getState)
     const p = data.product
     if (!p) return { success: false, message: 'Product not found' }
 
+    if (p.isArchived) {
+      return {
+        success: false,
+        message: `"${p.name}" is currently unavailable.`,
+      }
+    }
+
     if (p.stock <= 0) {
       return {
         success: false,

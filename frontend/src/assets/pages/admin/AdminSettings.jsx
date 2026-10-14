@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
+import { DataGrid } from "@mui/x-data-grid";
 
 export const AdminSettings = () => {
   const [saveFeedback, setSaveFeedback] = useState(false);
@@ -110,6 +111,138 @@ export const AdminSettings = () => {
       processingFee: 1500,
     });
   };
+
+  const planColumns = useMemo(
+    () => [
+      {
+        field: "name",
+        headerName: "Plan Name",
+        flex: 1.2,
+        minWidth: 180,
+        renderCell: (params) => {
+          const plan = params.row;
+          return (
+            <div className="flex items-center gap-2">
+              <span
+                className={`font-semibold ${
+                  plan.isArchived ? "text-zinc-500 line-through" : "text-zinc-900"
+                }`}
+              >
+                {plan.name}
+              </span>
+              {plan.isArchived && (
+                <span className="text-[9px] font-mono uppercase px-1.5 py-0.5 rounded bg-zinc-200 text-zinc-700 font-bold">
+                  Archived
+                </span>
+              )}
+            </div>
+          );
+        },
+      },
+      {
+        field: "termMonths",
+        headerName: "Tenure",
+        width: 120,
+        renderCell: (params) => (
+          <span className="font-mono text-zinc-700">
+            {params.row.termMonths} Months
+          </span>
+        ),
+      },
+      {
+        field: "interestRate",
+        headerName: "Interest Rate",
+        width: 130,
+        renderCell: (params) => (
+          <span className="font-mono font-bold text-zinc-900">
+            {params.row.interestRate}%
+          </span>
+        ),
+      },
+      {
+        field: "minDownpaymentPercent",
+        headerName: "Min Downpayment",
+        width: 140,
+        renderCell: (params) => (
+          <span className="font-mono text-zinc-700">
+            {params.row.minDownpaymentPercent}%
+          </span>
+        ),
+      },
+      {
+        field: "processingFee",
+        headerName: "Doc Fee",
+        width: 120,
+        renderCell: (params) => (
+          <span className="font-mono text-zinc-700">
+            ₱{params.row.processingFee?.toLocaleString()}
+          </span>
+        ),
+      },
+      {
+        field: "actions",
+        headerName: "Actions",
+        width: 90,
+        headerAlign: "right",
+        align: "right",
+        sortable: false,
+        filterable: false,
+        disableColumnMenu: true,
+        renderCell: (params) => {
+          const plan = params.row;
+          return (
+            <div className="inline-flex items-center justify-end gap-1.5 w-full">
+              {plan.isArchived ? (
+                <button
+                  type="button"
+                  onClick={() => handleTogglePlanArchive(plan.id)}
+                  className="p-1.5 rounded-md hover:bg-emerald-50 text-emerald-600 hover:text-emerald-700 transition-colors cursor-pointer"
+                  title="Restore Plan"
+                  aria-label="Restore Plan"
+                >
+                  <svg
+                    className="w-4 h-4"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                    <path d="M3 3v5h5" />
+                  </svg>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => handleTogglePlanArchive(plan.id)}
+                  className="p-1.5 rounded-md hover:bg-amber-50 text-zinc-400 hover:text-amber-600 transition-colors cursor-pointer"
+                  title="Archive Plan"
+                  aria-label="Archive Plan"
+                >
+                  <svg
+                    className="w-4 h-4"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <polyline points="21 8 21 21 3 21 3 8" />
+                    <rect x="1" y="3" width="22" height="5" />
+                    <line x1="10" y1="12" x2="14" y2="12" />
+                  </svg>
+                </button>
+              )}
+            </div>
+          );
+        },
+      },
+    ],
+    []
+  );
 
   return (
     <div className="space-y-8 max-w-4xl">
@@ -350,61 +483,61 @@ export const AdminSettings = () => {
             </button>
           </div>
 
-          <div className="border border-zinc-200 bg-white overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead>
-                <tr className="border-b border-zinc-200 bg-zinc-50 text-[10px] font-mono uppercase text-zinc-500">
-                  <th className="py-2.5 px-4 font-semibold">Plan Name</th>
-                  <th className="py-2.5 px-4 font-semibold">Tenure</th>
-                  <th className="py-2.5 px-4 font-semibold">Interest Rate</th>
-                  <th className="py-2.5 px-4 font-semibold">Min Downpayment</th>
-                  <th className="py-2.5 px-4 font-semibold">Doc Fee</th>
-                  <th className="py-2.5 px-4 font-semibold text-right">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-200">
-                {plans.map((p) => (
-                  <tr
-                    key={p.id}
-                    className={`hover:bg-zinc-50 transition-colors ${p.isArchived ? "opacity-50 bg-zinc-50" : ""}`}
-                  >
-                    <td className="py-2.5 px-4">
-                      <span className="font-semibold text-zinc-900">
-                        {p.name}
-                      </span>
-                      {p.isArchived && (
-                        <span className="ml-2 text-[9px] font-mono uppercase px-1 rounded bg-zinc-200 text-zinc-700">
-                          Archived
-                        </span>
-                      )}
-                    </td>
-                    <td className="py-2.5 px-4 font-mono">
-                      {p.termMonths} Months
-                    </td>
-                    <td className="py-2.5 px-4 font-mono font-bold text-zinc-900">
-                      {p.interestRate}%
-                    </td>
-                    <td className="py-2.5 px-4 font-mono">
-                      {p.minDownpaymentPercent}%
-                    </td>
-                    <td className="py-2.5 px-4 font-mono">
-                      ₱{p.processingFee.toLocaleString()}
-                    </td>
-                    <td className="py-2.5 px-4 text-right">
-                      <button
-                        type="button"
-                        onClick={() => handleTogglePlanArchive(p.id)}
-                        className="text-[11px] font-medium text-zinc-600 hover:text-zinc-900 cursor-pointer underline"
-                      >
-                        {p.isArchived ? "Restore Plan" : "Archive Plan"}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="border border-zinc-200 bg-white rounded-xl shadow-xs overflow-hidden">
+            <DataGrid
+              rows={plans}
+              columns={planColumns}
+              getRowId={(row) => row.id}
+              rowHeight={58}
+              pageSizeOptions={[5, 10, 20]}
+              initialState={{
+                pagination: { paginationModel: { pageSize: 5 } },
+              }}
+              autoHeight
+              sx={{
+                border: "none",
+                fontFamily: "inherit",
+                fontSize: "0.75rem",
+                "& .MuiDataGrid-columnHeaders": {
+                  backgroundColor: "#fafafa",
+                  borderBottom: "1px solid #e4e4e7",
+                  color: "#52525b",
+                  fontWeight: 600,
+                  fontSize: "0.6875rem",
+                  textTransform: "uppercase",
+                  fontFamily: "ui-monospace, monospace",
+                  letterSpacing: "0.05em",
+                },
+                "& .MuiDataGrid-columnSeparator": {
+                  display: "none !important",
+                },
+                "& .MuiDataGrid-columnHeader": {
+                  paddingLeft: "16px",
+                  paddingRight: "16px",
+                },
+                "& .MuiDataGrid-columnHeader:focus, & .MuiDataGrid-columnHeader:focus-within, & .MuiDataGrid-cell:focus, & .MuiDataGrid-cell:focus-within": {
+                  outline: "none !important",
+                },
+                "& .MuiDataGrid-row": {
+                  borderBottom: "1px solid #f4f4f5",
+                  transition: "background-color 0.15s ease",
+                },
+                "& .MuiDataGrid-row:hover": {
+                  backgroundColor: "rgba(244, 244, 245, 0.7)",
+                },
+                "& .MuiDataGrid-cell": {
+                  display: "flex",
+                  alignItems: "center",
+                  paddingLeft: "16px",
+                  paddingRight: "16px",
+                },
+                "& .MuiDataGrid-footerContainer": {
+                  borderTop: "1px solid #e4e4e7",
+                  backgroundColor: "#fafafa",
+                  fontSize: "0.75rem",
+                },
+              }}
+            />
           </div>
         </section>
 

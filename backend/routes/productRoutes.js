@@ -5,6 +5,8 @@ import {
   getSingleProduct,
   updateProduct,
   deleteProduct,
+  bulkDeleteProducts,
+  bulkRestoreProducts,
   toggleArchiveProduct,
   getProducts,
 } from "../controllers/productController.js";
@@ -42,6 +44,20 @@ router.delete(
   auth,
   authorizeRoles("admin"),
   deleteProduct,
+);
+
+router.post(
+  "/admin/products/bulk-delete",
+  auth,
+  authorizeRoles("admin"),
+  bulkDeleteProducts,
+);
+
+router.post(
+  "/admin/products/bulk-restore",
+  auth,
+  authorizeRoles("admin"),
+  bulkRestoreProducts,
 );
 
 router.patch(

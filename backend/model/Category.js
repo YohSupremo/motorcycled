@@ -13,6 +13,10 @@ const categorySchema = new mongoose.Schema(
     description: {
       type: String,
     },
+    isArchived: {
+      type: Boolean,
+      default: false,
+    },
   },
   { timestamps: true },
 );

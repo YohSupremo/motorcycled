@@ -1,12 +1,18 @@
 import { useState } from "react";
-import { Outlet } from "react-router-dom";
-import { Link } from "react-router-dom";
+import { Outlet, Link, useLocation } from "react-router-dom";
 import { useSelector } from "react-redux";
-export const AdminLayout = ({ activeTab }) => {
+
+export const AdminLayout = ({ activeTab: propActiveTab }) => {
   const { user } = useSelector((state) => state.auth);
+  const location = useLocation();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+
+  const activeTab =
+    propActiveTab ||
+    location.pathname.replace(/^\/admin\/?/, "").split("/")[0] ||
+    "dashboard";
 
   const navItems = [
     {
@@ -62,6 +68,37 @@ export const AdminLayout = ({ activeTab }) => {
           <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
           <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
           <line x1="12" y1="22.08" x2="12" y2="12" />
+        </svg>
+      ),
+    },
+    {
+      id: "categories",
+      label: "Categories",
+      icon: (
+        <svg
+          className="w-4 h-4 shrink-0"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+        >
+          <path d="M4 6h16M4 12h16M4 18h7" />
+        </svg>
+      ),
+    },
+    {
+      id: "brands",
+      label: "Brands",
+      icon: (
+        <svg
+          className="w-4 h-4 shrink-0"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+        >
+          <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
+          <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
         </svg>
       ),
     },

@@ -126,18 +126,20 @@ export const Navbar = ({ currentPage }) => {
             )}
           </Link>
 
-          {/* Dealership Operations Quick Access */}
-          <Link
-            to="/admin/dashboard"
-            className={`hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors cursor-pointer border ${currentPage === "admin"
-              ? "bg-emerald-50 text-emerald-900 border-emerald-300 font-semibold shadow-2xs"
-              : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50 hover:text-zinc-900"
-              }`}
-            title="Dealership Operations (Admin Dashboard)"
-          >
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
-            <span>Operations</span>
-          </Link>
+          {/* Dealership Operations Quick Access (Admins Only) */}
+          {isAuthenticated && user?.role === "admin" && (
+            <Link
+              to="/admin/dashboard"
+              className={`hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors cursor-pointer border ${currentPage === "admin"
+                ? "bg-emerald-50 text-emerald-900 border-emerald-300 font-semibold shadow-2xs"
+                : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50 hover:text-zinc-900"
+                }`}
+              title="Dealership Operations (Admin Dashboard)"
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
+              <span>Operations</span>
+            </Link>
+          )}
 
           {isAuthenticated && user ? (
             /* User Account Menu with Avatar, Name & Separated Dropdown */

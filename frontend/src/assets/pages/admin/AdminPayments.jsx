@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
+import { DataGrid } from "@mui/x-data-grid";
 
 export const AdminPayments = () => {
   const [activeSubTab, setActiveSubTab] = useState("schedules"); // 'schedules' | 'payments'
@@ -178,6 +179,282 @@ export const AdminPayments = () => {
     return true;
   });
 
+  const scheduleColumns = useMemo(
+    () => [
+      {
+        field: "id",
+        headerName: "Schedule ID",
+        width: 120,
+        renderCell: (params) => (
+          <span className="font-mono font-semibold text-zinc-900">{params.row.id}</span>
+        ),
+      },
+      {
+        field: "orderCustomer",
+        headerName: "Order / Customer",
+        flex: 1.2,
+        minWidth: 180,
+        valueGetter: (value, row) => `${row.orderId} ${row.customer}`,
+        renderCell: (params) => {
+          const s = params.row;
+          return (
+            <div className="flex flex-col justify-center min-w-0 leading-tight">
+              <span className="font-semibold text-zinc-900 text-xs truncate">
+                {s.customer}
+              </span>
+              <span className="font-mono text-[11px] text-zinc-400 truncate mt-0.5">
+                {s.orderId}
+              </span>
+            </div>
+          );
+        },
+      },
+      {
+        field: "term",
+        headerName: "Installment Term",
+        flex: 1,
+        minWidth: 150,
+        renderCell: (params) => (
+          <span className="font-mono text-zinc-700 text-xs">
+            Month {params.row.installmentNo} of {params.row.totalTerms}
+          </span>
+        ),
+      },
+      {
+        field: "dueDate",
+        headerName: "Due Date",
+        width: 120,
+        renderCell: (params) => (
+          <span className="font-mono text-zinc-700 text-xs">
+            {params.row.dueDate}
+          </span>
+        ),
+      },
+      {
+        field: "amountDue",
+        headerName: "Contractual Due",
+        width: 150,
+        type: "number",
+        headerAlign: "left",
+        align: "left",
+        renderCell: (params) => {
+          const s = params.row;
+          return (
+            <div className="flex flex-col justify-center leading-tight">
+              <span className="font-mono font-bold text-zinc-900 text-xs">
+                ₱{s.amountDue.toLocaleString()}
+              </span>
+              {s.penalty > 0 ? (
+                <span className="text-[10px] text-rose-600 font-mono font-medium mt-0.5">
+                  +₱{s.penalty} penalty
+                </span>
+              ) : null}
+            </div>
+          );
+        },
+      },
+      {
+        field: "status",
+        headerName: "Status / Decision",
+        width: 205,
+        headerAlign: "center",
+        align: "center",
+        renderCell: (params) => {
+          const s = params.row;
+          let badgeCls = "bg-zinc-100 text-zinc-700 border-zinc-200";
+          let dotCls = "bg-zinc-400";
+          let label = s.status;
+          if (s.status === "Paid") {
+            badgeCls = "bg-emerald-50 text-emerald-700 border-emerald-200";
+            dotCls = "bg-emerald-500";
+            label = "Settled";
+          } else if (s.status === "Unpaid") {
+            badgeCls = "bg-zinc-100 text-zinc-700 border-zinc-200";
+            dotCls = "bg-zinc-400";
+            label = "Upcoming";
+          } else if (s.status === "Overdue") {
+            badgeCls = "bg-amber-50 text-amber-700 border-amber-200";
+            dotCls = "bg-amber-500";
+            label = "Overdue";
+          } else if (s.status === "Defaulted") {
+            badgeCls = "bg-rose-50 text-rose-700 border-rose-200";
+            dotCls = "bg-rose-500";
+            label = s.defaultedAt ? `Defaulted (${s.defaultedAt})` : "Defaulted";
+          }
+          return (
+            <div className="admin-table-cell-center justify-center">
+              <span
+                className={`admin-table-badge gap-1.5 text-[11px] font-medium border ${badgeCls}`}
+                title={label}
+              >
+                <span className={`admin-table-badge__dot w-1.5 h-1.5 rounded-full ${dotCls}`} />
+                {label}
+              </span>
+            </div>
+          );
+        },
+      },
+      {
+        field: "actions",
+        headerName: "Actions",
+        width: 120,
+        headerAlign: "right",
+        align: "right",
+        sortable: false,
+        filterable: false,
+        disableColumnMenu: true,
+        renderCell: (params) => {
+          const s = params.row;
+          return (
+            <div className="flex items-center justify-end gap-1.5 w-full">
+              {s.status === "Overdue" && (
+                <button
+                  type="button"
+                  onClick={() => handleMarkDefaulted(s.id)}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium border border-rose-200 text-rose-700 bg-white hover:bg-rose-50 rounded transition-colors cursor-pointer shadow-2xs whitespace-nowrap"
+                  title="Mark Account as Defaulted"
+                >
+                  <svg
+                    className="w-3.5 h-3.5 text-rose-500 shrink-0"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="8" x2="12" y2="12" />
+                    <line x1="12" y1="16" x2="12.01" y2="16" />
+                  </svg>
+                  <span>Default</span>
+                </button>
+              )}
+              {s.status === "Unpaid" && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPaymentForm({
+                      orderId: s.orderId,
+                      customer: s.customer,
+                      type: "installment",
+                      amount: String(s.amountDue),
+                      method: "cash",
+                      referenceNo: `CASH-REC-${Date.now().toString().slice(-4)}`,
+                      notes: `Settle month ${s.installmentNo}`,
+                    });
+                    setIsModalOpen(true);
+                  }}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium border border-emerald-300 text-emerald-800 bg-emerald-50 hover:bg-emerald-100 rounded transition-colors cursor-pointer shadow-2xs whitespace-nowrap"
+                >
+                  <svg
+                    className="w-3.5 h-3.5 text-emerald-600 shrink-0"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                  <span>Collect</span>
+                </button>
+              )}
+              {s.status === "Paid" && (
+                <span className="text-[11px] text-zinc-400 font-mono">
+                  Settled
+                </span>
+              )}
+            </div>
+          );
+        },
+      },
+    ],
+    []
+  );
+
+  const paymentColumns = useMemo(
+    () => [
+      {
+        field: "receiptNo",
+        headerName: "Receipt No",
+        width: 140,
+        renderCell: (params) => (
+          <span className="font-mono font-bold text-zinc-900">{params.row.receiptNo}</span>
+        ),
+      },
+      {
+        field: "orderPayer",
+        headerName: "Order / Payer",
+        flex: 1.2,
+        minWidth: 180,
+        valueGetter: (value, row) => `${row.orderId} ${row.customer}`,
+        renderCell: (params) => {
+          const p = params.row;
+          return (
+            <div className="flex flex-col justify-center min-w-0 leading-tight">
+              <span className="font-semibold text-zinc-900 text-xs truncate">{p.customer}</span>
+              <span className="font-mono text-[11px] text-zinc-400 truncate mt-0.5">{p.orderId}</span>
+            </div>
+          );
+        },
+      },
+      {
+        field: "type",
+        headerName: "Payment Type",
+        width: 130,
+        renderCell: (params) => (
+          <span className="admin-table-badge text-[11px] font-mono font-medium bg-zinc-100 text-zinc-800 border border-zinc-200 uppercase">
+            {params.row.type}
+          </span>
+        ),
+      },
+      {
+        field: "method",
+        headerName: "Method & Reference",
+        flex: 1.2,
+        minWidth: 170,
+        renderCell: (params) => {
+          const p = params.row;
+          return (
+            <div className="flex flex-col justify-center min-w-0 leading-tight">
+              <span className="font-medium text-zinc-900 text-xs capitalize truncate">
+                {(p.method || "").replace("_", " ")}
+              </span>
+              <span className="font-mono text-[11px] text-zinc-400 truncate mt-0.5">{p.referenceNo}</span>
+            </div>
+          );
+        },
+      },
+      {
+        field: "amount",
+        headerName: "Amount Settle",
+        width: 140,
+        type: "number",
+        headerAlign: "left",
+        align: "left",
+        renderCell: (params) => (
+          <span className="font-mono font-bold text-emerald-800 text-xs">
+            ₱{params.row.amount.toLocaleString()}
+          </span>
+        ),
+      },
+      {
+        field: "recordedBy",
+        headerName: "Recorded By / Date",
+        flex: 1.2,
+        minWidth: 170,
+        renderCell: (params) => {
+          const p = params.row;
+          return (
+            <div className="flex flex-col justify-center min-w-0 leading-tight">
+              <span className="text-zinc-800 text-xs truncate">{p.recordedBy}</span>
+              <span className="font-mono text-[11px] text-zinc-400 truncate mt-0.5">{p.paidAt}</span>
+            </div>
+          );
+        },
+      },
+    ],
+    []
+  );
+
   return (
     <div className="space-y-6">
       
@@ -271,161 +548,127 @@ export const AdminPayments = () => {
         />
       </div>
 
-      {/* TAB 1: Payment Schedules Tracker (Flat Table) */}
+      {/* TAB 1: Payment Schedules Tracker */}
       {activeSubTab === "schedules" && (
-        <div className="border border-zinc-200 bg-white overflow-x-auto">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead>
-                <tr className="border-b border-zinc-200 bg-zinc-50 text-[11px] font-mono uppercase text-zinc-500">
-                  <th className="py-2.5 px-4 font-semibold">Schedule ID</th>
-                  <th className="py-2.5 px-4 font-semibold">Order / Customer</th>
-                  <th className="py-2.5 px-4 font-semibold">Installment Term</th>
-                  <th className="py-2.5 px-4 font-semibold">Due Date</th>
-                  <th className="py-2.5 px-4 font-semibold">Contractual Due</th>
-                  <th className="py-2.5 px-4 font-semibold">Status / Decision</th>
-                  <th className="py-2.5 px-4 font-semibold text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-100">
-                {filteredSchedules.map((s) => (
-                  <tr key={s.id} className="hover:bg-zinc-50/70 transition-colors">
-                    <td className="py-3 px-4 font-mono font-semibold text-zinc-900">{s.id}</td>
-                    
-                    <td className="py-3 px-4">
-                      <span className="font-mono text-zinc-600 block">{s.orderId}</span>
-                      <span className="font-semibold text-zinc-900">{s.customer}</span>
-                    </td>
-
-                    <td className="py-3 px-4">
-                      <span className="inline-block px-1.5 py-0.2 rounded bg-zinc-100 text-zinc-700 font-mono text-[11px]">
-                        Month {s.installmentNo} of {s.totalTerms}
-                      </span>
-                    </td>
-
-                    <td className="py-3 px-4 font-mono text-zinc-700">
-                      {s.dueDate}
-                    </td>
-
-                    <td className="py-3 px-4 font-mono">
-                      <span className="font-bold text-zinc-900">₱{s.amountDue.toLocaleString()}</span>
-                      {s.penalty > 0 && (
-                        <span className="block text-[10px] text-red-600 font-medium">+₱{s.penalty} penalty</span>
-                      )}
-                    </td>
-
-                    <td className="py-3 px-4">
-                      {s.status === "Paid" && (
-                        <span className="inline-block text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-300">
-                          Paid Settled
-                        </span>
-                      )}
-                      {s.status === "Unpaid" && (
-                        <span className="inline-block text-[10px] font-bold px-2 py-0.5 rounded bg-zinc-100 text-zinc-700 border border-zinc-200">
-                          Upcoming / Unpaid
-                        </span>
-                      )}
-                      {s.status === "Overdue" && (
-                        <span className="inline-block text-[10px] font-bold px-2 py-0.5 rounded bg-red-50 text-red-800 border border-red-300">
-                          Overdue Delinquent
-                        </span>
-                      )}
-                      {s.status === "Defaulted" && (
-                        <span className="inline-block text-[10px] font-bold px-2 py-0.5 rounded bg-red-100 text-red-950 border border-red-400">
-                          Defaulted ({s.defaultedAt})
-                        </span>
-                      )}
-                    </td>
-
-                    <td className="py-3 px-4 text-right">
-                      {s.status === "Overdue" && (
-                        <button
-                          type="button"
-                          onClick={() => handleMarkDefaulted(s.id)}
-                          className="!h-6 px-2 text-[10px] font-medium border border-red-200 text-red-700 bg-white hover:bg-red-50 rounded transition-colors cursor-pointer"
-                          title="Mark Account as Defaulted"
-                        >
-                          Mark Default
-                        </button>
-                      )}
-                      {s.status === "Unpaid" && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setPaymentForm({
-                              orderId: s.orderId,
-                              customer: s.customer,
-                              type: "installment",
-                              amount: String(s.amountDue),
-                              method: "cash",
-                              referenceNo: `CASH-REC-${Date.now().toString().slice(-4)}`,
-                              notes: `Settle month ${s.installmentNo}`,
-                            });
-                            setIsModalOpen(true);
-                          }}
-                          className="!h-6 px-2 text-[10px] font-medium border border-emerald-300 text-emerald-800 bg-emerald-50 hover:bg-emerald-100 rounded transition-colors cursor-pointer"
-                        >
-                          Collect
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+        <div className="border border-zinc-200 bg-white rounded-xl shadow-xs overflow-hidden">
+          <DataGrid
+            rows={filteredSchedules}
+            columns={scheduleColumns}
+            getRowId={(row) => row.id}
+            rowHeight={60}
+            pageSizeOptions={[10, 25, 50]}
+            initialState={{
+              pagination: { paginationModel: { pageSize: 10 } },
+            }}
+            autoHeight
+            sx={{
+              border: "none",
+              fontFamily: "inherit",
+              fontSize: "0.75rem",
+              "& .MuiDataGrid-columnHeaders": {
+                backgroundColor: "#fafafa",
+                borderBottom: "1px solid #e4e4e7",
+                color: "#52525b",
+                fontWeight: 600,
+                fontSize: "0.6875rem",
+                textTransform: "uppercase",
+                fontFamily: "ui-monospace, monospace",
+                letterSpacing: "0.05em",
+              },
+              "& .MuiDataGrid-columnSeparator": {
+                display: "none !important",
+              },
+              "& .MuiDataGrid-columnHeader": {
+                paddingLeft: "16px",
+                paddingRight: "16px",
+              },
+              "& .MuiDataGrid-columnHeader:focus, & .MuiDataGrid-columnHeader:focus-within, & .MuiDataGrid-cell:focus, & .MuiDataGrid-cell:focus-within": {
+                outline: "none !important",
+              },
+              "& .MuiDataGrid-row": {
+                borderBottom: "1px solid #f4f4f5",
+                transition: "background-color 0.15s ease",
+              },
+              "& .MuiDataGrid-row:hover": {
+                backgroundColor: "rgba(244, 244, 245, 0.7)",
+              },
+              "& .MuiDataGrid-cell": {
+                display: "flex",
+                alignItems: "center",
+                paddingLeft: "16px",
+                paddingRight: "16px",
+              },
+              "& .MuiDataGrid-footerContainer": {
+                borderTop: "1px solid #e4e4e7",
+                backgroundColor: "#fafafa",
+              },
+              "& .MuiTablePagination-root": {
+                fontSize: "0.75rem",
+              },
+            }}
+          />
         </div>
       )}
 
       {/* TAB 2: Official Receipts & Payments Log */}
       {activeSubTab === "payments" && (
-        <div className="border border-zinc-200 rounded-lg bg-white overflow-hidden shadow-2xs">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead>
-                <tr className="border-b border-zinc-200 bg-zinc-50 text-[11px] font-mono uppercase text-zinc-500">
-                  <th className="py-2.5 px-4 font-semibold">Receipt No</th>
-                  <th className="py-2.5 px-4 font-semibold">Order / Payer</th>
-                  <th className="py-2.5 px-4 font-semibold">Payment Type</th>
-                  <th className="py-2.5 px-4 font-semibold">Method & Reference</th>
-                  <th className="py-2.5 px-4 font-semibold">Amount Settle</th>
-                  <th className="py-2.5 px-4 font-semibold">Recorded By / Date</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-100">
-                {payments.map((p) => (
-                  <tr key={p.receiptNo} className="hover:bg-zinc-50/70 transition-colors">
-                    <td className="py-3 px-4 font-mono font-bold text-zinc-900">{p.receiptNo}</td>
-                    
-                    <td className="py-3 px-4">
-                      <span className="font-mono text-zinc-500 block">{p.orderId}</span>
-                      <span className="font-semibold text-zinc-900">{p.customer}</span>
-                    </td>
-
-                    <td className="py-3 px-4">
-                      <span className="inline-block uppercase text-[10px] font-mono font-bold px-1.5 py-0.2 rounded bg-zinc-100 text-zinc-800 border border-zinc-200">
-                        {p.type}
-                      </span>
-                    </td>
-
-                    <td className="py-3 px-4">
-                      <span className="font-medium text-zinc-900 capitalize block">{p.method.replace("_", " ")}</span>
-                      <span className="font-mono text-[10px] text-zinc-400">{p.referenceNo}</span>
-                    </td>
-
-                    <td className="py-3 px-4 font-mono font-bold text-emerald-800">
-                      ₱{p.amount.toLocaleString()}
-                    </td>
-
-                    <td className="py-3 px-4">
-                      <span className="text-zinc-800 block">{p.recordedBy}</span>
-                      <span className="font-mono text-[10px] text-zinc-400">{p.paidAt}</span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+        <div className="border border-zinc-200 bg-white rounded-xl shadow-xs overflow-hidden">
+          <DataGrid
+            rows={payments}
+            columns={paymentColumns}
+            getRowId={(row) => row.receiptNo}
+            rowHeight={60}
+            pageSizeOptions={[10, 25, 50]}
+            initialState={{
+              pagination: { paginationModel: { pageSize: 10 } },
+            }}
+            autoHeight
+            sx={{
+              border: "none",
+              fontFamily: "inherit",
+              fontSize: "0.75rem",
+              "& .MuiDataGrid-columnHeaders": {
+                backgroundColor: "#fafafa",
+                borderBottom: "1px solid #e4e4e7",
+                color: "#52525b",
+                fontWeight: 600,
+                fontSize: "0.6875rem",
+                textTransform: "uppercase",
+                fontFamily: "ui-monospace, monospace",
+                letterSpacing: "0.05em",
+              },
+              "& .MuiDataGrid-columnSeparator": {
+                display: "none !important",
+              },
+              "& .MuiDataGrid-columnHeader": {
+                paddingLeft: "16px",
+                paddingRight: "16px",
+              },
+              "& .MuiDataGrid-columnHeader:focus, & .MuiDataGrid-columnHeader:focus-within, & .MuiDataGrid-cell:focus, & .MuiDataGrid-cell:focus-within": {
+                outline: "none !important",
+              },
+              "& .MuiDataGrid-row": {
+                borderBottom: "1px solid #f4f4f5",
+                transition: "background-color 0.15s ease",
+              },
+              "& .MuiDataGrid-row:hover": {
+                backgroundColor: "rgba(244, 244, 245, 0.7)",
+              },
+              "& .MuiDataGrid-cell": {
+                display: "flex",
+                alignItems: "center",
+                paddingLeft: "16px",
+                paddingRight: "16px",
+              },
+              "& .MuiDataGrid-footerContainer": {
+                borderTop: "1px solid #e4e4e7",
+                backgroundColor: "#fafafa",
+              },
+              "& .MuiTablePagination-root": {
+                fontSize: "0.75rem",
+              },
+            }}
+          />
         </div>
       )}
 

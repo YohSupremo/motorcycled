@@ -30,6 +30,30 @@ import {
   GET_BRANDS_REQUEST,
   GET_BRANDS_SUCCESS,
   GET_BRANDS_FAIL,
+  CREATE_CATEGORY_REQUEST,
+  CREATE_CATEGORY_SUCCESS,
+  CREATE_CATEGORY_FAIL,
+  UPDATE_CATEGORY_REQUEST,
+  UPDATE_CATEGORY_SUCCESS,
+  UPDATE_CATEGORY_FAIL,
+  DELETE_CATEGORY_REQUEST,
+  DELETE_CATEGORY_SUCCESS,
+  DELETE_CATEGORY_FAIL,
+  RESTORE_CATEGORY_REQUEST,
+  RESTORE_CATEGORY_SUCCESS,
+  RESTORE_CATEGORY_FAIL,
+  CREATE_BRAND_REQUEST,
+  CREATE_BRAND_SUCCESS,
+  CREATE_BRAND_FAIL,
+  UPDATE_BRAND_REQUEST,
+  UPDATE_BRAND_SUCCESS,
+  UPDATE_BRAND_FAIL,
+  DELETE_BRAND_REQUEST,
+  DELETE_BRAND_SUCCESS,
+  DELETE_BRAND_FAIL,
+  RESTORE_BRAND_REQUEST,
+  RESTORE_BRAND_SUCCESS,
+  RESTORE_BRAND_FAIL,
   CLEAR_ERRORS,
 } from "../constants/productConstants.js";
 
@@ -152,13 +176,58 @@ export const updateProduct = (id, productData) => async (dispatch) => {
 export const deleteProduct = (id) => async (dispatch) => {
   try {
     dispatch({ type: DELETE_PRODUCT_REQUEST });
-    await axios.delete(`${API}/admin/product/${id}`, { withCredentials: true });
-    dispatch({ type: DELETE_PRODUCT_SUCCESS });
+    const { data } = await axios.delete(`${API}/admin/product/${id}`, { withCredentials: true });
+    dispatch({ type: DELETE_PRODUCT_SUCCESS, payload: data });
   } catch (error) {
     dispatch({
       type: DELETE_PRODUCT_FAIL,
       payload: error.response?.data?.message,
     });
+  }
+};
+
+// ─── Admin: bulk soft-delete products ─────────────────────────────────────────
+export const bulkDeleteProducts = (productIds) => async (dispatch) => {
+  try {
+    dispatch({ type: DELETE_PRODUCT_REQUEST });
+    const { data } = await axios.post(
+      `${API}/admin/products/bulk-delete`,
+      { productIds },
+      { withCredentials: true }
+    );
+    dispatch({ type: DELETE_PRODUCT_SUCCESS, payload: data });
+    return { success: true, count: data.count, message: data.message };
+  } catch (error) {
+    const message = error.response?.data?.message || "Failed to bulk delete products";
+    dispatch({
+      type: DELETE_PRODUCT_FAIL,
+      payload: message,
+    });
+    return { success: false, message };
+  }
+};
+
+// ─── Admin: bulk restore products ─────────────────────────────────────────────
+export const bulkRestoreProducts = (productIds) => async (dispatch) => {
+  try {
+    dispatch({ type: ARCHIVE_PRODUCT_REQUEST });
+    const { data } = await axios.post(
+      `${API}/admin/products/bulk-restore`,
+      { productIds },
+      { withCredentials: true }
+    );
+    dispatch({
+      type: ARCHIVE_PRODUCT_SUCCESS,
+      payload: { isArchived: false, message: data.message },
+    });
+    return { success: true, count: data.count, message: data.message };
+  } catch (error) {
+    const message = error.response?.data?.message || "Failed to bulk restore products";
+    dispatch({
+      type: ARCHIVE_PRODUCT_FAIL,
+      payload: message,
+    });
+    return { success: false, message };
   }
 };
 
@@ -182,10 +251,10 @@ export const toggleArchiveProduct = (id) => async (dispatch) => {
 };
 
 // ─── Catalog: fetch categories & brands ──────────────────────────────────────
-export const getCategories = () => async (dispatch) => {
+export const getCategories = (params = {}) => async (dispatch) => {
   try {
     dispatch({ type: GET_CATEGORIES_REQUEST });
-    const { data } = await axios.get(`${API}/categories`);
+    const { data } = await axios.get(`${API}/categories`, { params });
     dispatch({ type: GET_CATEGORIES_SUCCESS, payload: data.categories });
   } catch (error) {
     dispatch({
@@ -195,10 +264,10 @@ export const getCategories = () => async (dispatch) => {
   }
 };
 
-export const getBrands = () => async (dispatch) => {
+export const getBrands = (params = {}) => async (dispatch) => {
   try {
     dispatch({ type: GET_BRANDS_REQUEST });
-    const { data } = await axios.get(`${API}/brands`);
+    const { data } = await axios.get(`${API}/brands`, { params });
     dispatch({ type: GET_BRANDS_SUCCESS, payload: data.brands });
   } catch (error) {
     dispatch({
@@ -208,8 +277,205 @@ export const getBrands = () => async (dispatch) => {
   }
 };
 
+// ─── Category CRUD actions ───────────────────────────────────────────────────
+export const createCategory = (categoryData) => async (dispatch) => {
+  try {
+    dispatch({ type: CREATE_CATEGORY_REQUEST });
+    const { data } = await axios.post(`${API}/admin/category/new`, categoryData, {
+      withCredentials: true,
+    });
+    dispatch({ type: CREATE_CATEGORY_SUCCESS, payload: data.category });
+  } catch (error) {
+    dispatch({
+      type: CREATE_CATEGORY_FAIL,
+      payload: error.response?.data?.message || "Failed to create category",
+    });
+  }
+};
+
+export const updateCategory = (id, categoryData) => async (dispatch) => {
+  try {
+    dispatch({ type: UPDATE_CATEGORY_REQUEST });
+    const { data } = await axios.put(`${API}/admin/category/${id}`, categoryData, {
+      withCredentials: true,
+    });
+    dispatch({ type: UPDATE_CATEGORY_SUCCESS, payload: data.category });
+  } catch (error) {
+    dispatch({
+      type: UPDATE_CATEGORY_FAIL,
+      payload: error.response?.data?.message || "Failed to update category",
+    });
+  }
+};
+
+export const deleteCategory = (id) => async (dispatch) => {
+  try {
+    dispatch({ type: DELETE_CATEGORY_REQUEST });
+    const { data } = await axios.delete(`${API}/admin/category/${id}`, {
+      withCredentials: true,
+    });
+    dispatch({ type: DELETE_CATEGORY_SUCCESS, payload: id });
+    return { success: true, data };
+  } catch (error) {
+    const isConflict = error.response?.status === 409;
+    const message = error.response?.data?.message || "Failed to delete category";
+    dispatch({
+      type: DELETE_CATEGORY_FAIL,
+      payload: message,
+    });
+    if (isConflict) {
+      return {
+        conflict: true,
+        productCount: error.response.data.productCount,
+        products: error.response.data.products || [],
+        message,
+      };
+    }
+    return { success: false, message };
+  }
+};
+
+export const reassignCategoryAndDelete = (id, targetCategoryId) => async (dispatch) => {
+  try {
+    dispatch({ type: DELETE_CATEGORY_REQUEST });
+    const { data } = await axios.post(
+      `${API}/admin/category/${id}/reassign`,
+      { targetCategoryId },
+      { withCredentials: true },
+    );
+    dispatch({ type: DELETE_CATEGORY_SUCCESS, payload: id });
+    return { success: true, data };
+  } catch (error) {
+    const message = error.response?.data?.message || "Failed to reassign and delete category";
+    dispatch({
+      type: DELETE_CATEGORY_FAIL,
+      payload: message,
+    });
+    return { success: false, message };
+  }
+};
+
+export const restoreCategory = (id) => async (dispatch) => {
+  try {
+    dispatch({ type: RESTORE_CATEGORY_REQUEST });
+    const { data } = await axios.put(
+      `${API}/admin/category/${id}/restore`,
+      {},
+      { withCredentials: true },
+    );
+    dispatch({ type: RESTORE_CATEGORY_SUCCESS, payload: data.category });
+    return { success: true, message: data.message, category: data.category };
+  } catch (error) {
+    const message = error.response?.data?.message || "Failed to restore category";
+    dispatch({
+      type: RESTORE_CATEGORY_FAIL,
+      payload: message,
+    });
+    return { success: false, message };
+  }
+};
+
+// ─── Brand CRUD actions ──────────────────────────────────────────────────────
+export const createBrand = (brandData) => async (dispatch) => {
+  try {
+    dispatch({ type: CREATE_BRAND_REQUEST });
+    const { data } = await axios.post(`${API}/admin/brand/new`, brandData, {
+      withCredentials: true,
+    });
+    dispatch({ type: CREATE_BRAND_SUCCESS, payload: data.brand });
+  } catch (error) {
+    dispatch({
+      type: CREATE_BRAND_FAIL,
+      payload: error.response?.data?.message || "Failed to create brand",
+    });
+  }
+};
+
+export const updateBrand = (id, brandData) => async (dispatch) => {
+  try {
+    dispatch({ type: UPDATE_BRAND_REQUEST });
+    const { data } = await axios.put(`${API}/admin/brand/${id}`, brandData, {
+      withCredentials: true,
+    });
+    dispatch({ type: UPDATE_BRAND_SUCCESS, payload: data.brand });
+  } catch (error) {
+    dispatch({
+      type: UPDATE_BRAND_FAIL,
+      payload: error.response?.data?.message || "Failed to update brand",
+    });
+  }
+};
+
+export const deleteBrand = (id) => async (dispatch) => {
+  try {
+    dispatch({ type: DELETE_BRAND_REQUEST });
+    const { data } = await axios.delete(`${API}/admin/brand/${id}`, {
+      withCredentials: true,
+    });
+    dispatch({ type: DELETE_BRAND_SUCCESS, payload: id });
+    return { success: true, data };
+  } catch (error) {
+    const isConflict = error.response?.status === 409;
+    const message = error.response?.data?.message || "Failed to delete brand";
+    dispatch({
+      type: DELETE_BRAND_FAIL,
+      payload: message,
+    });
+    if (isConflict) {
+      return {
+        conflict: true,
+        productCount: error.response.data.productCount,
+        products: error.response.data.products || [],
+        message,
+      };
+    }
+    return { success: false, message };
+  }
+};
+
+export const reassignBrandAndDelete = (id, targetBrandId) => async (dispatch) => {
+  try {
+    dispatch({ type: DELETE_BRAND_REQUEST });
+    const { data } = await axios.post(
+      `${API}/admin/brand/${id}/reassign`,
+      { targetBrandId },
+      { withCredentials: true },
+    );
+    dispatch({ type: DELETE_BRAND_SUCCESS, payload: id });
+    return { success: true, data };
+  } catch (error) {
+    const message = error.response?.data?.message || "Failed to reassign and delete brand";
+    dispatch({
+      type: DELETE_BRAND_FAIL,
+      payload: message,
+    });
+    return { success: false, message };
+  }
+};
+
+export const restoreBrand = (id) => async (dispatch) => {
+  try {
+    dispatch({ type: RESTORE_BRAND_REQUEST });
+    const { data } = await axios.put(
+      `${API}/admin/brand/${id}/restore`,
+      {},
+      { withCredentials: true },
+    );
+    dispatch({ type: RESTORE_BRAND_SUCCESS, payload: data.brand });
+    return { success: true, message: data.message, brand: data.brand };
+  } catch (error) {
+    const message = error.response?.data?.message || "Failed to restore brand";
+    dispatch({
+      type: RESTORE_BRAND_FAIL,
+      payload: message,
+    });
+    return { success: false, message };
+  }
+};
+
 // ─── Clear errors ─────────────────────────────────────────────────────────────
 // Reference: itcp318-s3a-2026/frontend/src/actions/productActions.jsx lines 176-181
 export const clearErrors = () => async (dispatch) => {
   dispatch({ type: CLEAR_ERRORS });
 };
+

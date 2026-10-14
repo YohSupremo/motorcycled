@@ -1,5 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { DataGrid } from "@mui/x-data-grid";
 import {
   getAdminOrders,
   getAdminApplications,
@@ -223,6 +224,175 @@ export const AdminOrders = () => {
     setSelectedOrder(null);
   };
 
+  const columns = useMemo(
+    () => [
+      {
+        field: "id",
+        headerName: "Reference",
+        width: 140,
+        renderCell: (params) => {
+          const o = params.row;
+          return (
+            <div className="py-1">
+              <span className="font-mono font-bold text-zinc-900 block leading-tight">{o.id}</span>
+              <span className="text-[10px] font-mono text-zinc-400 block mt-0.5">{o.createdAt}</span>
+            </div>
+          );
+        },
+      },
+      {
+        field: "customer",
+        headerName: "Customer & Destination",
+        flex: 1.2,
+        minWidth: 180,
+        renderCell: (params) => {
+          const o = params.row;
+          return (
+            <div className="flex flex-col justify-center min-w-0 leading-tight">
+              <span className="font-semibold text-zinc-900 text-xs truncate">{o.customer}</span>
+              <span className="text-[11px] text-zinc-400 truncate mt-0.5">{o.shippingInfo?.city || "—"}</span>
+            </div>
+          );
+        },
+      },
+      {
+        field: "items",
+        headerName: "Items Snapshot",
+        flex: 1.5,
+        minWidth: 200,
+        sortable: false,
+        renderCell: (params) => {
+          const o = params.row;
+          const items = o.items || [];
+          return (
+            <div className="flex flex-col justify-center min-w-0 leading-tight py-1">
+              <span className="text-zinc-900 font-medium truncate text-xs">
+                {items[0] ? `${items[0].quantity}× ${items[0].name}` : "—"}
+              </span>
+              {items.length > 1 && (
+                <span className="text-[11px] text-zinc-400 truncate mt-0.5">
+                  +{items.length - 1} other item{items.length > 2 ? "s" : ""}
+                </span>
+              )}
+            </div>
+          );
+        },
+      },
+      {
+        field: "plan",
+        headerName: "Type / Plan",
+        flex: 1,
+        minWidth: 150,
+        valueGetter: (value, row) => (row.installment ? "Installment" : "Cash Order"),
+        renderCell: (params) => {
+          const o = params.row;
+          return o.installment ? (
+            <div className="flex flex-col justify-center min-w-0 leading-tight">
+              <span className="admin-table-badge bg-emerald-50 text-emerald-800 border border-emerald-200 text-[10px] font-mono font-medium uppercase">
+                Installment
+              </span>
+              <span className="text-[11px] text-zinc-500 mt-0.5 truncate">
+                {o.installment.planName}
+              </span>
+            </div>
+          ) : (
+            <div className="flex flex-col justify-center min-w-0 leading-tight">
+              <span className="admin-table-badge bg-zinc-100 text-zinc-700 border border-zinc-200 text-[10px] font-mono font-medium uppercase">
+                Cash Order
+              </span>
+              <span className="text-[11px] text-zinc-500 mt-0.5 capitalize truncate">
+                {(o.paymentMethod || "").replace(/_/g, " ")}
+              </span>
+            </div>
+          );
+        },
+      },
+      {
+        field: "total",
+        headerName: "Authoritative Total",
+        width: 180,
+        type: "number",
+        headerAlign: "left",
+        align: "left",
+        valueGetter: (value, row) => computeTotal(row),
+        renderCell: (params) => {
+          const total = computeTotal(params.row);
+          return (
+            <span className="font-mono font-bold text-zinc-900 text-xs">
+              ₱{total.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+            </span>
+          );
+        },
+      },
+      {
+        field: "status",
+        headerName: "Status",
+        width: 160,
+        headerAlign: "center",
+        align: "center",
+        renderCell: (params) => {
+          const status = params.row.status;
+          let badgeCls = "bg-zinc-100 text-zinc-700 border-zinc-200";
+          let dotCls = "bg-zinc-400";
+          if (status === "For Approval") {
+            badgeCls = "bg-amber-50 text-amber-700 border-amber-200";
+            dotCls = "bg-amber-500";
+          } else if (status === "Awaiting Downpayment") {
+            badgeCls = "bg-blue-50 text-blue-700 border-blue-200";
+            dotCls = "bg-blue-500";
+          } else if (status === "Processing") {
+            badgeCls = "bg-purple-50 text-purple-700 border-purple-200";
+            dotCls = "bg-purple-500";
+          } else if (status === "Shipped") {
+            badgeCls = "bg-sky-50 text-sky-700 border-sky-200";
+            dotCls = "bg-sky-500";
+          } else if (status === "Delivered") {
+            badgeCls = "bg-emerald-50 text-emerald-700 border-emerald-200";
+            dotCls = "bg-emerald-500";
+          } else if (status === "Rejected" || status === "Cancelled") {
+            badgeCls = "bg-rose-50 text-rose-700 border-rose-200";
+            dotCls = "bg-rose-500";
+          }
+          return (
+            <span
+              className={`admin-table-badge gap-1.5 text-[11px] font-medium border ${badgeCls}`}
+              title={status}
+            >
+              <span className={`admin-table-badge__dot w-1.5 h-1.5 rounded-full ${dotCls}`} />
+              {status}
+            </span>
+          );
+        },
+      },
+      {
+        field: "actions",
+        headerName: "Actions",
+        width: 120,
+        headerAlign: "right",
+        align: "right",
+        sortable: false,
+        filterable: false,
+        disableColumnMenu: true,
+        renderCell: (params) => {
+          const o = params.row;
+          return (
+            <button
+              type="button"
+              onClick={() => setSelectedOrder(o)}
+              className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium border border-zinc-200 text-zinc-700 bg-white hover:bg-zinc-50 rounded transition-colors cursor-pointer shadow-2xs whitespace-nowrap"
+            >
+              <span>Review</span>
+              <svg className="w-3.5 h-3.5 text-zinc-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polyline points="9 18 15 12 9 6" />
+              </svg>
+            </button>
+          );
+        },
+      },
+    ],
+    []
+  );
+
   return (
     <div className="space-y-6">
       {/* Title Row */}
@@ -293,126 +463,65 @@ export const AdminOrders = () => {
         </div>
       </div>
 
-      {/* Flat Orders Table */}
-      <div className="border border-zinc-200 bg-white overflow-x-auto">
-        <table className="w-full text-left text-xs">
-          <thead>
-            <tr className="border-b border-zinc-200 bg-zinc-50 text-[11px] font-mono uppercase text-zinc-500">
-              <th className="py-2.5 px-4 font-semibold">Reference</th>
-              <th className="py-2.5 px-4 font-semibold">Customer & Destination</th>
-              <th className="py-2.5 px-4 font-semibold">Items Snapshot</th>
-              <th className="py-2.5 px-4 font-semibold">Type / Plan</th>
-              <th className="py-2.5 px-4 font-semibold">Authoritative Total</th>
-              <th className="py-2.5 px-4 font-semibold">Status</th>
-              <th className="py-2.5 px-4 font-semibold text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-zinc-100">
-            {ordersLoading || appsLoading ? (
-              <tr>
-                <td colSpan={7} className="py-8 text-center text-xs text-zinc-400">
-                  Loading order transactions…
-                </td>
-              </tr>
-            ) : filteredOrders.length === 0 ? (
-              <tr>
-                <td colSpan={7} className="py-8 text-center text-xs text-zinc-500">
-                  No records match the selected criteria.
-                </td>
-              </tr>
-            ) : (
-              filteredOrders.map((o) => {
-                const total = computeTotal(o);
-                return (
-                  <tr key={o.id} className="hover:bg-zinc-50/70 transition-colors">
-                    {/* Order Ref & Timestamp */}
-                    <td className="py-3 px-4">
-                      <span className="font-mono font-bold text-zinc-900 block">{o.id}</span>
-                      <span className="text-[10px] font-mono text-zinc-400">{o.createdAt}</span>
-                    </td>
-
-                    {/* Customer */}
-                    <td className="py-3 px-4">
-                      <p className="font-semibold text-zinc-900">{o.customer}</p>
-                      <p className="text-[11px] text-zinc-500 truncate max-w-xs">{o.shippingInfo.city}</p>
-                    </td>
-
-                    {/* Items */}
-                    <td className="py-3 px-4">
-                      <div className="space-y-0.5 max-w-xs">
-                        {o.items.map((item, idx) => (
-                          <p key={idx} className="text-zinc-900 font-medium truncate">
-                            {item.quantity}× {item.name}
-                          </p>
-                        ))}
-                      </div>
-                    </td>
-
-                    {/* Payment / Plan */}
-                    <td className="py-3 px-4">
-                      {o.installment ? (
-                        <div>
-                          <span className="inline-block text-[10px] font-mono px-2 py-0.5 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded font-semibold uppercase">
-                            Installment
-                          </span>
-                          <span className="block text-[11px] text-zinc-500 mt-0.5">
-                            {o.installment.planName}
-                          </span>
-                        </div>
-                      ) : (
-                        <div>
-                          <span className="inline-block text-[10px] font-mono px-2 py-0.5 bg-zinc-100 text-zinc-700 border border-zinc-200 rounded font-semibold uppercase">
-                            Cash Order
-                          </span>
-                          <span className="block text-[11px] text-zinc-500 mt-0.5 capitalize">
-                            {o.paymentMethod.replace(/_/g, " ")}
-                          </span>
-                        </div>
-                      )}
-                    </td>
-
-                    {/* Total Amount */}
-                    <td className="py-3 px-4 font-mono font-bold text-zinc-900">
-                      ₱{total.toLocaleString("en-US", { minimumFractionDigits: 2 })}
-                    </td>
-
-                    {/* Fulfillment Status */}
-                    <td className="py-3 px-4">
-                      <span
-                        className={`inline-block text-[11px] font-medium px-2 py-0.5 rounded border ${
-                          o.status === "For Approval"
-                            ? "bg-amber-50 text-amber-800 border-amber-200"
-                            : o.status === "Awaiting Downpayment"
-                            ? "bg-blue-50 text-blue-800 border-blue-200"
-                            : o.status === "Processing"
-                            ? "bg-purple-50 text-purple-800 border-purple-200"
-                            : o.status === "Shipped"
-                            ? "bg-sky-50 text-sky-800 border-sky-200"
-                            : o.status === "Delivered"
-                            ? "bg-emerald-50 text-emerald-800 border-emerald-200"
-                            : "bg-red-50 text-red-700 border-red-200"
-                        }`}
-                      >
-                        {o.status}
-                      </span>
-                    </td>
-
-                    {/* Action */}
-                    <td className="py-3 px-4 text-right">
-                      <button
-                        type="button"
-                        onClick={() => setSelectedOrder(o)}
-                        className="text-xs font-semibold text-emerald-700 hover:text-emerald-800 hover:underline cursor-pointer"
-                      >
-                        Review Record &rarr;
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
+      {/* Orders DataGrid */}
+      <div className="border border-zinc-200 bg-white rounded-xl shadow-xs overflow-hidden">
+        <DataGrid
+          rows={filteredOrders}
+          columns={columns}
+          getRowId={(row) => row.id}
+          rowHeight={72}
+          loading={ordersLoading || appsLoading}
+          pageSizeOptions={[10, 25, 50]}
+          initialState={{
+            pagination: { paginationModel: { pageSize: 10 } },
+          }}
+          autoHeight
+          sx={{
+            border: "none",
+            fontFamily: "inherit",
+            fontSize: "0.75rem",
+            "& .MuiDataGrid-columnHeaders": {
+              backgroundColor: "#fafafa",
+              borderBottom: "1px solid #e4e4e7",
+              color: "#52525b",
+              fontWeight: 600,
+              fontSize: "0.6875rem",
+              textTransform: "uppercase",
+              fontFamily: "ui-monospace, monospace",
+              letterSpacing: "0.05em",
+            },
+            "& .MuiDataGrid-columnSeparator": {
+              display: "none !important",
+            },
+            "& .MuiDataGrid-columnHeader": {
+              paddingLeft: "16px",
+              paddingRight: "16px",
+            },
+            "& .MuiDataGrid-columnHeader:focus, & .MuiDataGrid-columnHeader:focus-within, & .MuiDataGrid-cell:focus, & .MuiDataGrid-cell:focus-within": {
+              outline: "none !important",
+            },
+            "& .MuiDataGrid-row": {
+              borderBottom: "1px solid #f4f4f5",
+              transition: "background-color 0.15s ease",
+            },
+            "& .MuiDataGrid-row:hover": {
+              backgroundColor: "rgba(244, 244, 245, 0.7)",
+            },
+            "& .MuiDataGrid-cell": {
+              display: "flex",
+              alignItems: "center",
+              paddingLeft: "16px",
+              paddingRight: "16px",
+            },
+            "& .MuiDataGrid-footerContainer": {
+              borderTop: "1px solid #e4e4e7",
+              backgroundColor: "#fafafa",
+            },
+            "& .MuiTablePagination-root": {
+              fontSize: "0.75rem",
+            },
+          }}
+        />
       </div>
 
       {/* Slide-over / Modal for Order Review */}
