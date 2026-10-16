@@ -16,6 +16,54 @@ import { getProducts } from "../../../actions/productActions";
 import { addToCart } from "../../../actions/cartActions";
 import { toast } from "react-toastify";
 
+const financeSteps = [
+  {
+    title: "Configure repayment plan",
+    desc: "Choose repayment terms spanning 3, 6, 12, 24, or 36 months. Select your downpayment percentage (minimum 20%) to view your fixed monthly dues and principal balance.",
+  },
+  {
+    title: "Digital screening",
+    desc: "Upload your primary Philippine Government ID, billing address proof, and latest 3 months of payslips or business permits. Credit review feedback is provided within 24 to 48 hours.",
+  },
+  {
+    title: "Vehicle turnover",
+    desc: "Settle the agreed downpayment online or over the counter. Sign the promissory deed, and receive your unit along with complete official LTO registration and insurance documents.",
+  },
+];
+
+const testimonials = [
+  {
+    author: "Mark Anthony Ramos",
+    role: "Yamaha NMAX 155 ABS",
+    location: "Pasig City",
+    initials: "MR",
+    verifiedTag: "Verified Owner, 12-Month Financing",
+    acquiredDate: "Released Aug 2026",
+    quote:
+      "Digital screening was approved in less than 36 hours. The monthly amortization breakdown in the portal has zero hidden charges, and downpayment receipt was issued immediately upon turnover.",
+  },
+  {
+    author: "Karlo Mendoza",
+    role: "Honda Click 125i",
+    location: "Quezon City",
+    initials: "KM",
+    verifiedTag: "Daily Commuter, Cash Booking",
+    acquiredDate: "Released Sep 2026",
+    quote:
+      "Delivered straight to my doorstep in Quezon City complete with LTO registration papers and dealer warranty booklet. The pre-delivery checklist was thoroughly explained by the courier technician.",
+  },
+  {
+    author: "Christian Bautista",
+    role: "Kawasaki Ninja 400 SE",
+    location: "Cebu City",
+    initials: "CB",
+    verifiedTag: "Track Enthusiast, OEM Parts",
+    acquiredDate: "Released Jul 2026",
+    quote:
+      "Finding genuine OEM sprockets, sintered brake pads, and Motul 7100 oil under one roof used to be difficult. Motorcycled's verified parts catalog and branch pickup in Cebu made maintenance straightforward.",
+  },
+];
+
 export const Homepage = ({ onNavigate }) => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -32,6 +80,108 @@ export const Homepage = ({ onNavigate }) => {
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [totalCatalogCount, setTotalCatalogCount] = useState(0);
+  const [liveBrands, setLiveBrands] = useState([]);
+
+  // Financing timeline: reveal once when scrolled into view
+  const financeTimelineRef = useRef(null);
+  const [financeTimelineIn, setFinanceTimelineIn] = useState(
+    () => typeof window === "undefined" || !("IntersectionObserver" in window)
+  );
+
+  useEffect(() => {
+    const node = financeTimelineRef.current;
+    if (
+      !node ||
+      typeof window === "undefined" ||
+      !("IntersectionObserver" in window)
+    ) {
+      return;
+    }
+    const io = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            setFinanceTimelineIn(true);
+            io.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.25 }
+    );
+    io.observe(node);
+    return () => io.disconnect();
+  }, []);
+
+  // Reviews: staggered reveal once when scrolled into view
+  const reviewsRef = useRef(null);
+  const [reviewsIn, setReviewsIn] = useState(
+    () => typeof window === "undefined" || !("IntersectionObserver" in window)
+  );
+
+  useEffect(() => {
+    const node = reviewsRef.current;
+    if (
+      !node ||
+      typeof window === "undefined" ||
+      !("IntersectionObserver" in window)
+    ) {
+      return;
+    }
+    const io = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            setReviewsIn(true);
+            io.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.2 }
+    );
+    io.observe(node);
+    return () => io.disconnect();
+  }, []);
+
+  // Reviews spotlight: cycle one owner quote at a time, looping continuously
+  const [reviewIndex, setReviewIndex] = useState(0);
+  const [reviewPaused, setReviewPaused] = useState(false);
+
+  useEffect(() => {
+    if (!reviewsIn || reviewPaused || testimonials.length <= 1) {
+      return;
+    }
+    if (
+      typeof window === "undefined" ||
+      !window.matchMedia ||
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    ) {
+      return;
+    }
+    const id = setInterval(() => {
+      setReviewIndex((i) => (i + 1) % testimonials.length);
+    }, 5000);
+    return () => clearInterval(id);
+  }, [reviewsIn, reviewPaused]);
+
+  // Fetch live brands with logos from MongoDB
+  useEffect(() => {
+    let isMounted = true;
+    const fetchBrands = async () => {
+      try {
+        const api = import.meta.env.VITE_API;
+        const res = await axios.get(`${api}/brands`);
+        if (isMounted && res.data && res.data.brands) {
+          setLiveBrands(res.data.brands);
+        }
+      } catch (err) {
+        console.warn("Could not load dynamic brands:", err);
+      }
+    };
+    fetchBrands();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // Select live products from database via Redux
   const { loading, products = [], productsCount = 0 } = useSelector(
@@ -170,189 +320,187 @@ export const Homepage = ({ onNavigate }) => {
     {
       name: "Motorcycles",
       desc: "Brand-new scooters, underbones, touring & sportbikes ready for releasing",
-      count: "Live Showroom",
-      tag: "Units",
     },
     {
       name: "Engine Parts",
       desc: "Genuine cylinder blocks, forged pistons, valves, drive belts & CVT clutch assemblies",
-      count: "OEM Parts",
-      tag: "Components",
     },
     {
       name: "Brakes",
       desc: "Hydraulic disc calipers, sintered brake pads, master cylinders & rear shock absorbers",
-      count: "Safety",
-      tag: "Chassis",
     },
     {
       name: "Tires and Wheels",
       desc: "High-grip tubeless compound tires, cast alloy rims, tire valves & tubes",
-      count: "Performance",
-      tag: "Consumables",
     },
     {
       name: "Helmets",
       desc: "ECE 22.06 & DOT certified full-face helmets, armored jackets & riding gloves",
-      count: "Certified",
-      tag: "Gear",
     },
     {
       name: "Lubricants",
       desc: "Full synthetic 4-stroke engine oils, gear lubricants, coolant & chain care products",
-      count: "Maintenance",
-      tag: "Fluids",
     },
   ];
 
-  const brands = ["All", "Honda", "Yamaha", "Suzuki", "Kawasaki", "CFMOTO"];
-
-  const testimonials = [
-    {
-      author: "Mark Anthony Ramos",
-      role: "Yamaha NMAX 155 ABS",
-      location: "Pasig City",
-      initials: "MR",
-      verifiedTag: "Verified Owner • 12-Mo Financing",
-      acquiredDate: "Released Aug 2026",
-      quote:
-        "Digital screening was approved in less than 36 hours. The monthly amortization breakdown in the portal has zero hidden charges, and downpayment receipt was issued immediately upon turnover.",
-    },
-    {
-      author: "Karlo Mendoza",
-      role: "Honda Click 125i",
-      location: "Quezon City",
-      initials: "KM",
-      verifiedTag: "Daily Commuter • Cash Booking",
-      acquiredDate: "Released Sep 2026",
-      quote:
-        "Delivered straight to my doorstep in Quezon City complete with LTO registration papers and dealer warranty booklet. The pre-delivery checklist was thoroughly explained by the courier technician.",
-    },
-    {
-      author: "Christian Bautista",
-      role: "Kawasaki Ninja 400 SE",
-      location: "Cebu City",
-      initials: "CB",
-      verifiedTag: "Track Enthusiast • OEM Parts",
-      acquiredDate: "Released Jul 2026",
-      quote:
-        "Finding genuine OEM sprockets, sintered brake pads, and Motul 7100 oil under one roof used to be difficult. Motorcycled's verified parts catalog and branch pickup in Cebu made maintenance seamless.",
-    },
-  ];
+  const brands = useMemo(() => {
+    if (liveBrands && liveBrands.length > 0) {
+      return ["All", ...liveBrands.map((b) => b.name)];
+    }
+    return ["All", "Honda", "Yamaha", "Suzuki", "Kawasaki", "CFMOTO"];
+  }, [liveBrands]);
 
   return (
     <div className="min-h-screen bg-white text-zinc-900 antialiased flex flex-col font-sans selection:bg-emerald-100 selection:text-emerald-900">
-      {/* Editorial Dealership Hero Banner - Unboxed & Content-First */}
-      <section className="border-b border-zinc-200 bg-zinc-50/70">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10 sm:py-16">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
-            {/* Main Editorial Header */}
-            <div className="lg:col-span-8 space-y-4">
-              <h1 className="text-3xl sm:text-5xl font-extrabold tracking-tight text-zinc-900 leading-[1.15]">
-                Motorcycle Dealership, OEM Parts & In-House Installments.
-              </h1>
+      {/* Cinematic Full-Bleed Motorcycle Hero */}
+      <section
+        style={{ marginTop: "calc(-1 * var(--nav-h, 56px))" }}
+        className="relative w-full min-h-[580px] sm:min-h-[640px] lg:min-h-[700px] flex items-center bg-zinc-950 overflow-hidden"
+      >
+        {/* Full-bleed background motorcycle video with fallback poster & subtle settle on load */}
+        <video
+          autoPlay
+          loop
+          muted
+          playsInline
+          preload="auto"
+          poster="/hero-video-poster.jpg?v=2"
+          className="absolute inset-0 w-full h-full object-cover select-none pointer-events-none anim-settle"
+        >
+          <source src="/videos/hero-video.mp4?v=2" type="video/mp4" />
+          <img
+            src="/hero-video-poster.jpg?v=2"
+            alt="Motorcycled showroom unit"
+            className="w-full h-full object-cover select-none"
+          />
+        </video>
+        {/* Flat dark overlay for text contrast and legibility without gradients */}
+        <div className="absolute inset-0 bg-zinc-950/75 sm:bg-zinc-950/65" />
 
-              <p className="text-sm sm:text-base text-zinc-600 leading-relaxed max-w-2xl">
-                Browse showroom inventory with transparent cash pricing and
-                structured monthly financing. Submit digital documents for
-                24-hour credit review and schedule nationwide delivery.
-              </p>
+        <div className="relative z-10 max-w-6xl w-full mx-auto px-4 sm:px-6 pt-24 pb-16 sm:pt-28 sm:pb-24">
+          <div className="max-w-2xl anim-stagger">
+            {/* Brand line */}
+            <p className="text-xs font-bold tracking-wider text-zinc-400 uppercase mb-2">
+              Motorcycled Dealership
+            </p>
 
-              {/* Integrated Search and Action */}
-              <form onSubmit={handleHeroSearch} className="pt-2 flex flex-col sm:flex-row gap-2 max-w-xl">
+            {/* Heavy condensed headline */}
+            <h1 className="text-5xl sm:text-7xl lg:text-8xl font-black uppercase tracking-tight text-white leading-[0.98] mb-5 font-['Bebas_Neue',Impact,sans-serif]">
+              Built for the open road.
+            </h1>
+
+            {/* Direct, restrained supporting copy */}
+            <p className="text-base sm:text-lg text-zinc-300 leading-relaxed mb-6 max-w-md">
+              New motorcycles, genuine parts, and financing that fits.
+            </p>
+
+            {/* Integrated Hero Search Bar */}
+            <form onSubmit={handleHeroSearch} className="mb-6 flex flex-col sm:flex-row items-stretch gap-2 max-w-xl">
+              <div className="relative flex-1">
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-zinc-400">
+                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <circle cx="11" cy="11" r="8" />
+                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                  </svg>
+                </div>
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search model (e.g. NMAX 155, Ninja 400, Click 125)..."
-                  className="!h-10 flex-1 px-3 text-sm text-zinc-900 bg-white border border-zinc-300 rounded-md focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 shadow-2xs"
+                  className="!h-11 w-full pl-10 pr-3.5 text-sm text-white bg-zinc-900/90 border border-zinc-700/80 rounded placeholder:text-zinc-400 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-colors"
                 />
-                <button
-                  type="submit"
-                  className="!h-10 px-5 rounded-md bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-sm font-medium transition-colors cursor-pointer whitespace-nowrap shadow-2xs"
+              </div>
+              <button
+                type="submit"
+                className="!h-11 px-5 rounded bg-emerald-700 hover:bg-emerald-800 active:bg-emerald-900 text-white text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer whitespace-nowrap btn-motion"
+              >
+                Search Catalog
+              </button>
+            </form>
+
+            {/* Dual action buttons */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+              <button
+                type="button"
+                onClick={() => handleNavigate("shop")}
+                className="h-11 px-6 rounded bg-transparent hover:bg-white/10 active:bg-white/20 border border-white/40 hover:border-white text-white text-xs font-semibold uppercase tracking-wider transition-colors cursor-pointer flex items-center justify-center gap-2 btn-motion"
+              >
+                <span>Explore motorcycles</span>
+                <svg
+                  className="w-3.5 h-3.5"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
                 >
-                  Explore Catalog
-                </button>
-              </form>
-
-              {/* Brand Filter Row */}
-              <div className="pt-3 flex flex-wrap items-center gap-1.5 text-xs">
-                <span className="text-zinc-500 font-medium mr-1">
-                  Filter by Make:
-                </span>
-                {brands.map((b) => (
-                  <button
-                    key={b}
-                    type="button"
-                    onClick={() => setSelectedBrandFilter(b)}
-                    className={`px-2.5 py-1 rounded text-xs transition-colors cursor-pointer ${
-                      selectedBrandFilter === b
-                        ? "bg-emerald-50 text-emerald-900 border border-emerald-300 font-semibold shadow-2xs"
-                        : "bg-white border border-zinc-200 text-zinc-700 hover:bg-zinc-50 hover:text-zinc-900"
-                    }`}
-                  >
-                    {b}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Right Meta Column: Real Dealership Operational Specs */}
-            <div className="lg:col-span-4 border-t lg:border-t-0 lg:border-l border-zinc-200 pt-6 lg:pt-0 lg:pl-8 space-y-5 text-xs">
-              <div className="space-y-1">
-                <span className="text-[11px] font-mono uppercase tracking-wider text-zinc-400">
-                  Financing Terms
-                </span>
-                <p className="font-semibold text-zinc-900 text-sm">
-                  3, 6, 12, 24 & 36 Months
-                </p>
-                <p className="text-zinc-500">
-                  Fixed rate amortization with transparent interest breakdown
-                  and zero hidden charges.
-                </p>
-              </div>
-
-              <div className="pt-3 border-t border-zinc-200 space-y-1">
-                <span className="text-[11px] font-mono uppercase tracking-wider text-zinc-400">
-                  Credit Screening
-                </span>
-                <p className="font-semibold text-zinc-900 text-sm">
-                  24-48 Hour Digital Verification
-                </p>
-                <p className="text-zinc-500">
-                  Submit valid Philippine government ID and proof of monthly
-                  income directly online.
-                </p>
-              </div>
-
-              <div className="pt-3 border-t border-zinc-200 space-y-1">
-                <span className="text-[11px] font-mono uppercase tracking-wider text-zinc-400">
-                  Unit Release & Warranty
-                </span>
-                <p className="font-semibold text-zinc-900 text-sm">
-                  LTO Registration & OEM Warranty
-                </p>
-                <p className="text-zinc-500">
-                  Complete registration papers, comprehensive insurance, and
-                  manufacturer service network.
-                </p>
-              </div>
+                  <line x1="7" y1="17" x2="17" y2="7" />
+                  <polyline points="7 7 17 7 17 17" />
+                </svg>
+              </button>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Featured product spotlight — full-bleed carousel, live catalog units */}
-      <ScrollReveal threshold={0.08} duration={650}>
-        <section className="bg-white border-b border-zinc-200">
+      {/* Brand Logo Loop Marquee - Dynamic from Database */}
+      {liveBrands.length > 0 && (
+        <section className="bg-zinc-950 border-b border-zinc-800/80 py-5 overflow-hidden relative">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 mb-3 flex items-center justify-between">
+            <span className="text-[10px] font-mono uppercase tracking-widest text-zinc-500 font-medium">
+              Authorized Dealership & Certified OEM Brands
+            </span>
+            <span className="text-[10px] text-zinc-600 font-mono hidden sm:inline-block">
+              {liveBrands.length} Verified Makes
+            </span>
+          </div>
+
+          <div className="relative w-full overflow-hidden">
+            {/* Edge gradient masks for seamless visual fade */}
+            <div className="absolute left-0 inset-y-0 w-16 sm:w-24 bg-gradient-to-r from-zinc-950 to-transparent z-10 pointer-events-none" />
+            <div className="absolute right-0 inset-y-0 w-16 sm:w-24 bg-gradient-to-l from-zinc-950 to-transparent z-10 pointer-events-none" />
+
+            <div className="marquee-track flex items-center gap-12 sm:gap-16">
+              {[...liveBrands, ...liveBrands].map((b, idx) => (
+                <button
+                  key={`${b._id || b.name}-${idx}`}
+                  type="button"
+                  onClick={() => {
+                    setSelectedBrandFilter(b.name);
+                    handleNavigate("shop", `brand=${encodeURIComponent(b.name)}`);
+                  }}
+                  className="shrink-0 flex items-center justify-center gap-2.5 px-4 py-1.5 cursor-pointer group transition-transform hover:scale-105"
+                  title={`Browse ${b.name} inventory`}
+                >
+                  {b.logo?.url ? (
+                    <img
+                      src={b.logo.url}
+                      alt={b.name}
+                      className="h-7 sm:h-9 w-auto max-w-[130px] object-contain opacity-70 group-hover:opacity-100 transition-opacity"
+                    />
+                  ) : (
+                    <span className="text-xs sm:text-sm font-bold uppercase tracking-wider text-zinc-400 group-hover:text-emerald-400 transition-colors">
+                      {b.name}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Featured product spotlight - full-bleed carousel, live catalog units */}
+      <ScrollReveal threshold={0.08} duration={400} revealOnExit>
+        <section className="w-full bg-white">
           <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-12 pb-4">
             <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2 pb-3 border-b border-zinc-900">
               <div>
-                <span className="text-xs font-mono uppercase tracking-wider text-emerald-700 font-semibold">
-                  Showroom Inventory
-                </span>
                 <h2 className="text-xl sm:text-2xl font-bold text-zinc-900 tracking-tight">
-                  Featured Motorcycle Units
+                  Featured motorcycles
                 </h2>
               </div>
               <div className="flex items-center gap-4 text-xs">
@@ -364,9 +512,48 @@ export const Homepage = ({ onNavigate }) => {
                   onClick={() => handleNavigate("shop")}
                   className="font-semibold text-emerald-700 hover:text-emerald-800 hover:underline cursor-pointer"
                 >
-                  Full Catalog &rarr;
+                  Full catalog &rarr;
                 </button>
               </div>
+            </div>
+
+            {/* Showroom Filters: Brand chips and quick model search */}
+            <div className="pt-4 flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-zinc-500 font-medium mr-1">
+                  Filter by make:
+                </span>
+                {brands.map((b) => (
+                  <button
+                    key={b}
+                    type="button"
+                    onClick={() => setSelectedBrandFilter(b)}
+                    className={`px-3 py-1.5 rounded text-xs transition-colors cursor-pointer ${
+                      selectedBrandFilter === b
+                        ? "bg-emerald-700 text-white font-semibold"
+                        : "bg-white border border-zinc-200 text-zinc-700 hover:bg-zinc-50 hover:text-zinc-900"
+                    }`}
+                  >
+                    {b}
+                  </button>
+                ))}
+              </div>
+
+              <form onSubmit={handleHeroSearch} className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Filter model..."
+                  className="!h-8 px-2.5 text-xs text-zinc-900 bg-white border border-zinc-300 rounded focus:outline-none focus:border-emerald-700"
+                />
+                <button
+                  type="submit"
+                  className="!h-8 px-3 rounded bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-medium cursor-pointer"
+                >
+                  Search
+                </button>
+              </form>
             </div>
           </div>
 
@@ -388,7 +575,7 @@ export const Homepage = ({ onNavigate }) => {
             />
           ) : (
             <div className="max-w-6xl mx-auto px-4 sm:px-6 pb-12">
-              <div className="py-12 text-center text-xs text-zinc-500 border border-zinc-200 rounded-lg bg-zinc-50">
+              <div className="py-12 text-center text-xs text-zinc-500 border border-zinc-200 rounded bg-zinc-50">
                 No showroom units match the selected brand or keyword in database.
               </div>
             </div>
@@ -397,49 +584,35 @@ export const Homepage = ({ onNavigate }) => {
       </ScrollReveal>
 
       {/* Main Content Area */}
-      <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-12 space-y-16">
+      <main className="flex-1 w-full">
         {/* Section 2: Catalog Categories (Structured Directory Index - NO floating cards) */}
-        <ScrollReveal threshold={0.08} delay={60} duration={650}>
-          <section className="space-y-4">
-            <div className="pb-3 border-b border-zinc-900">
-              <span className="text-xs font-mono uppercase tracking-wider text-emerald-700 font-semibold">
-                Parts & Equipment Directory
-              </span>
-              <h2 className="text-xl sm:text-2xl font-bold text-zinc-900 tracking-tight">
-                Genuine OEM Catalog by Category
+        <ScrollReveal threshold={0.08} delay={60} duration={400} revealOnExit>
+          <section className="w-full bg-zinc-900">
+            <div className="max-w-6xl mx-auto px-4 sm:px-6 py-12 sm:py-16 space-y-4">
+            <div className="pb-3 border-b border-zinc-700">
+              <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
+                Parts and gear by category
               </h2>
-              <p className="text-xs text-zinc-500 mt-1">
-                Select a specialized category to inspect compatibility with
-                Honda, Yamaha, Suzuki, Kawasaki, and CFMOTO models.
-              </p>
             </div>
 
             {/* Unified Directory Grid with crisp single borders */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 border-t border-l border-zinc-200">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 border-t border-l border-zinc-700">
               {categories.map((cat) => (
                 <div
                   key={cat.name}
                   onClick={() => handleNavigate("shop", `category=${encodeURIComponent(cat.name)}`)}
-                  className="border-r border-b border-zinc-200 p-5 hover:bg-zinc-50/80 transition-colors cursor-pointer group flex flex-col justify-between"
+                  className="bg-zinc-800 border-r border-b border-zinc-700 p-5 hover:bg-zinc-700 transition-colors cursor-pointer group flex flex-col justify-between"
                 >
                   <div className="space-y-1.5">
-                    <div className="flex items-center justify-between text-[11px]">
-                      <span className="font-mono text-zinc-400 uppercase tracking-wider">
-                        {cat.tag}
-                      </span>
-                      <span className="text-emerald-700 font-medium">
-                        {cat.count}
-                      </span>
-                    </div>
-                    <h3 className="text-sm font-bold text-zinc-900 group-hover:text-emerald-700 transition-colors">
+                    <h3 className="text-sm font-bold text-white group-hover:text-emerald-400 transition-colors">
                       {cat.name}
                     </h3>
-                    <p className="text-xs text-zinc-500 leading-relaxed">
+                    <p className="text-xs text-zinc-400 leading-relaxed">
                       {cat.desc}
                     </p>
                   </div>
 
-                  <div className="pt-4 mt-3 flex items-center text-xs font-semibold text-zinc-700 group-hover:text-emerald-700 transition-colors">
+                  <div className="pt-4 mt-3 flex items-center text-xs font-semibold text-zinc-300 group-hover:text-emerald-400 transition-colors">
                     <span>Browse {cat.name}</span>
                     <span className="ml-1 transition-transform group-hover:translate-x-1">
                       &rarr;
@@ -448,22 +621,19 @@ export const Homepage = ({ onNavigate }) => {
                 </div>
               ))}
             </div>
+            </div>
           </section>
         </ScrollReveal>
 
-        {/* Section: Live Inventory with Infinite Scroll (15pts deliverable) */}
-        <section className="space-y-6 pt-4 border-t border-zinc-200">
+        {/* Section: Live Inventory with Infinite Scroll (white band) */}
+        <ScrollReveal threshold={0.08} delay={70} duration={400} revealOnExit>
+          <section className="w-full bg-white">
+            <div className="max-w-6xl mx-auto px-4 sm:px-6 py-12 sm:py-16 space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 pb-3 border-b border-zinc-900">
             <div>
-              <span className="text-xs font-mono uppercase tracking-wider text-emerald-700 font-semibold">
-                Continuous Inventory Stream
-              </span>
               <h2 className="text-xl sm:text-2xl font-bold text-zinc-900 tracking-tight">
-                All Available Motorcycles & Certified OEM Parts
+                Available motorcycles and parts
               </h2>
-              <p className="text-xs text-zinc-500 mt-1">
-                Explore real inventory loaded continuously via Infinite Scroll as you browse down the showroom floor.
-              </p>
             </div>
             <div className="flex items-center gap-2">
               <Chip
@@ -471,7 +641,7 @@ export const Homepage = ({ onNavigate }) => {
                 size="small"
                 color="success"
                 variant="outlined"
-                sx={{ fontSize: "0.72rem", fontWeight: 600, borderColor: "#059669", color: "#059669" }}
+                sx={{ fontSize: "0.72rem", fontWeight: 600, borderColor: "#047857", color: "#047857" }}
               />
             </div>
           </div>
@@ -482,7 +652,7 @@ export const Homepage = ({ onNavigate }) => {
             hasMore={hasMore}
             loader={
               <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", py: 4, gap: 1.5 }}>
-                <CircularProgress size={24} sx={{ color: "#059669" }} />
+                <CircularProgress size={24} sx={{ color: "#047857" }} />
                 <Typography variant="body2" sx={{ fontSize: "0.85rem", color: "#52525b", fontWeight: 500 }}>
                   Loading more catalog items...
                 </Typography>
@@ -491,10 +661,10 @@ export const Homepage = ({ onNavigate }) => {
             endMessage={
               <Box sx={{ textAlign: "center", py: 4, color: "#71717a", fontSize: "0.8rem", borderTop: "1px dashed #e4e4e7", mt: 4 }}>
                 <p className="font-semibold text-zinc-700 flex items-center justify-center gap-1.5">
-                  <svg className="w-3.5 h-3.5 text-emerald-600 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12" /></svg>
-                  <span>You have viewed the entire dealership catalog</span>
+                  <svg className="w-3.5 h-3.5 text-emerald-700 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12" /></svg>
+                  <span>End of catalog</span>
                 </p>
-                <p className="text-xs text-zinc-400 mt-0.5">All 30 active units and OEM parts loaded</p>
+                <p className="text-xs text-zinc-400 mt-0.5">All available units and parts loaded</p>
               </Box>
             }
           >
@@ -536,13 +706,12 @@ export const Homepage = ({ onNavigate }) => {
                             {brandName}
                           </span>
                           <span
-                            className={`px-1.5 py-0.2 rounded text-[10px] font-medium border ${
-                              p.stock === 0
-                                ? "bg-red-50 text-red-700 border-red-200"
-                                : p.stock <= 3
+                            className={`px-1.5 py-0.2 rounded text-[10px] font-medium border ${p.stock === 0
+                              ? "bg-red-50 text-red-700 border-red-200"
+                              : p.stock <= 3
                                 ? "bg-amber-50 text-amber-700 border-amber-200"
                                 : "bg-emerald-50 text-emerald-700 border-emerald-200"
-                            }`}
+                              }`}
                           >
                             {p.stock === 0 ? "Out of stock" : `${p.stock} in stock`}
                           </span>
@@ -584,7 +753,7 @@ export const Homepage = ({ onNavigate }) => {
                             type="button"
                             disabled={p.stock === 0}
                             onClick={() => handleAddToCart(p)}
-                            className="px-2 py-1 rounded bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 disabled:bg-zinc-200 disabled:text-zinc-400 disabled:cursor-not-allowed text-white text-[10px] font-semibold transition-colors cursor-pointer"
+                            className="px-2 py-1 rounded bg-emerald-700 hover:bg-emerald-800 active:bg-emerald-900 disabled:bg-zinc-200 disabled:text-zinc-400 disabled:cursor-not-allowed text-white text-[10px] font-semibold transition-colors cursor-pointer"
                           >
                             {p.stock === 0 ? "Out" : "+ Cart"}
                           </button>
@@ -602,73 +771,62 @@ export const Homepage = ({ onNavigate }) => {
               })}
             </div>
           </InfiniteScroll>
-        </section>
+          </div>
+          </section>
+        </ScrollReveal>
 
-        {/* Section 3: Financing Protocol (Unboxed, 3-Step Sequential Flow - NO cards inside cards) */}
-        <ScrollReveal threshold={0.08} delay={80} duration={650}>
-          <section className="border-t border-zinc-200 pt-10 space-y-8">
+        {/* Section 3: Financing Protocol (dark band) */}
+        <ScrollReveal threshold={0.08} delay={80} duration={400} revealOnExit>
+          <section className="w-full bg-zinc-900">
+            <div className="max-w-6xl mx-auto px-4 sm:px-6 py-12 sm:py-16 space-y-8">
             <div className="max-w-2xl space-y-1">
-              <span className="text-xs font-mono uppercase tracking-wider text-emerald-700 font-semibold">
-                Financing Protocol
-              </span>
-              <h2 className="text-xl sm:text-2xl font-bold text-zinc-900 tracking-tight">
-                Structured In-House Installments
+              <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
+                How in-house installments work
               </h2>
-              <p className="text-xs text-zinc-600 leading-relaxed">
-                Transparent amortizations with direct credit review. No
-                third-party lending markups, zero hidden charges.
-              </p>
             </div>
 
-            {/* Clean 3-Column Timeline with Top Border Dividers */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              <div className="border-t-2 border-zinc-900 pt-4 space-y-2">
-                <span className="font-mono text-xs font-bold text-emerald-700 block">
-                  Step 01 / Term Selection
-                </span>
-                <h3 className="text-sm font-bold text-zinc-900">
-                  Configure Term & Downpayment
-                </h3>
-                <p className="text-xs text-zinc-600 leading-relaxed">
-                  Choose flexible repayment terms spanning 3, 6, 12, 24, or 36
-                  months. Select your downpayment percentage (minimum 20%) to
-                  view your fixed monthly dues and principal balance.
-                </p>
-              </div>
-
-              <div className="border-t-2 border-zinc-900 pt-4 space-y-2">
-                <span className="font-mono text-xs font-bold text-emerald-700 block">
-                  Step 02 / Digital Screening
-                </span>
-                <h3 className="text-sm font-bold text-zinc-900">
-                  Submit Verification Documents
-                </h3>
-                <p className="text-xs text-zinc-600 leading-relaxed">
-                  Upload your primary Philippine Government ID, billing address
-                  proof, and latest 3 months of payslips or business permits.
-                  Credit review feedback is provided within 24 to 48 hours.
-                </p>
-              </div>
-
-              <div className="border-t-2 border-zinc-900 pt-4 space-y-2">
-                <span className="font-mono text-xs font-bold text-emerald-700 block">
-                  Step 03 / Releasing & Schedule
-                </span>
-                <h3 className="text-sm font-bold text-zinc-900">
-                  Contract Turnover & Release
-                </h3>
-                <p className="text-xs text-zinc-600 leading-relaxed">
-                  Settle the agreed downpayment online or over the counter. Sign
-                  the promissory deed, and receive your unit along with complete
-                  official LTO registration and insurance documents.
-                </p>
-              </div>
+            {/* Vertical timeline: numbered nodes on a connector line */}
+            <div
+              ref={financeTimelineRef}
+              className={`timeline max-w-2xl ${financeTimelineIn ? "is-in" : ""}`}
+            >
+              {financeSteps.map((step, i) => (
+                <div
+                  key={step.title}
+                  className="timeline__step relative flex gap-5 pb-8 last:pb-0"
+                >
+                  <span
+                    className="timeline__node relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-zinc-950"
+                    style={{
+                      fontFamily: "'Bebas Neue', Impact, sans-serif",
+                      fontSize: "1.125rem",
+                      lineHeight: 1,
+                    }}
+                  >
+                    {i + 1}
+                  </span>
+                  {i < financeSteps.length - 1 && (
+                    <span
+                      className="timeline__connector absolute top-10 bottom-0 left-5 w-0.5 bg-zinc-700"
+                      aria-hidden="true"
+                    />
+                  )}
+                  <div className="pt-1">
+                    <h3 className="text-sm font-bold text-white">
+                      {step.title}
+                    </h3>
+                    <p className="mt-1 max-w-md text-xs text-zinc-400 leading-relaxed">
+                      {step.desc}
+                    </p>
+                  </div>
+                </div>
+              ))}
             </div>
 
             {/* Action Row */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-6 border-t border-zinc-200 text-xs">
-              <div className="flex items-center gap-2 text-zinc-600">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-6 border-t border-zinc-700 text-xs">
+              <div className="flex items-center gap-2 text-zinc-400">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                 <span>
                   Already an active installment account holder? Track your
                   monthly amortization and penalty dues.
@@ -677,53 +835,55 @@ export const Homepage = ({ onNavigate }) => {
               <button
                 type="button"
                 onClick={() => onNavigate("orders")}
-                className="h-9! px-4 rounded-md bg-zinc-900 hover:bg-zinc-800 text-white font-medium transition-colors cursor-pointer self-start sm:self-auto"
+                className="h-9! px-4 rounded bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-medium transition-colors cursor-pointer self-start sm:self-auto"
               >
-                View Payment Schedules &rarr;
+                View payment schedules &rarr;
               </button>
+            </div>
             </div>
           </section>
         </ScrollReveal>
 
-        {/* Section 4: Verified Customer Testimonials */}
-        <ScrollReveal threshold={0.08} delay={90} duration={650}>
-          <section className="border-t border-zinc-200 pt-10 space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 pb-3 border-b border-zinc-900">
-              <div>
-                <h2 className="text-xl sm:text-2xl font-bold text-zinc-900 tracking-tight">
-                  Verified Rider & Owner Experiences
-                </h2>
-                <p className="text-xs text-zinc-500 mt-0.5">
-                  Real feedback from certified motorcycle buyers and active
-                  monthly installment account holders.
-                </p>
-              </div>
-              <div className="flex items-center gap-2 text-xs text-zinc-600">
-                <div className="flex items-center gap-0.5">
-                  {[...Array(5)].map((_, i) => (
-                    <svg key={i} className="w-3.5 h-3.5 text-amber-500 fill-amber-500" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></svg>
-                  ))}
-                </div>
-                <span className="font-bold text-zinc-900">4.9 / 5.0</span>
-                <span className="text-zinc-400">
-                  • Over 1,240 Verified Releases
-                </span>
-              </div>
+        {/* Section 4: Verified Customer Testimonials (white band) */}
+        <ScrollReveal threshold={0.08} delay={90} duration={650} revealOnExit>
+          <section className="w-full bg-white">
+            <div className="max-w-6xl mx-auto px-4 sm:px-6 py-12 sm:py-16 space-y-6">
+            <div className="pb-3 border-b border-zinc-900">
+              <h2 className="text-xl sm:text-2xl font-bold text-zinc-900 tracking-tight">
+                Verified owner experiences
+              </h2>
             </div>
 
-            {/* Testimonials Cards Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-              {testimonials.map((t, idx) => (
-                <div
-                  key={idx}
-                  className="border border-zinc-200 rounded-lg p-5 bg-white hover:border-zinc-300 hover:shadow-xs transition-all flex flex-col justify-between space-y-4"
-                >
-                  <div className="space-y-2.5">
+            {/* Reviews: looping spotlight, one owner quote at a time */}
+            <div
+              ref={reviewsRef}
+              className={`reviews ${reviewsIn ? "is-in" : ""}`}
+              onMouseEnter={() => setReviewPaused(true)}
+              onMouseLeave={() => setReviewPaused(false)}
+              onFocus={() => setReviewPaused(true)}
+              onBlur={() => setReviewPaused(false)}
+            >
+              <div className="reviews__stage">
+                {testimonials.map((t, idx) => (
+                  <figure
+                    key={idx}
+                    className={`reviews__slide ${
+                      idx === reviewIndex ? "is-active" : ""
+                    }`}
+                    aria-hidden={idx !== reviewIndex}
+                  >
+                    <span
+                      aria-hidden="true"
+                      className="pointer-events-none select-none absolute top-4 right-6 text-7xl leading-none font-serif text-emerald-500/15"
+                    >
+                      &rdquo;
+                    </span>
+
                     {/* Rating stars & badge */}
-                    <div className="flex items-center justify-between text-xs">
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                       <div className="flex items-center gap-0.5">
                         {[...Array(5)].map((_, i) => (
-                          <svg key={i} className="w-3 h-3 text-amber-500 fill-amber-500" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></svg>
+                          <svg key={i} className="w-3.5 h-3.5 text-amber-500 fill-amber-500" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></svg>
                         ))}
                       </div>
                       <span className="inline-block text-[10px] font-medium text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">
@@ -731,87 +891,49 @@ export const Homepage = ({ onNavigate }) => {
                       </span>
                     </div>
 
-                    <p className="text-xs text-zinc-700 leading-relaxed italic">
-                      "{t.quote}"
-                    </p>
-                  </div>
+                    <blockquote className="text-base sm:text-xl text-zinc-800 leading-relaxed">
+                      {t.quote}
+                    </blockquote>
 
-                  {/* Rider profile info */}
-                  <div className="pt-3 border-t border-zinc-100 flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-9 h-9 rounded-full bg-zinc-900 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-2xs">
-                        {t.initials}
+                    {/* Rider profile info */}
+                    <figcaption className="flex items-center justify-between gap-3 pt-2">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-10 h-10 rounded-full bg-zinc-900 text-white flex items-center justify-center font-bold text-xs shrink-0">
+                          {t.initials}
+                        </div>
+                        <div className="overflow-hidden">
+                          <p className="text-sm font-bold text-zinc-900 truncate">
+                            {t.author}
+                          </p>
+                          <p className="text-xs text-zinc-500 truncate">
+                            {t.role}, {t.location}
+                          </p>
+                        </div>
                       </div>
-                      <div className="overflow-hidden">
-                        <p className="text-xs font-bold text-zinc-900 truncate">
-                          {t.author}
-                        </p>
-                        <p className="text-[11px] text-zinc-500 truncate">
-                          {t.role} • {t.location}
-                        </p>
-                      </div>
-                    </div>
-                    <span className="text-[10px] font-mono text-zinc-400 shrink-0 hidden sm:inline">
-                      {t.acquiredDate}
-                    </span>
-                  </div>
-                </div>
-              ))}
+                      <span className="text-[10px] font-mono text-zinc-400 shrink-0 hidden sm:inline">
+                        {t.acquiredDate}
+                      </span>
+                    </figcaption>
+                  </figure>
+                ))}
+              </div>
+
+              {/* Spotlight indicator */}
+              <div className="reviews__dots">
+                {testimonials.map((t, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    aria-label={`Show review ${idx + 1} of ${testimonials.length}`}
+                    aria-current={idx === reviewIndex}
+                    className={`reviews__dot ${
+                      idx === reviewIndex ? "is-active" : ""
+                    }`}
+                    onClick={() => setReviewIndex(idx)}
+                  />
+                ))}
+              </div>
             </div>
-          </section>
-        </ScrollReveal>
-
-        {/* Section 5: Dealership Standards & Operational Commitments (Table-style horizontal divider) */}
-        <ScrollReveal threshold={0.08} delay={100} duration={600}>
-          <section className="border-t border-zinc-200 pt-8 pb-4">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-xs">
-              <div className="space-y-1">
-                <span className="font-mono text-[11px] uppercase tracking-wider text-zinc-400 block">
-                  Authentication
-                </span>
-                <p className="font-bold text-zinc-900">
-                  100% Genuine OEM Parts
-                </p>
-                <p className="text-zinc-500 text-[11px]">
-                  Direct sourcing from Yamaha, Honda, Suzuki, Kawasaki, and
-                  CFMOTO.
-                </p>
-              </div>
-
-              <div className="space-y-1">
-                <span className="font-mono text-[11px] uppercase tracking-wider text-zinc-400 block">
-                  Compliance
-                </span>
-                <p className="font-bold text-zinc-900">
-                  LTO Official Processing
-                </p>
-                <p className="text-zinc-500 text-[11px]">
-                  Expedited registration and plate release handled directly by
-                  dealership staff.
-                </p>
-              </div>
-
-              <div className="space-y-1">
-                <span className="font-mono text-[11px] uppercase tracking-wider text-zinc-400 block">
-                  Coverage
-                </span>
-                <p className="font-bold text-zinc-900">Manufacturer Warranty</p>
-                <p className="text-zinc-500 text-[11px]">
-                  Comprehensive engine and electrical warranty honored across
-                  official service centers.
-                </p>
-              </div>
-
-              <div className="space-y-1">
-                <span className="font-mono text-[11px] uppercase tracking-wider text-zinc-400 block">
-                  Logistics
-                </span>
-                <p className="font-bold text-zinc-900">Inspected Release</p>
-                <p className="text-zinc-500 text-[11px]">
-                  Pre-delivery 24-point safety and fluid checklist completed
-                  before vehicle handover.
-                </p>
-              </div>
             </div>
           </section>
         </ScrollReveal>
@@ -841,9 +963,8 @@ const ProductSpotlightImage = ({ bike, active = false }) => {
         <img
           src={bike.images[0].url}
           alt={bike.name}
-          className={`max-h-full max-w-full object-contain object-center ${
-            active ? "home-spotlight__hero-img" : ""
-          }`}
+          className={`max-h-full max-w-full object-contain object-center ${active ? "home-spotlight__hero-img" : ""
+            }`}
         />
       </div>
     );
@@ -965,9 +1086,8 @@ const FeaturedProductCarousel = ({
                     </button>
                   )}
                   <span
-                    className={`mt-3 text-[11px] sm:text-xs font-semibold tracking-[0.18em] uppercase line-clamp-1 ${
-                      isActive ? "text-zinc-900" : "text-zinc-400"
-                    }`}
+                    className={`mt-3 text-[11px] sm:text-xs font-semibold tracking-[0.18em] uppercase line-clamp-1 ${isActive ? "text-zinc-900" : "text-zinc-400"
+                      }`}
                   >
                     {bike.name}
                   </span>
@@ -1018,7 +1138,7 @@ const FeaturedProductCarousel = ({
       <div className="max-w-xl mx-auto px-4 mt-5 sm:mt-6 flex flex-col items-center text-center gap-3">
         <div className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-wider text-zinc-500">
           <span className="font-semibold text-emerald-700">{brandName}</span>
-          <span className="text-zinc-300">/</span>
+          <span className="text-zinc-300">-</span>
           <span>{categoryName}</span>
         </div>
 
@@ -1056,18 +1176,16 @@ const FeaturedProductCarousel = ({
             </span>
           )}
           <span
-            className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium border ${
-              current.stock === 0
-                ? "bg-red-50 text-red-800 border-red-200"
-                : current.stock <= 3
+            className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium border ${current.stock === 0
+              ? "bg-red-50 text-red-800 border-red-200"
+              : current.stock <= 3
                 ? "bg-amber-50 text-amber-800 border-amber-200"
                 : "bg-emerald-50 text-emerald-800 border-emerald-200"
-            }`}
+              }`}
           >
             <span
-              className={`w-1.5 h-1.5 rounded-full ${
-                current.stock === 0 ? "bg-red-600" : "bg-emerald-600"
-              }`}
+              className={`w-1.5 h-1.5 rounded-full ${current.stock === 0 ? "bg-red-600" : "bg-emerald-700"
+                }`}
             />
             {current.stock === 0 ? "Out of stock" : `${current.stock} in stock`}
           </span>
@@ -1075,7 +1193,7 @@ const FeaturedProductCarousel = ({
 
         {current.installmentEligible && (
           <p className="text-[11px] text-emerald-800">
-            From ₱{monthlyEst.toLocaleString()}/mo (12 mos) · Downpayment ₱
+            From ₱{monthlyEst.toLocaleString()} per month (12 months), downpayment ₱
             {minDown.toLocaleString()}
           </p>
         )}
@@ -1089,15 +1207,15 @@ const FeaturedProductCarousel = ({
         <div className="flex flex-col sm:flex-row items-center gap-2 pt-1">
           <Link
             to={`/product/${current._id}`}
-            className="inline-flex items-center justify-center min-w-[16rem] !h-10 px-6 bg-emerald-700 hover:bg-emerald-800 active:bg-emerald-900 text-white text-[11px] font-bold tracking-[0.14em] uppercase transition-colors"
+            className="inline-flex items-center justify-center min-w-[16rem] !h-10 px-6 rounded bg-emerald-700 hover:bg-emerald-800 active:bg-emerald-900 text-white text-[11px] font-bold tracking-[0.14em] uppercase transition-colors"
           >
-            View Featured Motorcycle
+            View motorcycle
           </Link>
           {current.installmentEligible && (
             <button
               type="button"
               onClick={onFinancing}
-              className="inline-flex items-center justify-center min-w-[9rem] !h-10 px-5 border border-zinc-300 bg-white hover:bg-zinc-50 text-zinc-800 text-[11px] font-semibold tracking-[0.08em] uppercase transition-colors cursor-pointer"
+              className="inline-flex items-center justify-center min-w-[9rem] !h-10 px-5 rounded border border-zinc-300 bg-white hover:bg-zinc-50 text-zinc-800 text-[11px] font-semibold tracking-[0.08em] uppercase transition-colors cursor-pointer"
             >
               Financing
             </button>

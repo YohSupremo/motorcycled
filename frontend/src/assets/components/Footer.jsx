@@ -1,3 +1,5 @@
+import { Link } from "react-router-dom";
+
 export const Footer = ({ onNavigate }) => {
   return (
     <footer className="border-t border-zinc-200 bg-white text-zinc-600 text-xs mt-12">
@@ -15,7 +17,6 @@ export const Footer = ({ onNavigate }) => {
               <span className="text-sm font-bold tracking-wider text-zinc-900 uppercase">
                 Motorcycled
               </span>
-              <span className="text-xs text-zinc-400 font-mono">| Dealership & E-Commerce</span>
             </div>
             <p className="text-zinc-500 leading-relaxed max-w-sm text-xs">
               Authorized dealership and online portal for certified motorcycles, OEM replacement parts, riding gear, and flexible installment financing across the Philippines.
@@ -25,10 +26,10 @@ export const Footer = ({ onNavigate }) => {
                 <span className="font-medium text-zinc-700">Location:</span> Metro Manila, Philippines
               </p>
               <p className="flex items-center gap-2">
-                <span className="font-medium text-zinc-700">Customer Hotline:</span> (02) 8921-5500 · 0917 123 4567
+                <span className="font-medium text-zinc-700">Customer Hotline:</span> (02) 8921-5500
               </p>
               <p className="flex items-center gap-2">
-                <span className="font-medium text-zinc-700">Support Hours:</span> Mon – Sat: 8:00 AM – 6:00 PM
+                <span className="font-medium text-zinc-700">Support Hours:</span> Monday to Saturday, 8:00 AM to 6:00 PM
               </p>
             </div>
           </div>
@@ -36,7 +37,7 @@ export const Footer = ({ onNavigate }) => {
           {/* Catalog Categories */}
           <div>
             <h4 className="font-semibold text-zinc-900 uppercase tracking-wider text-[11px] mb-3">
-              Products & Catalog
+              Products and Catalog
             </h4>
             <ul className="space-y-2 text-zinc-500">
               <li>
@@ -45,7 +46,7 @@ export const Footer = ({ onNavigate }) => {
                   onClick={() => onNavigate ? onNavigate("shop") : null}
                   className="hover:text-emerald-700 transition-colors text-left cursor-pointer"
                 >
-                  Motorcycles & Scooters
+                  Motorcycles and Scooters
                 </button>
               </li>
               <li>
@@ -54,7 +55,7 @@ export const Footer = ({ onNavigate }) => {
                   onClick={() => onNavigate ? onNavigate("shop") : null}
                   className="hover:text-emerald-700 transition-colors text-left cursor-pointer"
                 >
-                  Engine & Transmission Parts
+                  Engine and Transmission Parts
                 </button>
               </li>
               <li>
@@ -63,7 +64,7 @@ export const Footer = ({ onNavigate }) => {
                   onClick={() => onNavigate ? onNavigate("shop") : null}
                   className="hover:text-emerald-700 transition-colors text-left cursor-pointer"
                 >
-                  Brakes & Suspensions
+                  Brakes and Suspensions
                 </button>
               </li>
               <li>
@@ -72,7 +73,7 @@ export const Footer = ({ onNavigate }) => {
                   onClick={() => onNavigate ? onNavigate("shop") : null}
                   className="hover:text-emerald-700 transition-colors text-left cursor-pointer"
                 >
-                  Helmets & Riding Gear
+                  Helmets and Riding Gear
                 </button>
               </li>
               <li>
@@ -81,7 +82,7 @@ export const Footer = ({ onNavigate }) => {
                   onClick={() => onNavigate ? onNavigate("shop") : null}
                   className="hover:text-emerald-700 transition-colors text-left cursor-pointer"
                 >
-                  Tires, Wheels & Rims
+                  Tires, Wheels and Rims
                 </button>
               </li>
               <li>
@@ -90,7 +91,7 @@ export const Footer = ({ onNavigate }) => {
                   onClick={() => onNavigate ? onNavigate("shop") : null}
                   className="hover:text-emerald-700 transition-colors text-left cursor-pointer"
                 >
-                  Oils & Lubricants
+                  Oils and Lubricants
                 </button>
               </li>
               <li>
@@ -105,10 +106,10 @@ export const Footer = ({ onNavigate }) => {
             </ul>
           </div>
 
-          {/* Financing & Installments */}
+          {/* Financing and Installments */}
           <div>
             <h4 className="font-semibold text-zinc-900 uppercase tracking-wider text-[11px] mb-3">
-              Financing & Plans
+              Financing and Plans
             </h4>
             <ul className="space-y-2 text-zinc-500">
               <li>
@@ -117,7 +118,7 @@ export const Footer = ({ onNavigate }) => {
                   onClick={() => onNavigate ? onNavigate("orders") : null}
                   className="hover:text-emerald-700 transition-colors text-left cursor-pointer"
                 >
-                  12, 24 & 36 Months Plans
+                  12, 24 and 36-Month Plans
                 </button>
               </li>
               <li>
@@ -135,7 +136,7 @@ export const Footer = ({ onNavigate }) => {
                   onClick={() => onNavigate ? onNavigate("profile") : null}
                   className="hover:text-emerald-700 transition-colors text-left cursor-pointer"
                 >
-                  Loan Requirements (ID & Income)
+                  Loan Requirements (ID and Income)
                 </button>
               </li>
               <li>
@@ -144,7 +145,7 @@ export const Footer = ({ onNavigate }) => {
                   onClick={() => onNavigate ? onNavigate("orders") : null}
                   className="hover:text-emerald-700 transition-colors text-left cursor-pointer"
                 >
-                  Monthly Dues & Schedules
+                  Monthly Dues and Schedules
                 </button>
               </li>
               <li>
@@ -168,7 +169,7 @@ export const Footer = ({ onNavigate }) => {
             </ul>
           </div>
 
-          {/* Support & Policies */}
+          {/* Customer Support */}
           <div>
             <h4 className="font-semibold text-zinc-900 uppercase tracking-wider text-[11px] mb-3">
               Customer Support
@@ -180,23 +181,23 @@ export const Footer = ({ onNavigate }) => {
                   onClick={() => onNavigate ? onNavigate("orders") : null}
                   className="hover:text-emerald-700 transition-colors text-left cursor-pointer"
                 >
-                  Order Tracking & Delivery
+                  Order Tracking and Delivery
                 </button>
               </li>
               <li>
                 <a href="#warranty" className="hover:text-emerald-700 transition-colors">
-                  Warranty & Maintenance Policy
+                  Warranty and Maintenance Policy
                 </a>
               </li>
               <li>
                 <a href="#cancellation" className="hover:text-emerald-700 transition-colors">
-                  Cancellations & Refunds
+                  Cancellations and Refunds
                 </a>
               </li>
               <li>
-                <a href="#faq" className="hover:text-emerald-700 transition-colors">
+                <Link to="/about" className="hover:text-emerald-700 transition-colors">
                   Frequently Asked Questions
-                </a>
+                </Link>
               </li>
               <li>
                 <a href="#privacy" className="hover:text-emerald-700 transition-colors">
@@ -205,7 +206,7 @@ export const Footer = ({ onNavigate }) => {
               </li>
               <li>
                 <a href="#terms" className="hover:text-emerald-700 transition-colors">
-                  Terms & Conditions
+                  Terms and Conditions
                 </a>
               </li>
               <li>
@@ -220,16 +221,9 @@ export const Footer = ({ onNavigate }) => {
 
         {/* Sub-Footer */}
         <div className="mt-10 pt-6 border-t border-zinc-200/80 flex flex-col sm:flex-row items-center justify-between gap-3 text-[11px] text-zinc-400">
-          <div>
-            <span>© 2026 Motorcycled E-Commerce & Installment System. All rights reserved.</span>
-          </div>
+          <span>© 2026 Motorcycled. All rights reserved.</span>
 
           <div className="flex items-center gap-4 text-zinc-500">
-            <span className="flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
-              Database & Payment Gateway Operational
-            </span>
-            <span>·</span>
             <a href="#terms" className="hover:text-zinc-700 transition-colors">Terms</a>
             <a href="#privacy" className="hover:text-zinc-700 transition-colors">Privacy</a>
             <a href="#cookies" className="hover:text-zinc-700 transition-colors">Security</a>

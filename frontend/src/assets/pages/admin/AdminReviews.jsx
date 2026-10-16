@@ -1,65 +1,86 @@
-import { useState, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import { DataGrid } from "@mui/x-data-grid";
+import { toast } from "react-toastify";
+import {
+  getAdminReviews,
+  toggleReviewVisibility,
+  deleteReview,
+} from "../../../actions/reviewActions";
+
+const formatDate = (value) => {
+  if (!value) return "";
+  try {
+    return new Date(value).toLocaleDateString("en-PH", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  } catch {
+    return "";
+  }
+};
 
 export const AdminReviews = () => {
+  const dispatch = useDispatch();
   const [filterMode, setFilterMode] = useState("all"); // 'all' | 'active' | 'hidden'
 
-  const [reviews, setReviews] = useState([
-    {
-      id: "REV-101",
-      customer: "Mark Anthony Ramos",
-      email: "mark.ramos@example.com",
-      product: "Yamaha NMAX 155 ABS",
-      rating: 5,
-      title: "Smooth financing process & immediate release",
-      body: "Digital screening was approved in less than 36 hours. The monthly amortization breakdown in the portal has zero hidden charges, and downpayment receipt was issued immediately upon turnover.",
-      createdAt: "2026-08-14",
-      isVerifiedPurchase: true, // Derived from Delivered order
-      isHidden: false, // Admin moderation status
-    },
-    {
-      id: "REV-102",
-      customer: "Karlo Mendoza",
-      email: "karlo.m@example.com",
-      product: "Honda Click 125i (2026)",
-      rating: 5,
-      title: "Doorstep delivery with complete LTO papers",
-      body: "Delivered straight to my doorstep in Quezon City complete with LTO registration papers and dealer warranty booklet. The pre-delivery checklist was thoroughly explained by the courier technician.",
-      createdAt: "2026-09-02",
-      isVerifiedPurchase: true,
-      isHidden: false,
-    },
-    {
-      id: "REV-103",
-      customer: "Christian Bautista",
-      email: "bautista.c@example.com",
-      product: "Brembo 4-Piston Caliper + Sintered Pads",
-      rating: 5,
-      title: "Genuine OEM parts guaranteed",
-      body: "Finding genuine OEM sprockets, sintered brake pads, and Motul 7100 oil under one roof used to be difficult. Motorshop's verified parts catalog and branch pickup in Cebu made maintenance seamless.",
-      createdAt: "2026-07-29",
-      isVerifiedPurchase: true,
-      isHidden: false,
-    },
-    {
-      id: "REV-104",
-      customer: "Anonymous User",
-      email: "guest_spammer@tempmail.com",
-      product: "Kawasaki Ninja 400 SE",
-      rating: 1,
-      title: "Spam advertisement content",
-      body: "Check out this alternative link for discounted counterfeit parts at scamwebsite.xyz with free delivery.",
-      createdAt: "2026-09-21",
-      isVerifiedPurchase: false,
-      isHidden: true,
-    },
-  ]);
+  const { loading, reviews: rawReviews } = useSelector(
+    (state) => state.adminReviews || {}
+  );
+  const { loading: moderating } = useSelector(
+    (state) => state.reviewModeration || {}
+  );
 
-  const handleToggleHide = (reviewId) => {
-    setReviews((prev) =>
-      prev.map((r) => (r.id === reviewId ? { ...r, isHidden: !r.isHidden } : r))
-    );
-  };
+  useEffect(() => {
+    dispatch(getAdminReviews());
+  }, [dispatch]);
+
+  // Map backend shape → DataGrid row shape.
+  const reviews = useMemo(
+    () =>
+      (rawReviews || []).map((r) => {
+        const author = r.user
+          ? `${r.user.firstName || ""} ${r.user.lastName || ""}`.trim()
+          : "Customer";
+        return {
+          id: r._id,
+          customer: author || "Customer",
+          email: r.user?.email || "",
+          product: r.product?.name || "Deleted product",
+          rating: r.rating,
+          title: r.title,
+          body: r.comment,
+          createdAt: formatDate(r.createdAt),
+          isVerifiedPurchase: r.isVerifiedPurchase,
+          isHidden: r.isHidden,
+        };
+      }),
+    [rawReviews]
+  );
+
+  const handleToggleHide = useCallback(
+    async (reviewId) => {
+      const result = await dispatch(toggleReviewVisibility(reviewId));
+      if (result?.type?.endsWith?.("SUCCESS")) {
+        toast.success("Review visibility updated.");
+      }
+      dispatch(getAdminReviews());
+    },
+    [dispatch]
+  );
+
+  const handleDelete = useCallback(
+    async (reviewId) => {
+      if (!window.confirm("Delete this review permanently?")) return;
+      const result = await dispatch(deleteReview(reviewId));
+      if (result?.type?.endsWith?.("SUCCESS")) {
+        toast.success("Review deleted.");
+      }
+      dispatch(getAdminReviews());
+    },
+    [dispatch]
+  );
 
   const filteredReviews = reviews.filter((r) => {
     if (filterMode === "active") return !r.isHidden;
@@ -211,7 +232,7 @@ export const AdminReviews = () => {
       {
         field: "actions",
         headerName: "Actions",
-        width: 120,
+        width: 190,
         headerAlign: "right",
         align: "right",
         sortable: false,
@@ -220,7 +241,7 @@ export const AdminReviews = () => {
         renderCell: (params) => {
           const r = params.row;
           return (
-            <div className="flex items-center justify-end w-full">
+            <div className="flex items-center justify-end gap-1.5 w-full">
               <button
                 type="button"
                 onClick={() => handleToggleHide(r.id)}
@@ -265,12 +286,32 @@ export const AdminReviews = () => {
                   </>
                 )}
               </button>
+              <button
+                type="button"
+                onClick={() => handleDelete(r.id)}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium border border-zinc-300 bg-white text-zinc-600 hover:bg-zinc-50 hover:text-rose-700 hover:border-rose-300 transition-all cursor-pointer shadow-2xs whitespace-nowrap"
+                title="Delete Review"
+              >
+                <svg
+                  className="w-3.5 h-3.5 shrink-0"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <polyline points="3 6 5 6 21 6" />
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                </svg>
+                <span>Delete</span>
+              </button>
             </div>
           );
         },
       },
     ],
-    []
+    [handleToggleHide, handleDelete]
   );
 
   return (
@@ -279,7 +320,7 @@ export const AdminReviews = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-zinc-200">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-zinc-900">
-            Customer Ratings &amp; Review Moderation
+            Customer Ratings and Review Moderation
           </h1>
           <p className="text-xs text-zinc-500 mt-0.5">
             Audit customer product reviews, verify delivery history, and manage content visibility (
@@ -330,6 +371,7 @@ export const AdminReviews = () => {
         <DataGrid
           rows={filteredReviews}
           columns={columns}
+          loading={loading || moderating}
           getRowId={(row) => row.id}
           rowHeight={64}
           pageSizeOptions={[10, 25, 50]}

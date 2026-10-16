@@ -76,7 +76,7 @@ export const AdminInventory = () => {
       contact: {
         person: "Eduardo Mendoza",
         email: "e.mendoza@apexmotoph.com",
-        phone: "(02) 8872-3000 · 0917 555 1010",
+        phone: "(02) 8872-3000, 0917 555 1010",
         address: "Building B, FTI Complex, Taguig City",
       },
       productLines: ["Yamaha Motorcycles", "OEM Spare Parts", "Brembo Brakes"],
@@ -204,7 +204,7 @@ export const AdminInventory = () => {
       },
       {
         field: "product",
-        headerName: "Item & Description",
+        headerName: "Product",
         flex: 1.5,
         minWidth: 200,
         renderCell: (params) => (
@@ -213,8 +213,8 @@ export const AdminInventory = () => {
       },
       {
         field: "quantityChange",
-        headerName: "Qty Delta",
-        width: 100,
+        headerName: "Quantity change",
+        width: 120,
         type: "number",
         headerAlign: "left",
         align: "left",
@@ -229,7 +229,7 @@ export const AdminInventory = () => {
       },
       {
         field: "orderRef",
-        headerName: "Order / PO Ref",
+        headerName: "Reference",
         width: 140,
         renderCell: (params) => (
           <span className="font-mono text-[11px] text-zinc-600 truncate">{params.row.orderRef}</span>
@@ -237,7 +237,7 @@ export const AdminInventory = () => {
       },
       {
         field: "note",
-        headerName: "Audit Notes",
+        headerName: "Notes",
         flex: 1.5,
         minWidth: 180,
         renderCell: (params) => {
@@ -278,7 +278,7 @@ export const AdminInventory = () => {
         headerName: "Contact Person",
         flex: 1,
         minWidth: 160,
-        valueGetter: (value, row) => row.contact?.person || "—",
+        valueGetter: (value, row) => row.contact?.person || "None",
         renderCell: (params) => {
           const c = params.row.contact;
           return (
@@ -291,7 +291,7 @@ export const AdminInventory = () => {
       },
       {
         field: "contactLocation",
-        headerName: "Hotline & Location",
+        headerName: "Contact and address",
         flex: 1.2,
         minWidth: 180,
         valueGetter: (value, row) => `${row.contact?.phone || ""} ${row.contact?.address || ""}`,
@@ -307,7 +307,7 @@ export const AdminInventory = () => {
       },
       {
         field: "productLines",
-        headerName: "Authorized Product Lines",
+        headerName: "Product lines",
         flex: 1.5,
         minWidth: 200,
         sortable: false,
@@ -348,10 +348,10 @@ export const AdminInventory = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-zinc-200">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-zinc-900">
-            Inventory Ledger & Supplier Restocking
+            Inventory and Suppliers
           </h1>
           <p className="text-xs text-zinc-500 mt-0.5">
-            Append-only stock transaction log, supplier directory, and purchase order records (<code className="font-mono text-zinc-600">inventory_transactions</code>, <code className="font-mono text-zinc-600">suppliers</code>, <code className="font-mono text-zinc-600">restocks</code> schema).
+            Track stock movements, audit adjustments, and manage supplier restock orders.
           </p>
         </div>
 
@@ -364,7 +364,7 @@ export const AdminInventory = () => {
             <line x1="12" y1="5" x2="12" y2="19" />
             <line x1="5" y1="12" x2="19" y2="12" />
           </svg>
-          <span>Record Supplier Restock</span>
+          <span>Record restock</span>
         </button>
       </div>
 
@@ -380,7 +380,7 @@ export const AdminInventory = () => {
                 : "border-transparent text-zinc-600 hover:text-zinc-900"
             }`}
           >
-            Append-Only Stock Ledger ({ledger.length} entries)
+            Stock ledger ({ledger.length})
           </button>
           <button
             type="button"
@@ -391,7 +391,7 @@ export const AdminInventory = () => {
                 : "border-transparent text-zinc-600 hover:text-zinc-900"
             }`}
           >
-            Suppliers & Product Lines ({suppliers.length})
+            Suppliers ({suppliers.length})
           </button>
         </div>
 
@@ -416,7 +416,7 @@ export const AdminInventory = () => {
         <div className="border border-zinc-200 rounded-xl bg-white overflow-hidden shadow-xs space-y-0">
           <div className="p-3 bg-zinc-50 border-b border-zinc-200 text-xs text-zinc-600 flex items-center justify-between">
             <span className="font-semibold text-zinc-800">
-              Immutable Ledger Stream (Strictly append-only audit trail; stock is derived)
+              Stock transaction history
             </span>
             <span className="font-mono text-[10px] text-zinc-500">
               Showing {filteredLedger.length} transactions
@@ -551,7 +551,7 @@ export const AdminInventory = () => {
             
             <div className="p-4 border-b border-zinc-200 flex items-center justify-between bg-zinc-50">
               <h2 className="text-sm font-bold text-zinc-900">
-                Record Supplier Restock
+                Record restock
               </h2>
               <button
                 type="button"
@@ -578,7 +578,7 @@ export const AdminInventory = () => {
               </div>
 
               <div className="space-y-1">
-                <label className="font-semibold text-zinc-900">Product / Item *</label>
+                <label className="font-semibold text-zinc-900">Product *</label>
                 <input
                   type="text"
                   required
@@ -615,7 +615,7 @@ export const AdminInventory = () => {
               </div>
 
               <div className="space-y-1">
-                <label className="font-semibold text-zinc-900">Supplier PO / Invoice Reference *</label>
+                <label className="font-semibold text-zinc-900">Purchase order or invoice reference *</label>
                 <input
                   type="text"
                   required
@@ -626,7 +626,7 @@ export const AdminInventory = () => {
               </div>
 
               <div className="space-y-1">
-                <label className="font-semibold text-zinc-900">Internal Audit Note</label>
+                <label className="font-semibold text-zinc-900">Note</label>
                 <input
                   type="text"
                   value={restockForm.notes}
@@ -647,7 +647,7 @@ export const AdminInventory = () => {
                   type="submit"
                   className="!h-8 px-4 rounded bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-medium cursor-pointer shadow-2xs"
                 >
-                  Post to Ledger Stream
+                  Save restock
                 </button>
               </div>
 

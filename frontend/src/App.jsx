@@ -11,6 +11,7 @@ import { Profile } from "./assets/pages/customer/Profile";
 import { Cart } from "./assets/pages/customer/Cart";
 import { Shipping } from "./assets/pages/customer/Shipping";
 import { ConfirmOrder } from "./assets/pages/customer/ConfirmOrder";
+import { About } from "./assets/pages/customer/About";
 import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
 import { Layout } from "./assets/components/Layout";
 import "./App.css";
@@ -66,6 +67,7 @@ function App() {
               element={<Profile activeTab="verification" />}
             />
             <Route path="/shop" element={<Shop />} />
+            <Route path="/about" element={<About />} />
             <Route path="/product/:id" element={<ProductDetails />} />
             <Route path="/cart" element={<Cart />} />
             <Route

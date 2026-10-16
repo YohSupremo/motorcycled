@@ -1,6 +1,114 @@
+/* Motion tokens: Standard pace (400ms), slide-up pattern */
+:root {
+  --dur-fast: 150ms;      /* hover, focus */
+  --dur: 400ms;           /* entrances, reveals */
+  --dur-slow: 600ms;      /* image reveals */
+  --ease: cubic-bezier(.22, .61, .36, 1);   /* decelerate, no overshoot */
+  --stagger: 80ms;        /* delay between siblings */
+  --rise: 16px;           /* travel distance for slide-up entrances */
+}
+
+/* Reduced motion accessibility */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 /* Smooth scroll and dynamic transitions */
 html {
   scroll-behavior: smooth;
+}
+
+/* Hero entrance: slide up */
+.anim-rise {
+  animation: a-rise var(--dur) var(--ease) both;
+}
+
+@keyframes a-rise {
+  from {
+    opacity: 0;
+    transform: translateY(var(--rise));
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Hero entrance staggered sequence */
+.anim-stagger > * {
+  animation: a-rise var(--dur) var(--ease) both;
+}
+.anim-stagger > *:nth-child(1) { animation-delay: 0ms; }
+.anim-stagger > *:nth-child(2) { animation-delay: calc(var(--stagger) * 1); }
+.anim-stagger > *:nth-child(3) { animation-delay: calc(var(--stagger) * 2); }
+.anim-stagger > *:nth-child(4) { animation-delay: calc(var(--stagger) * 3); }
+.anim-stagger > *:nth-child(5) { animation-delay: calc(var(--stagger) * 4); }
+.anim-stagger > *:nth-child(6) { animation-delay: calc(var(--stagger) * 5); }
+
+/* Image motion: subtle settle from scale 1.03 to 1 once on load */
+.anim-settle {
+  animation: a-settle var(--dur-slow) var(--ease) both;
+}
+@keyframes a-settle {
+  from {
+    transform: scale(1.03);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+/* Button & card interactive motion */
+.btn-motion {
+  transition: background-color var(--dur-fast) var(--ease),
+              border-color var(--dur-fast) var(--ease),
+              transform var(--dur-fast) var(--ease);
+}
+.btn-motion:hover,
+.btn-motion:focus-visible {
+  transform: translateY(-1px);
+}
+
+.card-motion {
+  transition: transform var(--dur-fast) var(--ease),
+              border-color var(--dur-fast) var(--ease);
+}
+.card-motion:hover {
+  transform: translateY(-2px);
+}
+
+/* Brand logo marquee: continuous loop scrolling to left */
+@keyframes marqueeScroll {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.marquee-track {
+  display: flex;
+  width: max-content;
+  animation: marqueeScroll 28s linear infinite;
+  will-change: transform;
+}
+
+.marquee-track:hover {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marquee-track {
+    animation: none !important;
+    overflow-x: auto;
+  }
 }
 
 /* Observer-driven scroll animation classes */
@@ -30,6 +138,124 @@ html {
 
 .animate-fade-in-subtle {
   animation: subtleFadeIn 300ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Financing timeline: steps, nodes and connector reveal once on scroll */
+.timeline {
+  position: relative;
+}
+
+.timeline__step {
+  opacity: 0;
+  transform: translateY(var(--rise));
+  transition: opacity var(--dur) var(--ease), transform var(--dur) var(--ease);
+}
+
+.timeline__node {
+  opacity: 0;
+  transform: scale(0.6);
+  transition: opacity var(--dur) var(--ease), transform var(--dur) var(--ease);
+}
+
+.timeline__connector {
+  transform: translateX(-50%) scaleY(0);
+  transform-origin: top;
+  transition: transform var(--dur) var(--ease);
+}
+
+.timeline.is-in .timeline__step,
+.timeline.is-in .timeline__node {
+  opacity: 1;
+  transform: none;
+}
+
+.timeline.is-in .timeline__connector {
+  transform: translateX(-50%) scaleY(1);
+}
+
+.timeline.is-in .timeline__step:nth-child(1) { transition-delay: 0ms; }
+.timeline.is-in .timeline__step:nth-child(2) { transition-delay: 120ms; }
+.timeline.is-in .timeline__step:nth-child(3) { transition-delay: 240ms; }
+
+.timeline.is-in .timeline__step:nth-child(1) .timeline__node { transition-delay: 60ms; }
+.timeline.is-in .timeline__step:nth-child(2) .timeline__node { transition-delay: 180ms; }
+.timeline.is-in .timeline__step:nth-child(3) .timeline__node { transition-delay: 300ms; }
+
+.timeline.is-in .timeline__step:nth-child(1) .timeline__connector { transition-delay: 180ms; }
+.timeline.is-in .timeline__step:nth-child(2) .timeline__connector { transition-delay: 300ms; }
+
+/* Reviews: looping spotlight. One owner quote fills the frame and
+   cross-fades to the next on a timer. Stage reveals once on scroll. */
+.reviews {
+  position: relative;
+}
+
+.reviews .reviews__stage {
+  opacity: 0;
+  transform: translateY(var(--rise));
+  transition: opacity var(--dur) var(--ease), transform var(--dur) var(--ease);
+}
+
+.reviews.is-in .reviews__stage {
+  opacity: 1;
+  transform: none;
+}
+
+.reviews__stage {
+  display: grid;
+}
+
+.reviews__slide {
+  grid-area: 1 / 1;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1.75rem;
+  padding: 2rem;
+  border: 1px solid #e4e4e7;
+  border-radius: 4px;
+  background: #ffffff;
+  opacity: 0;
+  transform: translateY(var(--rise));
+  pointer-events: none;
+  transition: opacity var(--dur-slow) var(--ease),
+    transform var(--dur-slow) var(--ease);
+}
+
+.reviews__slide.is-active {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+
+.reviews__dots {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 1.5rem;
+}
+
+.reviews__dot {
+  width: 8px;
+  height: 8px;
+  padding: 0;
+  border: 0;
+  border-radius: 9999px;
+  background: #d4d4d8;
+  cursor: pointer;
+  transition: width var(--dur-fast) var(--ease),
+    background-color var(--dur-fast) var(--ease);
+}
+
+.reviews__dot:hover {
+  background: #a1a1aa;
+}
+
+.reviews__dot.is-active {
+  width: 26px;
+  background: #047857;
 }
 
 /* Homepage featured product spotlight (Motortrade-inspired presentation) */

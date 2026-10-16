@@ -6,7 +6,6 @@ import {
   Slider,
   Rating,
   Chip,
-  Alert,
   Box,
   Typography,
   Button,
@@ -43,8 +42,6 @@ export const Shop = ({ onNavigate }) => {
   const [searchQuery, setSearchQuery] = useState(initialKeyword);
   const [currentPage, setCurrentPage] = useState(initialPage);
   const [viewMode, setViewMode] = useState("grid"); // "grid" or "table"
-  const [addedNotice, setAddedNotice] = useState("");
-  const [stockWarning, setStockWarning] = useState("");
 
   // Infinite Scroll State
   const [infiniteProducts, setInfiniteProducts] = useState([]);
@@ -210,23 +207,16 @@ export const Shop = ({ onNavigate }) => {
 
     if (inCart >= product.stock) {
       const warnMsg = `Stock limit reached! You already have all ${product.stock} units of "${product.name}" in your cart.`;
-      setStockWarning(warnMsg);
       toast.warning(warnMsg);
-      setTimeout(() => setStockWarning(""), 4000);
       return;
     }
 
     const result = await dispatch(addToCart(product._id, 1));
     if (result && result.success === false) {
       const warnMsg = result.message || `Cannot add "${product.name}": Stock limit reached!`;
-      setStockWarning(warnMsg);
       toast.warning(warnMsg);
-      setTimeout(() => setStockWarning(""), 4000);
     } else {
-      setStockWarning("");
-      setAddedNotice(`Added "${product.name}" to cart`);
       toast.success(`Added "${product.name}" to cart.`);
-      setTimeout(() => setAddedNotice(""), 2500);
     }
   };
 
@@ -246,57 +236,23 @@ export const Shop = ({ onNavigate }) => {
     setOnlyInstallment(false);
     setSearchQuery("");
     setCurrentPage(1);
-    setStockWarning("");
   };
 
   return (
     <div className="min-h-screen bg-white text-zinc-900 antialiased flex flex-col font-sans selection:bg-emerald-100 selection:text-emerald-900">
       <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-8 space-y-8">
-        {/* Header & Cart Summary */}
+        {/* Header and Cart Summary */}
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-4 border-b border-zinc-900">
           <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-[11px] font-mono uppercase tracking-widest text-emerald-700 font-semibold">
-                Live Dealership Catalog
-              </span>
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-zinc-900 tracking-tight">
-              Motorcycles, Parts & Accessories
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-zinc-900 tracking-tight text-balance">
+              Motorcycles, Parts and Accessories
             </h1>
             <p className="text-xs text-zinc-500 mt-1 max-w-xl">
-              Brand-new showroom motorcycle units, certified OEM replacement
-              parts, and rider safety equipment with model-specific compatibility
-              synchronized directly from our dealership database.
+              New showroom units, OEM replacement parts, and rider safety gear
+              with model-specific compatibility.
             </p>
           </div>
-
-          {addedNotice && (
-            <div className="flex items-center">
-              <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-800 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-md animate-fade-in-subtle">
-                <svg className="w-3.5 h-3.5 text-emerald-600 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12" /></svg>
-                {addedNotice}
-              </span>
-            </div>
-          )}
         </div>
-
-        {/* Stock limit warning or added notice */}
-        {stockWarning && (
-          <Alert
-            severity="warning"
-            variant="filled"
-            onClose={() => setStockWarning("")}
-            sx={{
-              fontWeight: 600,
-              fontSize: "0.85rem",
-              borderRadius: "8px",
-              boxShadow: "0 2px 8px rgba(245, 158, 11, 0.2)",
-            }}
-          >
-            {stockWarning}
-          </Alert>
-        )}
 
         {/* Catalog Layout: Integrated Sidebar Filter + Unboxed Directory */}
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 items-start">
@@ -325,9 +281,20 @@ export const Shop = ({ onNavigate }) => {
                       setSearchQuery("");
                       setCurrentPage(1);
                     }}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-700 text-xs cursor-pointer"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-700 cursor-pointer"
                   >
-                    ✕
+                    <svg
+                      className="w-3.5 h-3.5"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      aria-hidden="true"
+                    >
+                      <line x1="18" y1="6" x2="6" y2="18" />
+                      <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
                   </button>
                 )}
               </div>
@@ -471,7 +438,7 @@ export const Shop = ({ onNavigate }) => {
                         sx={{ fontSize: "0.95rem" }}
                       />
                       <span className="text-[11px] text-zinc-600">
-                        {star === 5 ? "5 Stars" : `& Up`}
+                        {star === 5 ? "5 stars" : `${star} and up`}
                       </span>
                     </div>
                     {selectedRating === star && (
@@ -578,7 +545,7 @@ export const Shop = ({ onNavigate }) => {
           {/* Right Catalog Main Area */}
           <div className="lg:col-span-3 space-y-4">
             <ScrollReveal threshold={0.05} duration={600}>
-              {/* View Bar & Metrics */}
+              {/* View Bar and Metrics */}
               <div className="flex items-center justify-between pb-3 border-b border-zinc-200 text-xs">
                 <span className="text-zinc-600">
                   Displaying{" "}
@@ -633,6 +600,7 @@ export const Shop = ({ onNavigate }) => {
                 <div className="border border-zinc-200 rounded-md p-12 text-center space-y-3 bg-zinc-50/50">
                   <div className="w-12 h-12 mx-auto rounded-full bg-zinc-100 border border-zinc-200 flex items-center justify-center text-zinc-400">
                     <svg
+                      aria-hidden="true"
                       className="w-6 h-6"
                       viewBox="0 0 24 24"
                       fill="none"
@@ -710,7 +678,7 @@ export const Shop = ({ onNavigate }) => {
                                 className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-200"
                               />
                               {p.images.length > 1 && (
-                                <span className="absolute bottom-2 right-2 bg-black/70 backdrop-blur-xs text-white text-[10px] px-1.5 py-0.5 rounded font-mono">
+                                <span className="absolute bottom-2 right-2 bg-zinc-950/80 text-white text-[10px] px-1.5 py-0.5 rounded font-mono">
                                   +{p.images.length - 1} photos
                                 </span>
                               )}
@@ -836,7 +804,7 @@ export const Shop = ({ onNavigate }) => {
                         <tr className="bg-zinc-50 border-b border-zinc-200 text-zinc-600 uppercase tracking-wider text-[11px] font-semibold">
                           <th className="py-3 px-3.5">Product</th>
                           <th className="py-3 px-3.5 hidden md:table-cell">
-                            Category & Brand
+                            Category and Brand
                           </th>
                           <th className="py-3 px-3.5 hidden lg:table-cell">
                             Compatibility

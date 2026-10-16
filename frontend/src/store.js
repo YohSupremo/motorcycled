@@ -9,6 +9,14 @@ import {
   productDetailsReducer,
   catalogReducer,
 } from "./reducers/productReducers";
+import {
+  productReviewsReducer,
+  myReviewReducer,
+  newReviewReducer,
+  deleteMyReviewReducer,
+  adminReviewsReducer,
+  reviewModerationReducer,
+} from "./reducers/reviewReducers";
 import { cartReducer } from "./reducers/cartReducers";
 import {
   checkoutReducer,
@@ -32,6 +40,13 @@ const rootReducer = combineReducers({
   product: productReducer,
   productDetails: productDetailsReducer,
   catalog: catalogReducer,
+  // Reviews
+  productReviews: productReviewsReducer,
+  myReview: myReviewReducer,
+  newReview: newReviewReducer,
+  deleteMyReview: deleteMyReviewReducer,
+  adminReviews: adminReviewsReducer,
+  reviewModeration: reviewModerationReducer,
   // Cart
   cart: cartReducer,
   // Order / checkout

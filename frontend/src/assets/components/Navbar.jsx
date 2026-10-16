@@ -1,14 +1,30 @@
 import { useState, useRef, useEffect } from "react";
-import { Link } from "react-router-dom";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { logout } from "../../actions/userActions";
 
 export const Navbar = ({ currentPage }) => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
   const dropdownRef = useRef(null);
+  const headerRef = useRef(null);
   const navigate = useNavigate();
+  const location = useLocation();
   const dispatch = useDispatch();
+
+  const activePage =
+    currentPage ||
+    (location.pathname === "/"
+      ? "home"
+      : location.pathname.startsWith("/shop")
+      ? "shop"
+      : location.pathname.startsWith("/orders")
+      ? "orders"
+      : location.pathname.startsWith("/cart")
+      ? "cart"
+      : location.pathname.startsWith("/about")
+      ? "about"
+      : "");
 
   const { isAuthenticated, user } = useSelector((state) => state.auth);
   const { cartItems } = useSelector((state) => state.cart || { cartItems: [] });
@@ -22,6 +38,39 @@ export const Navbar = ({ currentPage }) => {
     ? `${user.firstName?.[0] || ""}${user.lastName?.[0] || ""}`.toUpperCase()
     : "JD";
 
+  // Pages whose first section is a dark full-bleed hero. The bar blends into
+  // the hero (dark, light text) at the top and turns into a flat translucent
+  // light bar once the hero has scrolled past.
+  const darkHeroPage = activePage === "home" || activePage === "about";
+  const overDark = darkHeroPage && !isScrolled;
+
+  // Dark-hero pages (home, about) place their hero directly under the bar, so
+  // the bar goes fully transparent there and the hero shows through. Other
+  // dark-hero pages keep a flat dark scrim so text stays legible.
+  const headerTone = !overDark
+    ? "bg-white/90 border-zinc-200"
+    : activePage === "home" || activePage === "about"
+    ? "bg-transparent border-transparent"
+    : "bg-zinc-950/70 border-white/10";
+  const subnavTone = !overDark
+    ? "border-zinc-100 bg-zinc-50"
+    : activePage === "home" || activePage === "about"
+    ? "border-transparent bg-transparent"
+    : "border-white/10 bg-zinc-950/70";
+
+  const navIdle = overDark
+    ? "text-white/75 hover:text-white hover:bg-white/10"
+    : "text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50";
+  const navActive = overDark
+    ? "bg-white/20 text-white font-semibold"
+    : "bg-zinc-100 text-zinc-900 font-semibold";
+  const chipIdle = overDark
+    ? "border-white/20 bg-white/10 text-white/80 hover:bg-white/20 hover:text-white"
+    : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50 hover:text-zinc-900";
+  const chipActive = overDark
+    ? "bg-emerald-500/20 text-emerald-200 border-emerald-500/30 font-semibold"
+    : "bg-emerald-50 text-emerald-900 border-emerald-300 font-semibold shadow-2xs";
+
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -32,6 +81,27 @@ export const Navbar = ({ currentPage }) => {
 
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Track how far the page hero has scrolled under the bar.
+  useEffect(() => {
+    const handleScroll = () => {
+      const hero =
+        document.querySelector("[data-nav-hero-end]") ||
+        document.querySelector("main section");
+      const navHeight = headerRef.current?.offsetHeight || 56;
+      document.documentElement.style.setProperty("--nav-h", `${navHeight}px`);
+      const heroBottom = hero ? hero.getBoundingClientRect().bottom : 0;
+      setIsScrolled(heroBottom <= navHeight);
+    };
+
+    handleScroll();
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    window.addEventListener("resize", handleScroll);
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+      window.removeEventListener("resize", handleScroll);
+    };
   }, []);
 
   const handleNavClick = (subTab) => {
@@ -46,7 +116,10 @@ export const Navbar = ({ currentPage }) => {
   };
 
   return (
-    <header className="bg-white border-b border-zinc-200 sticky top-0 z-30">
+    <header
+      ref={headerRef}
+      className={`sticky top-0 z-30 border-b transition-colors duration-300 ${headerTone}`}
+    >
       <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
         {/* Brand & Main Navigation */}
         <div className="flex items-center gap-6">
@@ -57,9 +130,15 @@ export const Navbar = ({ currentPage }) => {
             <img
               src="/motorcycled-logo.png"
               alt="Motorcycled Logo"
-              className="h-8 w-auto object-contain transition-transform duration-150 group-hover:scale-105"
+              className={`h-8 w-auto object-contain transition-transform duration-150 group-hover:scale-105 ${
+                overDark ? "brightness-0 invert" : ""
+              }`}
             />
-            <span className="text-sm font-bold tracking-wider text-zinc-900 uppercase">
+            <span
+              className={`text-sm font-bold tracking-wider uppercase ${
+                overDark ? "text-white" : "text-zinc-900"
+              }`}
+            >
               Motorcycled
             </span>
           </Link>
@@ -68,30 +147,35 @@ export const Navbar = ({ currentPage }) => {
           <nav className="hidden md:flex items-center gap-1 text-xs font-medium">
             <Link
               to="/"
-              className={`px-3 py-1.5 rounded-md transition-colors cursor-pointer ${currentPage === "home"
-                ? "bg-zinc-100 text-zinc-900 font-semibold"
-                : "text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50"
-                }`}
+              className={`px-3 py-1.5 rounded-md transition-colors cursor-pointer ${
+                activePage === "home" ? navActive : navIdle
+              }`}
             >
               Home
             </Link>
             <Link
               to="/shop"
-              className={`px-3 py-1.5 rounded-md transition-colors cursor-pointer ${currentPage === "shop"
-                ? "bg-zinc-100 text-zinc-900 font-semibold"
-                : "text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50"
-                }`}
+              className={`px-3 py-1.5 rounded-md transition-colors cursor-pointer ${
+                activePage === "shop" ? navActive : navIdle
+              }`}
             >
               Shop Catalog
             </Link>
             <Link
               to="/orders"
-              className={`px-3 py-1.5 rounded-md transition-colors cursor-pointer ${currentPage === "orders"
-                ? "bg-zinc-100 text-zinc-900 font-semibold"
-                : "text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50"
-                }`}
+              className={`px-3 py-1.5 rounded-md transition-colors cursor-pointer ${
+                activePage === "orders" ? navActive : navIdle
+              }`}
             >
               My Installments & Orders
+            </Link>
+            <Link
+              to="/about"
+              className={`px-3 py-1.5 rounded-md transition-colors cursor-pointer ${
+                activePage === "about" ? navActive : navIdle
+              }`}
+            >
+              About
             </Link>
           </nav>
         </div>
@@ -101,14 +185,13 @@ export const Navbar = ({ currentPage }) => {
           {/* Cart Nav Button */}
           <Link
             to="/cart"
-            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors cursor-pointer border ${currentPage === "cart"
-              ? "bg-emerald-50 text-emerald-900 border-emerald-300 font-semibold shadow-2xs"
-              : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50 hover:text-zinc-900"
-              }`}
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors cursor-pointer border ${
+              currentPage === "cart" ? chipActive : chipIdle
+            }`}
             title="Shopping Cart"
           >
             <svg
-              className="w-3.5 h-3.5 text-emerald-600"
+              className={`w-3.5 h-3.5 ${overDark ? "text-emerald-400" : "text-emerald-600"}`}
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -120,7 +203,13 @@ export const Navbar = ({ currentPage }) => {
             </svg>
             <span className="hidden sm:inline">Cart</span>
             {cartCount > 0 && (
-              <span className="px-1.5 py-0.2 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 text-[10px] font-bold">
+              <span
+                className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold border ${
+                  overDark
+                    ? "bg-emerald-500/20 text-emerald-200 border-emerald-500/30"
+                    : "bg-emerald-50 text-emerald-800 border-emerald-200"
+                }`}
+              >
                 {cartCount}
               </span>
             )}
@@ -130,13 +219,16 @@ export const Navbar = ({ currentPage }) => {
           {isAuthenticated && user?.role === "admin" && (
             <Link
               to="/admin/dashboard"
-              className={`hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors cursor-pointer border ${currentPage === "admin"
-                ? "bg-emerald-50 text-emerald-900 border-emerald-300 font-semibold shadow-2xs"
-                : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50 hover:text-zinc-900"
-                }`}
+              className={`hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors cursor-pointer border ${
+                currentPage === "admin" ? chipActive : chipIdle
+              }`}
               title="Dealership Operations (Admin Dashboard)"
             >
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
+              <span
+                className={`w-1.5 h-1.5 rounded-full ${
+                  overDark ? "bg-emerald-400" : "bg-emerald-600"
+                }`}
+              />
               <span>Operations</span>
             </Link>
           )}
@@ -147,12 +239,20 @@ export const Navbar = ({ currentPage }) => {
               <button
                 type="button"
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                className="flex items-center gap-2.5 px-2 py-1 rounded-md hover:bg-zinc-100/80 transition-colors cursor-pointer focus:outline-none border border-transparent hover:border-zinc-200"
+                className={`flex items-center gap-2.5 px-2 py-1 rounded-md transition-colors cursor-pointer focus:outline-none border border-transparent ${
+                  overDark ? "hover:bg-white/10 hover:border-white/20" : "hover:bg-zinc-100/80 hover:border-zinc-200"
+                }`}
                 aria-expanded={isDropdownOpen}
               >
                 {/* Profile Picture / Avatar */}
                 <div className="relative shrink-0">
-                  <div className="w-8 h-8 rounded-full bg-zinc-900 text-white flex items-center justify-center font-bold text-xs shadow-2xs ring-1 ring-zinc-300 overflow-hidden">
+                  <div
+                    className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs shadow-2xs ring-1 overflow-hidden ${
+                      overDark
+                        ? "bg-white text-zinc-900 ring-white/40"
+                        : "bg-zinc-900 text-white ring-zinc-300"
+                    }`}
+                  >
                     {user.profilePicture ? (
                       <img
                         src={user.profilePicture}
@@ -164,25 +264,44 @@ export const Navbar = ({ currentPage }) => {
                     )}
                   </div>
                   {/* Active indicator dot placed outside circular photo, uncropped */}
-                  <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-600 ring-2 ring-white z-10 pointer-events-none" />
+                  <span
+                    className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-600 ring-2 z-10 pointer-events-none ${
+                      overDark ? "ring-zinc-950" : "ring-white"
+                    }`}
+                  />
                 </div>
 
                 {/* User Name & Status */}
                 <div className="text-left hidden sm:block">
                   <div className="flex items-center gap-1.5">
-                    <span className="text-xs font-semibold text-zinc-900 leading-tight">
+                    <span
+                      className={`text-xs font-semibold leading-tight ${
+                        overDark ? "text-white" : "text-zinc-900"
+                      }`}
+                    >
                       {displayName}
                     </span>
                   </div>
-                  <span className="block text-[10px] text-emerald-700 font-medium leading-none mt-0.5">
+                  <span
+                    className={`block text-[10px] font-medium leading-none mt-0.5 ${
+                      overDark ? "text-emerald-400" : "text-emerald-700"
+                    }`}
+                  >
                     {user.role === "admin" ? "Administrator" : "Customer"}
                   </span>
                 </div>
 
                 {/* Dropdown Chevron */}
                 <svg
-                  className={`w-3.5 h-3.5 text-zinc-400 transition-transform duration-200 ${isDropdownOpen ? "rotate-180 text-zinc-700" : ""
-                    }`}
+                  className={`w-3.5 h-3.5 transition-transform duration-200 ${
+                    isDropdownOpen
+                      ? overDark
+                        ? "rotate-180 text-white"
+                        : "rotate-180 text-zinc-700"
+                      : overDark
+                      ? "text-white/60"
+                      : "text-zinc-400"
+                  }`}
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
@@ -238,10 +357,11 @@ export const Navbar = ({ currentPage }) => {
                     <button
                       type="button"
                       onClick={() => handleNavClick("personal-info")}
-                      className={`w-full text-left px-3 py-2 rounded-md text-xs transition-colors cursor-pointer flex items-center gap-2.5 ${currentPage === "profile"
-                        ? "bg-zinc-100 text-zinc-900 font-semibold"
-                        : "text-zinc-700 hover:bg-zinc-50 hover:text-zinc-900"
-                        }`}
+                      className={`w-full text-left px-3 py-2 rounded-md text-xs transition-colors cursor-pointer flex items-center gap-2.5 ${
+                        currentPage === "profile"
+                          ? "bg-zinc-100 text-zinc-900 font-semibold"
+                          : "text-zinc-700 hover:bg-zinc-50 hover:text-zinc-900"
+                      }`}
                     >
                       <div className="w-7 h-7 rounded bg-zinc-100 flex items-center justify-center text-zinc-700 shrink-0">
                         <svg
@@ -395,7 +515,9 @@ export const Navbar = ({ currentPage }) => {
             <div className="flex items-center gap-2">
               <Link
                 to="/register"
-                className="hidden sm:inline-flex items-center px-3 py-1.5 rounded-md text-xs font-medium text-zinc-700 hover:text-zinc-900 transition-colors cursor-pointer"
+                className={`hidden sm:inline-flex items-center px-3 py-1.5 rounded-md text-xs font-medium transition-colors cursor-pointer ${
+                  overDark ? "text-white/75 hover:text-white" : "text-zinc-700 hover:text-zinc-900"
+                }`}
               >
                 Register
               </Link>
@@ -411,47 +533,87 @@ export const Navbar = ({ currentPage }) => {
       </div>
 
       {/* Mobile Sub-Navigation Bar */}
-      <div className="md:hidden border-t border-zinc-100 bg-zinc-50 px-4 py-2 flex items-center justify-between text-xs font-medium overflow-x-auto gap-2">
+      <div
+        className={`md:hidden border-t px-4 py-2 flex items-center justify-between text-xs font-medium overflow-x-auto gap-2 ${subnavTone}`}
+      >
         <Link
           to="/"
-          className={`px-2.5 py-1 rounded whitespace-nowrap ${currentPage === "home"
-            ? "bg-white text-zinc-900 font-semibold shadow-xs"
-            : "text-zinc-600"
-            }`}
+          className={`px-2.5 py-1 rounded whitespace-nowrap ${
+            activePage === "home"
+              ? overDark
+                ? "bg-white/20 text-white font-semibold"
+                : "bg-white text-zinc-900 font-semibold shadow-xs"
+              : overDark
+              ? "text-white/70"
+              : "text-zinc-600"
+          }`}
         >
           Home
         </Link>
         <Link
-          to="shop"
-          className={`px-2.5 py-1 rounded whitespace-nowrap ${currentPage === "shop"
-            ? "bg-white text-zinc-900 font-semibold shadow-xs"
-            : "text-zinc-600"
-            }`}
+          to="/shop"
+          className={`px-2.5 py-1 rounded whitespace-nowrap ${
+            activePage === "shop"
+              ? overDark
+                ? "bg-white/20 text-white font-semibold"
+                : "bg-white text-zinc-900 font-semibold shadow-xs"
+              : overDark
+              ? "text-white/70"
+              : "text-zinc-600"
+          }`}
         >
           Shop
         </Link>
         <Link
           to="/cart"
-          className={`px-2.5 py-1 rounded whitespace-nowrap flex items-center gap-1 ${currentPage === "cart"
-            ? "bg-white text-zinc-900 font-semibold shadow-xs"
-            : "text-zinc-600"
-            }`}
+          className={`px-2.5 py-1 rounded whitespace-nowrap flex items-center gap-1 ${
+            activePage === "cart"
+              ? overDark
+                ? "bg-white/20 text-white font-semibold"
+                : "bg-white text-zinc-900 font-semibold shadow-xs"
+              : overDark
+              ? "text-white/70"
+              : "text-zinc-600"
+          }`}
         >
           <span>Cart</span>
           {cartCount > 0 && (
-            <span className="w-4 h-4 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold flex items-center justify-center">
+            <span
+              className={`w-4 h-4 rounded-full text-[10px] font-bold flex items-center justify-center ${
+                overDark ? "bg-emerald-500/20 text-emerald-200" : "bg-emerald-100 text-emerald-800"
+              }`}
+            >
               {cartCount}
             </span>
           )}
         </Link>
         <Link
           to="/orders"
-          className={`px-2.5 py-1 rounded whitespace-nowrap ${currentPage === "orders"
-            ? "bg-white text-zinc-900 font-semibold shadow-xs"
-            : "text-zinc-600"
-            }`}
+          className={`px-2.5 py-1 rounded whitespace-nowrap ${
+            activePage === "orders"
+              ? overDark
+                ? "bg-white/20 text-white font-semibold"
+                : "bg-white text-zinc-900 font-semibold shadow-xs"
+              : overDark
+              ? "text-white/70"
+              : "text-zinc-600"
+          }`}
         >
           Installments & Orders
+        </Link>
+        <Link
+          to="/about"
+          className={`px-2.5 py-1 rounded whitespace-nowrap ${
+            activePage === "about"
+              ? overDark
+                ? "bg-white/20 text-white font-semibold"
+                : "bg-white text-zinc-900 font-semibold shadow-xs"
+              : overDark
+              ? "text-white/70"
+              : "text-zinc-600 hover:text-zinc-900"
+          }`}
+        >
+          About
         </Link>
       </div>
     </header>
