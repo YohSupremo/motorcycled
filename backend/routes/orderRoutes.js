@@ -13,6 +13,7 @@ import {
   confirmInstallmentOrder,
   getOrderReceipt,
   payInstallment,
+  getDashboardStats,
 } from "../controllers/orderController.js";
 
 const router = express.Router();
@@ -26,6 +27,7 @@ router.get("/application/:id", auth, getApplicationDetails);
 router.post("/application/:id/pay-installment", auth, payInstallment);
 
 // ── Admin routes ─────────────────────────────────────────────────────────────
+router.get("/admin/dashboard-stats", auth, authorizeRoles("admin"), getDashboardStats);
 router.get("/admin/orders", auth, authorizeRoles("admin"), getAdminOrders);
 router.get("/admin/applications", auth, authorizeRoles("admin"), getAdminApplications);
 router.put("/admin/order/:id/status", auth, authorizeRoles("admin"), updateOrderStatus);

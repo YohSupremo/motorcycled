@@ -1009,3 +1009,228 @@ export const payInstallment = async (req, res) => {
   }
 };
 
+// ─── getDashboardStats (Quiz 2: 15pts - Sales Charts with Date Range Filter) ──
+
+/**
+ * GET /api/v1/admin/dashboard-stats
+ * Returns live operational telemetry, financial metrics, and timeline sales aggregation
+ * with support for custom date range filters and preset filters.
+ */
+export const getDashboardStats = async (req, res) => {
+  try {
+    const { startDate, endDate, preset = "30d" } = req.query;
+
+    let start = new Date();
+    let end = new Date();
+    end.setHours(23, 59, 59, 999);
+
+    if (startDate && endDate) {
+      start = new Date(startDate);
+      start.setHours(0, 0, 0, 0);
+      end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+    } else {
+      const now = new Date();
+      if (preset === "7d") {
+        start = new Date(now);
+        start.setDate(start.getDate() - 7);
+        start.setHours(0, 0, 0, 0);
+      } else if (preset === "30d") {
+        start = new Date(now);
+        start.setDate(start.getDate() - 30);
+        start.setHours(0, 0, 0, 0);
+      } else if (preset === "90d") {
+        start = new Date(now);
+        start.setDate(start.getDate() - 90);
+        start.setHours(0, 0, 0, 0);
+      } else if (preset === "this_month") {
+        start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+      } else if (preset === "ytd") {
+        start = new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0);
+      } else {
+        start = new Date(now);
+        start.setDate(start.getDate() - 30);
+        start.setHours(0, 0, 0, 0);
+      }
+    }
+
+    const [
+      allOrders,
+      allApps,
+      lowStockProducts,
+      pendingApps,
+    ] = await Promise.all([
+      Order.find()
+        .populate("user", "firstName lastName email contactNumber")
+        .populate("orderItems.product", "name category price images")
+        .sort({ createdAt: -1 }),
+      InstallmentApplication.find()
+        .populate("user", "firstName lastName email contactNumber validId proofOfIncome")
+        .populate("product", "name price category images")
+        .sort({ createdAt: -1 }),
+      Product.find({ stock: { $lte: 5 }, isArchived: false })
+        .select("name price stock category brand images")
+        .sort({ stock: 1 }),
+      InstallmentApplication.find({ applicationStatus: "pending" })
+        .populate("user", "firstName lastName email contactNumber validId proofOfIncome")
+        .populate("product", "name price category images")
+        .sort({ createdAt: -1 }),
+    ]);
+
+    // Financial totals across all time
+    const completedOrders = allOrders.filter(
+      (o) => o.orderStatus === "completed" || o.paymentStatus === "paid"
+    );
+    const totalOrderSales = completedOrders.reduce((sum, o) => sum + (o.totalPrice || 0), 0);
+
+    const approvedApps = allApps.filter((a) => a.applicationStatus === "approved");
+    const downpaymentCollections = approvedApps.reduce(
+      (sum, a) => sum + (a.downPayment || 0),
+      0
+    );
+    const amortizationCollections = approvedApps.reduce((sum, a) => {
+      const history = a.paymentHistory || [];
+      return sum + history.reduce((acc, h) => acc + (h.amount || a.monthlyPayment || 0), 0);
+    }, 0);
+
+    const totalRevenue = totalOrderSales + downpaymentCollections + amortizationCollections;
+
+    // Monthly Collections (current month)
+    const currentMonthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+    const monthlyOrders = completedOrders.filter(
+      (o) => new Date(o.createdAt) >= currentMonthStart
+    );
+    const monthlyRevenue = monthlyOrders.reduce((sum, o) => sum + (o.totalPrice || 0), 0);
+
+    // Filtered range sales
+    const rangeOrders = allOrders.filter((o) => {
+      const d = new Date(o.createdAt);
+      return (
+        d >= start &&
+        d <= end &&
+        o.orderStatus !== "canceled" &&
+        (o.orderStatus === "completed" || o.paymentStatus === "paid")
+      );
+    });
+
+    // Generate continuous date map for smooth Line/Bar charting
+    const dayMap = {};
+    const iter = new Date(start);
+    while (iter <= end) {
+      const key = iter.toISOString().split("T")[0];
+      dayMap[key] = {
+        date: key,
+        displayDate: iter.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+        sales: 0,
+        orders: 0,
+        units: 0,
+      };
+      iter.setDate(iter.getDate() + 1);
+    }
+
+    for (const o of rangeOrders) {
+      const key = new Date(o.createdAt).toISOString().split("T")[0];
+      if (dayMap[key]) {
+        dayMap[key].sales += o.totalPrice || 0;
+        dayMap[key].orders += 1;
+        const totalQty = (o.orderItems || []).reduce((acc, it) => acc + (it.quantity || 1), 0);
+        dayMap[key].units += totalQty;
+      }
+    }
+
+    const salesTimeline = Object.values(dayMap);
+
+    // Category Sales breakdown within range
+    const categoryMap = {};
+    for (const o of rangeOrders) {
+      for (const item of o.orderItems || []) {
+        const cat = item.itemType || "parts";
+        const catName = cat.charAt(0).toUpperCase() + cat.slice(1);
+        if (!categoryMap[catName]) {
+          categoryMap[catName] = { name: catName, sales: 0, units: 0 };
+        }
+        categoryMap[catName].sales += (item.price || 0) * (item.quantity || 1);
+        categoryMap[catName].units += item.quantity || 1;
+      }
+    }
+    const categorySales = Object.values(categoryMap);
+
+    const rangeTotalSales = rangeOrders.reduce((sum, o) => sum + (o.totalPrice || 0), 0);
+    const rangeTotalOrders = rangeOrders.length;
+    const rangeAverageOrderValue =
+      rangeTotalOrders > 0 ? Math.round(rangeTotalSales / rangeTotalOrders) : 0;
+    const rangeTotalUnits = rangeOrders.reduce((sum, o) => {
+      return sum + (o.orderItems || []).reduce((acc, it) => acc + (it.quantity || 1), 0);
+    }, 0);
+
+    // Latest 8 orders for real live activity
+    const recentOrders = allOrders.slice(0, 8).map((o) => ({
+      _id: o._id,
+      orderNumber: o.orderNumber,
+      customer: o.user ? `${o.user.firstName || ""} ${o.user.lastName || ""}`.trim() : (o.shippingInfo?.recipientName || "Walk-in Guest"),
+      email: o.user?.email || o.shippingInfo?.email || "—",
+      city: o.shippingInfo?.city || "Showroom Claim",
+      itemsCount: (o.orderItems || []).length,
+      firstItemName: o.orderItems?.[0]?.name || "Catalog Product",
+      firstItemType: o.orderItems?.[0]?.itemType || "part",
+      totalPrice: o.totalPrice,
+      paymentMethod: o.paymentMethod,
+      paymentStatus: o.paymentStatus,
+      orderStatus: o.orderStatus,
+      createdAt: o.createdAt,
+    }));
+
+    // Formatted real pending underwriting applications
+    const formattedPendingApprovals = pendingApps.map((app) => ({
+      _id: app._id,
+      id: app.applicationRef,
+      customer: app.user ? `${app.user.firstName || ""} ${app.user.lastName || ""}`.trim() : "Financing Applicant",
+      email: app.user?.email || app.shippingInfo?.email || "—",
+      phone: app.user?.contactNumber || app.shippingInfo?.contactNumber || "—",
+      vehicle: app.productName,
+      productPrice: app.productPrice,
+      term: `${app.termMonths || 12} Months Standard`,
+      downpayment: app.downPayment || Math.round(app.productPrice * 0.2),
+      monthly: app.monthlyPayment,
+      submittedDate: new Date(app.createdAt).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }),
+      validId: app.user?.validId || "PH Government Valid ID",
+      incomeProof: app.user?.proofOfIncome || "3-Month Bank / Payslip Records",
+    }));
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        metrics: {
+          totalRevenue,
+          monthlyRevenue,
+          totalOrders: allOrders.length,
+          activeInstallmentsCount: approvedApps.length,
+          activeInstallmentsValue: approvedApps.reduce(
+            (acc, a) => acc + (a.totalRepayment || a.productPrice || 0),
+            0
+          ),
+          pendingScreeningCount: pendingApps.length,
+          lowStockCount: lowStockProducts.length,
+        },
+        rangeSummary: {
+          startDate: start.toISOString().split("T")[0],
+          endDate: end.toISOString().split("T")[0],
+          preset,
+          totalSales: rangeTotalSales,
+          totalOrders: rangeTotalOrders,
+          averageOrderValue: rangeAverageOrderValue,
+          totalUnits: rangeTotalUnits,
+        },
+        salesTimeline,
+        categorySales,
+        pendingApprovals: formattedPendingApprovals,
+        recentOrders,
+        lowStockProducts,
+      },
+    });
+  } catch (error) {
+    console.error("getDashboardStats error:", error);
+    return res.status(500).json({ success: false, message: "Server error generating dashboard telemetry" });
+  }
+};
+
