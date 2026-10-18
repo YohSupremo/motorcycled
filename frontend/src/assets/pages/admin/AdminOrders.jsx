@@ -215,9 +215,13 @@ export const AdminOrders = () => {
 
   const handleUpdateStatus = async (orderId, targetStatus) => {
     let backendStatus = targetStatus.toLowerCase();
-    if (targetStatus === "Delivered") backendStatus = "completed";
+    const payload = { orderStatus: backendStatus };
+    if (targetStatus === "Delivered") {
+      payload.orderStatus = "completed";
+      payload.paymentStatus = "paid";
+    }
 
-    await dispatch(updateOrderStatus(orderId, { orderStatus: backendStatus }));
+    await dispatch(updateOrderStatus(orderId, payload));
     setActionSuccess(`Order updated to ${targetStatus}!`);
     setTimeout(() => setActionSuccess(""), 4000);
     reloadData();

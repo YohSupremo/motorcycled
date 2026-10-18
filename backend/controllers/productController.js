@@ -380,6 +380,20 @@ export const getProducts = async (req, res) => {
     }
   }
 
+  // Review filter (MP2: 5pts - Filter products with reviews / only reviewed products)
+  if (
+    req.query.hasReviews === "true" ||
+    req.query.onlyReviewed === "true" ||
+    req.query.reviewed === "true"
+  ) {
+    filter.numOfReviews = { $gt: 0 };
+  } else if (req.query.minReviews !== undefined && req.query.minReviews !== "") {
+    const minRev = Number(req.query.minReviews);
+    if (!isNaN(minRev) && minRev > 0) {
+      filter.numOfReviews = { $gte: minRev };
+    }
+  }
+
   const productsCount = await Product.countDocuments(filter);
 
   const products = await Product.find(filter)

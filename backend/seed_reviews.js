@@ -6,6 +6,8 @@ import Product from "./model/Product.js";
 import User from "./model/User.js";
 import Review from "./model/Review.js";
 import Category from "./model/Category.js";
+import Order from "./model/Order.js";
+import { cleanBadWords } from "./controllers/reviewController.js";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Review seed — anchored to SPECIFIC products.
@@ -43,6 +45,7 @@ const REVIEW_POOL = {
     { rating: 5, title: "Financing made it manageable", comment: "Approved my in-house installment for the {product} in under two days. The downpayment and monthly figures matched the quote with no hidden charges." },
     { rating: 4, title: "Great unit, just a short wait", comment: "Really happy with the {product}. I only waited a little longer than expected for the plate and registration, but the showroom kept me updated the whole time." },
     { rating: 5, title: "Solid daily commuter", comment: "Been using the {product} daily for work and errands around the city. Fuel economy is excellent and the engine still feels tight." },
+    { rating: 5, title: "Damn good daily machine", comment: "No bullshit, this {product} is damn reliable and runs like hell in heavy traffic. Delivery was fast as fuck!" },
     { rating: 5, title: "Comfortable and reliable", verified: false, comment: "The {product} handles traffic well and the seat is comfortable for longer trips. Would recommend it to anyone upgrading from a smaller bike." },
   ],
   "Engine Parts": [
@@ -185,6 +188,46 @@ async function seed() {
       process.exit(0);
     }
 
+    // Ensure test customer user has a delivered order for testing reviews on live site
+    const testUser = await User.findOne({ email: "alwin.benitez9@gmail.com" });
+    if (testUser && products.length > 0) {
+      const sampleProd = products[0];
+      const existingOrder = await Order.findOne({ user: testUser._id, orderStatus: "completed" });
+      if (!existingOrder) {
+        await Order.create({
+          orderNumber: `ORD-SEED-${Date.now().toString().slice(-6)}`,
+          checkoutSessionId: `seed-session-${testUser._id}`,
+          user: testUser._id,
+          orderItems: [
+            {
+              product: sampleProd._id,
+              name: sampleProd.name,
+              quantity: 1,
+              price: sampleProd.price,
+              image: sampleProd.images?.[0]?.url || "",
+              itemType: sampleProd.category?.name === "Motorcycles" ? "motorcycle" : "part",
+            },
+          ],
+          shippingInfo: {
+            recipientName: `${testUser.firstName} ${testUser.lastName}`,
+            contactNumber: "09171234567",
+            email: testUser.email,
+            address: "123 Bonifacio Ave",
+            city: "Quezon City",
+            postalCode: "1100",
+            fulfillmentMethod: "delivery",
+          },
+          paymentMethod: "cash_on_releasing",
+          paymentStatus: "paid",
+          orderStatus: "completed",
+          itemsPrice: sampleProd.price,
+          totalPrice: sampleProd.price,
+          deliveredAt: new Date(),
+        });
+        console.log(`Created sample completed order for ${testUser.email} on "${sampleProd.name}".`);
+      }
+    }
+
     let created = 0;
     let updated = 0;
     const summary = [];
@@ -205,8 +248,8 @@ async function seed() {
           seedId: `seed-${slug(product.name)}-${i}`,
           user: reviewer._id,
           rating: template.rating,
-          title: template.title,
-          comment: renderText(template.comment, product.name, categoryName),
+          title: cleanBadWords(template.title),
+          comment: cleanBadWords(renderText(template.comment, product.name, categoryName)),
           isVerifiedPurchase: template.verified !== false,
           isHidden: template.hidden || false,
         });
@@ -221,8 +264,8 @@ async function seed() {
           seedId: `seed-${slug(product.name)}-extra-${i}`,
           user: reviewer._id,
           rating: template.rating,
-          title: template.title,
-          comment: template.comment,
+          title: cleanBadWords(template.title),
+          comment: cleanBadWords(template.comment),
           isVerifiedPurchase: template.verified === true,
           isHidden: !!template.hidden,
         });

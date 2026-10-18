@@ -88,6 +88,7 @@ export const getProducts =
     onlyInstallment = false,
     ratings = 0,
     limit = 12,
+    hasReviews = false,
   ) =>
   async (dispatch) => {
     try {
@@ -107,6 +108,9 @@ export const getProducts =
       }
       if (ratings && ratings > 0) {
         link += `&ratings=${ratings}`;
+      }
+      if (hasReviews) {
+        link += `&hasReviews=true`;
       }
       const { data } = await axios.get(link);
       dispatch({ type: ALL_PRODUCTS_SUCCESS, payload: data });

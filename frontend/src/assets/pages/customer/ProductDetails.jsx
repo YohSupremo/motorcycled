@@ -52,6 +52,11 @@ export const ProductDetails = () => {
   const [reviewComment, setReviewComment] = useState("");
   const [editingReview, setEditingReview] = useState(false);
 
+  // MP2 Review Filters (5pts: Star filter, Verified Purchase filter, keyword search)
+  const [reviewFilterRating, setReviewFilterRating] = useState(0); // 0 = all
+  const [reviewFilterVerified, setReviewFilterVerified] = useState(false);
+  const [reviewSearchKeyword, setReviewSearchKeyword] = useState("");
+
   useEffect(() => {
     dispatch(getProductDetails(id));
     dispatch(getProductReviews(id));
@@ -63,6 +68,22 @@ export const ProductDetails = () => {
       dispatch({ type: DELETE_MY_REVIEW_RESET });
     };
   }, [dispatch, id, isAuthenticated]);
+
+  // Handle auto-scroll to review section if coming from completed orders redirect
+  useEffect(() => {
+    if (
+      window.location.hash === "#reviews" ||
+      window.location.search.includes("writeReview=true")
+    ) {
+      const timer = setTimeout(() => {
+        const el = document.getElementById("reviews");
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      }, 350);
+      return () => clearTimeout(timer);
+    }
+  }, [id]);
 
   const resetReviewForm = () => {
     setReviewRating(0);
@@ -212,15 +233,34 @@ export const ProductDetails = () => {
     setSelectedImageIndex((prev) => (prev === images.length - 1 ? 0 : prev + 1));
   };
 
-  // Review aggregates derived from the loaded review list.
-  const avgRating = reviewCount
-    ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviewCount
-    : 0;
+  // Review aggregates derived from the loaded review list (with product.ratings fallback)
+  const avgRating =
+    reviewCount > 0
+      ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviewCount
+      : Number(product?.ratings) || 0;
+
   const distribution = [5, 4, 3, 2, 1].map((star) => ({
     star,
     count: reviews.filter((r) => r.rating === star).length,
   }));
+
   const otherReviews = reviews.filter((r) => r.user?._id !== user?._id);
+
+  // Filter reviews dynamically based on star rating, verified badge, and keyword
+  const filteredOtherReviews = otherReviews.filter((r) => {
+    if (reviewFilterRating > 0 && r.rating !== reviewFilterRating) return false;
+    if (reviewFilterVerified && !r.isVerifiedPurchase) return false;
+    if (reviewSearchKeyword.trim()) {
+      const q = reviewSearchKeyword.toLowerCase();
+      const matchComment = r.comment?.toLowerCase().includes(q);
+      const matchTitle = r.title?.toLowerCase().includes(q);
+      const matchUser = `${r.user?.firstName || ""} ${r.user?.lastName || ""}`
+        .toLowerCase()
+        .includes(q);
+      if (!matchComment && !matchTitle && !matchUser) return false;
+    }
+    return true;
+  });
 
   if (loading) {
     return (
@@ -702,7 +742,7 @@ export const ProductDetails = () => {
         </section>
 
         {/* Customer reviews */}
-        <section className="pt-8 border-t border-zinc-200 space-y-6">
+        <section id="reviews" className="pt-8 border-t border-zinc-200 space-y-6 scroll-mt-24">
           <div className="flex flex-col lg:flex-row gap-8">
             {/* Summary */}
             <div className="lg:w-64 shrink-0 space-y-4">
@@ -737,37 +777,198 @@ export const ProductDetails = () => {
               </div>
 
               <div className="space-y-1.5 pt-2">
-                {distribution.map(({ star, count }) => (
-                  <div key={star} className="flex items-center gap-2 text-xs">
-                    <span className="w-3 text-zinc-500">{star}</span>
-                    <svg
-                      className="w-3 h-3 text-amber-400 fill-amber-400"
-                      viewBox="0 0 24 24"
-                      aria-hidden="true"
+                {distribution.map(({ star, count }) => {
+                  const isSelected = reviewFilterRating === star;
+                  return (
+                    <button
+                      key={star}
+                      type="button"
+                      onClick={() => setReviewFilterRating(isSelected ? 0 : star)}
+                      className={`w-full flex items-center gap-2 text-xs p-1 rounded transition-colors cursor-pointer text-left ${
+                        isSelected
+                          ? "bg-amber-50 text-amber-900 font-semibold ring-1 ring-amber-300"
+                          : "hover:bg-zinc-50 text-zinc-600"
+                      }`}
+                      title={`Filter by ${star} star reviews`}
                     >
-                      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-                    </svg>
-                    <div className="flex-1 h-1.5 rounded-full bg-zinc-100 overflow-hidden">
-                      <div
-                        className="h-full bg-amber-400"
-                        style={{
-                          width: reviewCount
-                            ? `${(count / reviewCount) * 100}%`
-                            : "0%",
-                        }}
-                      />
-                    </div>
-                    <span className="w-4 text-right text-zinc-400">{count}</span>
-                  </div>
-                ))}
+                      <span className="w-3 text-zinc-500 font-medium">{star}</span>
+                      <svg
+                        className="w-3 h-3 text-amber-400 fill-amber-400 shrink-0"
+                        viewBox="0 0 24 24"
+                        aria-hidden="true"
+                      >
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                      </svg>
+                      <div className="flex-1 h-1.5 rounded-full bg-zinc-100 overflow-hidden">
+                        <div
+                          className="h-full bg-amber-400 transition-all duration-300"
+                          style={{
+                            width: reviewCount
+                              ? `${(count / reviewCount) * 100}%`
+                              : "0%",
+                          }}
+                        />
+                      </div>
+                      <span className="w-4 text-right text-zinc-400 font-mono">{count}</span>
+                    </button>
+                  );
+                })}
               </div>
+
+              {(reviewFilterRating > 0 || reviewFilterVerified || reviewSearchKeyword) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setReviewFilterRating(0);
+                    setReviewFilterVerified(false);
+                    setReviewSearchKeyword("");
+                  }}
+                  className="w-full text-center text-xs text-emerald-700 hover:text-emerald-800 font-semibold pt-1 underline cursor-pointer"
+                >
+                  Reset Review Filters
+                </button>
+              )}
             </div>
 
             {/* List and form */}
             <div className="flex-1 min-w-0 space-y-6">
-              {otherReviews.length > 0 ? (
+              {/* Your review */}
+              {isAuthenticated && myReview && !editingReview && (
+                <div className="border border-emerald-200 bg-emerald-50/50 rounded-lg p-5">
+                  <div className="flex items-center justify-between gap-3">
+                    <h3 className="text-sm font-bold text-zinc-900">
+                      Your review
+                    </h3>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={handleStartEdit}
+                        className="h-8 px-3 rounded-md border border-zinc-300 bg-white text-xs font-semibold text-zinc-700 hover:bg-zinc-50 transition-colors cursor-pointer"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleDeleteReview}
+                        disabled={deletingReview}
+                        className="h-8 px-3 rounded-md border border-rose-200 bg-white text-xs font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-50 transition-colors cursor-pointer"
+                      >
+                        {deletingReview ? "Deleting..." : "Delete"}
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 mt-3">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <svg
+                        key={star}
+                        className={`w-4 h-4 ${
+                          star <= myReview.rating
+                            ? "text-amber-400 fill-amber-400"
+                            : "text-zinc-200 fill-zinc-200"
+                        }`}
+                        viewBox="0 0 24 24"
+                        aria-hidden="true"
+                      >
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                      </svg>
+                    ))}
+                    {myReview.isVerifiedPurchase && (
+                      <span className="ml-1 text-[10px] font-medium text-emerald-700">
+                        Verified purchase
+                      </span>
+                    )}
+                  </div>
+                  {myReview.title && (
+                    <p className="text-sm font-semibold text-zinc-900 mt-2">
+                      {myReview.title}
+                    </p>
+                  )}
+                  <p className="text-sm text-zinc-700 leading-relaxed mt-0.5">
+                    {myReview.comment}
+                  </p>
+                </div>
+              )}
+
+              {/* MP2: Review Filter Bar (5pts) */}
+              {reviews.length > 0 && (
+                <div className="bg-zinc-50 border border-zinc-200 rounded-lg p-3 space-y-2.5">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <span className="text-xs font-bold text-zinc-800 uppercase tracking-wider flex items-center gap-1.5">
+                      <span>Filter Reviews</span>
+                      <span className="text-[10px] text-zinc-500 font-normal font-mono">
+                        ({filteredOtherReviews.length} shown)
+                      </span>
+                    </span>
+
+                    {/* Verified Only Toggle */}
+                    <label className="inline-flex items-center gap-1.5 cursor-pointer text-xs text-zinc-700 font-medium">
+                      <input
+                        type="checkbox"
+                        checked={reviewFilterVerified}
+                        onChange={(e) => setReviewFilterVerified(e.target.checked)}
+                        className="rounded text-emerald-600 focus:ring-emerald-500 h-3.5 w-3.5 border-zinc-300"
+                      />
+                      <span>Verified purchases only</span>
+                    </label>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                    {/* Star chips */}
+                    <div className="flex items-center gap-1 overflow-x-auto pb-1 sm:pb-0">
+                      <button
+                        type="button"
+                        onClick={() => setReviewFilterRating(0)}
+                        className={`px-2.5 py-1 rounded text-xs font-medium cursor-pointer transition-colors whitespace-nowrap ${
+                          reviewFilterRating === 0
+                            ? "bg-zinc-900 text-white font-semibold"
+                            : "bg-white border border-zinc-300 text-zinc-700 hover:bg-zinc-100"
+                        }`}
+                      >
+                        All Stars
+                      </button>
+                      {[5, 4, 3, 2, 1].map((s) => (
+                        <button
+                          key={s}
+                          type="button"
+                          onClick={() => setReviewFilterRating(reviewFilterRating === s ? 0 : s)}
+                          className={`px-2 py-1 rounded text-xs font-medium cursor-pointer transition-colors flex items-center gap-1 whitespace-nowrap ${
+                            reviewFilterRating === s
+                              ? "bg-amber-500 text-white font-semibold"
+                              : "bg-white border border-zinc-300 text-zinc-700 hover:bg-zinc-100"
+                          }`}
+                        >
+                          <span>{s}</span>
+                          <span className="text-amber-300">★</span>
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Search keyword inside reviews */}
+                    <div className="relative flex-1 min-w-[140px]">
+                      <input
+                        type="text"
+                        value={reviewSearchKeyword}
+                        onChange={(e) => setReviewSearchKeyword(e.target.value)}
+                        placeholder="Search review comments..."
+                        className="w-full h-8 px-2.5 pr-7 text-xs bg-white border border-zinc-300 rounded focus:outline-none focus:border-emerald-600"
+                      />
+                      {reviewSearchKeyword && (
+                        <button
+                          type="button"
+                          onClick={() => setReviewSearchKeyword("")}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-700 cursor-pointer text-xs"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {filteredOtherReviews.length > 0 ? (
                 <ul className="divide-y divide-zinc-200">
-                  {otherReviews.map((r) => {
+                  {filteredOtherReviews.map((r) => {
                     const author = r.user
                       ? `${r.user.firstName || ""} ${r.user.lastName || ""}`.trim()
                       : "Customer";
@@ -848,68 +1049,28 @@ export const ProductDetails = () => {
                     );
                   })}
                 </ul>
+              ) : otherReviews.length > 0 && filteredOtherReviews.length === 0 ? (
+                <div className="text-center py-6 border border-dashed border-zinc-300 rounded-lg p-4 bg-zinc-50">
+                  <p className="text-xs font-semibold text-zinc-700">
+                    No reviews found matching your active filter criteria.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setReviewFilterRating(0);
+                      setReviewFilterVerified(false);
+                      setReviewSearchKeyword("");
+                    }}
+                    className="mt-2 text-xs text-emerald-700 hover:text-emerald-800 font-semibold underline cursor-pointer"
+                  >
+                    Reset review filters
+                  </button>
+                </div>
               ) : reviews.length === 0 ? (
                 <p className="text-sm text-zinc-500 py-6">
                   No customer reviews yet. Be the first to share your experience.
                 </p>
               ) : null}
-
-              {/* Your review */}
-              {isAuthenticated && myReview && !editingReview && (
-                <div className="border border-emerald-200 bg-emerald-50/50 rounded-lg p-5">
-                  <div className="flex items-center justify-between gap-3">
-                    <h3 className="text-sm font-bold text-zinc-900">
-                      Your review
-                    </h3>
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={handleStartEdit}
-                        className="h-8 px-3 rounded-md border border-zinc-300 bg-white text-xs font-semibold text-zinc-700 hover:bg-zinc-50 transition-colors cursor-pointer"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleDeleteReview}
-                        disabled={deletingReview}
-                        className="h-8 px-3 rounded-md border border-rose-200 bg-white text-xs font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-50 transition-colors cursor-pointer"
-                      >
-                        {deletingReview ? "Deleting..." : "Delete"}
-                      </button>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1 mt-3">
-                    {[1, 2, 3, 4, 5].map((star) => (
-                      <svg
-                        key={star}
-                        className={`w-4 h-4 ${
-                          star <= myReview.rating
-                            ? "text-amber-400 fill-amber-400"
-                            : "text-zinc-200 fill-zinc-200"
-                        }`}
-                        viewBox="0 0 24 24"
-                        aria-hidden="true"
-                      >
-                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-                      </svg>
-                    ))}
-                    {myReview.isVerifiedPurchase && (
-                      <span className="ml-1 text-[10px] font-medium text-emerald-700">
-                        Verified purchase
-                      </span>
-                    )}
-                  </div>
-                  {myReview.title && (
-                    <p className="text-sm font-semibold text-zinc-900 mt-2">
-                      {myReview.title}
-                    </p>
-                  )}
-                  <p className="text-sm text-zinc-700 leading-relaxed mt-0.5">
-                    {myReview.comment}
-                  </p>
-                </div>
-              )}
 
               {/* Write / update review */}
               {(!isAuthenticated || !myReview || editingReview) && (
@@ -999,7 +1160,7 @@ export const ProductDetails = () => {
                       />
                       <div className="flex items-center justify-between gap-3">
                         <span className="text-xs text-zinc-500">
-                          Posting as {user?.firstName || "you"}
+                          Posting as <strong className="text-zinc-800 font-medium">{[user?.firstName, user?.lastName].filter(Boolean).join(" ") || "you"}</strong>
                         </span>
                         <div className="flex items-center gap-2">
                           {myReview && (

@@ -31,11 +31,13 @@ export const Shop = ({ onNavigate }) => {
   const initialMinPrice = Number(searchParams.get("minPrice")) || 0;
   const initialMaxPrice = Number(searchParams.get("maxPrice")) || 350000;
   const initialRating = Number(searchParams.get("ratings")) || 0;
+  const initialOnlyReviewed = searchParams.get("hasReviews") === "true";
 
   const [selectedCategory, setSelectedCategory] = useState(initialCategory);
   const [selectedBrand, setSelectedBrand] = useState(initialBrand);
   const [priceRange, setPriceRange] = useState([initialMinPrice, initialMaxPrice]);
   const [selectedRating, setSelectedRating] = useState(initialRating);
+  const [onlyReviewed, setOnlyReviewed] = useState(initialOnlyReviewed);
   const [onlyInstallment, setOnlyInstallment] = useState(
     searchParams.get("installment") === "true"
   );
@@ -91,7 +93,9 @@ export const Shop = ({ onNavigate }) => {
         selectedCategory,
         selectedBrand,
         onlyInstallment,
-        selectedRating
+        selectedRating,
+        12,
+        onlyReviewed
       )
     );
   }, [
@@ -102,6 +106,7 @@ export const Shop = ({ onNavigate }) => {
     selectedBrand,
     onlyInstallment,
     selectedRating,
+    onlyReviewed,
   ]);
 
   // Fetch more products for Infinite Scroll
@@ -117,6 +122,7 @@ export const Shop = ({ onNavigate }) => {
       if (selectedBrand && selectedBrand !== "All") url += `&brand=${encodeURIComponent(selectedBrand)}`;
       if (onlyInstallment) url += `&onlyInstallment=true`;
       if (selectedRating > 0) url += `&ratings=${selectedRating}`;
+      if (onlyReviewed) url += `&hasReviews=true`;
 
       const res = await axios.get(url);
       if (res.data) {
@@ -148,6 +154,7 @@ export const Shop = ({ onNavigate }) => {
     if (selectedBrand && selectedBrand !== "All") params.set("brand", selectedBrand);
     if (searchQuery.trim()) params.set("keyword", searchQuery.trim());
     if (onlyInstallment) params.set("installment", "true");
+    if (onlyReviewed) params.set("hasReviews", "true");
     if (priceRange[0] > 0) params.set("minPrice", String(priceRange[0]));
     if (priceRange[1] < 350000) params.set("maxPrice", String(priceRange[1]));
     if (selectedRating > 0) params.set("ratings", String(selectedRating));
@@ -233,6 +240,7 @@ export const Shop = ({ onNavigate }) => {
     setSelectedBrand("All");
     setPriceRange([0, 350000]);
     setSelectedRating(0);
+    setOnlyReviewed(false);
     setOnlyInstallment(false);
     setSearchQuery("");
     setCurrentPage(1);
@@ -447,6 +455,49 @@ export const Shop = ({ onNavigate }) => {
                   </button>
                 ))}
               </div>
+            </div>
+
+            {/* Review Filter (MP2: 5pts - Customer Reviews Only) */}
+            <div className="pt-4 border-t border-zinc-200 space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="block text-xs font-bold text-zinc-900 uppercase tracking-wider">
+                  Review Filter
+                </label>
+                {onlyReviewed && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setOnlyReviewed(false);
+                      setCurrentPage(1);
+                    }}
+                    className="text-[11px] text-zinc-500 hover:text-zinc-900 underline cursor-pointer"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+              <label className="flex items-start gap-2.5 p-2 rounded-md hover:bg-zinc-50 border border-zinc-200 cursor-pointer transition-colors bg-white">
+                <input
+                  type="checkbox"
+                  checked={onlyReviewed}
+                  onChange={(e) => {
+                    setOnlyReviewed(e.target.checked);
+                    setCurrentPage(1);
+                  }}
+                  className="rounded text-emerald-600 focus:ring-emerald-500 h-4 w-4 border-zinc-300 mt-0.5"
+                />
+                <div className="flex flex-col">
+                  <span className="text-xs font-semibold text-zinc-900 flex items-center gap-1.5">
+                    <span>Only Reviewed Products</span>
+                    <span className="text-[10px] bg-amber-50 text-amber-800 border border-amber-200 px-1 rounded font-mono font-bold">
+                      ★ 1+
+                    </span>
+                  </span>
+                  <span className="text-[10px] text-zinc-500 mt-0.5">
+                    Only show catalog units with customer feedback
+                  </span>
+                </div>
+              </label>
             </div>
 
             {/* Brand Filter */}

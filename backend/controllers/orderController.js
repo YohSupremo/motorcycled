@@ -552,6 +552,14 @@ export const updateOrderStatus = async (req, res) => {
       order.paymentStatus = paymentStatus;
     }
 
+    // Auto-mark payment as paid when order reaches completed status (e.g., Cash on Releasing / COD)
+    if (order.orderStatus === "completed" && order.paymentStatus !== "paid") {
+      order.paymentStatus = "paid";
+      if (!order.paidAt) {
+        order.paidAt = new Date();
+      }
+    }
+
     if (paidAt) {
       order.paidAt = new Date(paidAt);
     }

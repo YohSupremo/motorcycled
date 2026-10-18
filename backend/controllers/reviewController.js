@@ -2,6 +2,34 @@ import mongoose from "mongoose";
 import Review from "../model/Review.js";
 import Product from "../model/Product.js";
 import Order from "../model/Order.js";
+import { Filter } from "bad-words";
+
+// Bad-words filter configuration (Unit 1: 10pts)
+// Masks profanities and offensive language with asterisks (****)
+const badWordsFilter = new Filter();
+badWordsFilter.addWords(
+  "gago",
+  "tarantado",
+  "tangina",
+  "bobo",
+  "puta",
+  "leche",
+  "ulol",
+  "peste",
+  "t@ngina",
+  "kupal",
+  "inutil"
+);
+
+export const cleanBadWords = (text) => {
+  if (!text || typeof text !== "string") return text || "";
+  try {
+    return badWordsFilter.clean(text);
+  } catch (err) {
+    console.error("bad-words clean error:", err);
+    return text;
+  }
+};
 
 // Calls an async (req,res) handler and forwards thrown errors to Express,
 // keeping each controller body free of repetitive try/catch noise.
@@ -154,12 +182,16 @@ export const createReview = asyncHandler(async (req, res) => {
     });
   }
 
+  // Mask bad words in title and comment (Unit 1: 10pts bad-words package)
+  const cleanedTitle = cleanBadWords((req.body.title || "").trim());
+  const cleanedComment = cleanBadWords(comment);
+
   const review = await Review.create({
     product: productId,
     user: req.user._id,
     rating,
-    title: (req.body.title || "").trim(),
-    comment,
+    title: cleanedTitle,
+    comment: cleanedComment,
     isVerifiedPurchase: flags.received,
     order: flags.orderId,
   });
@@ -209,9 +241,10 @@ export const updateReview = asyncHandler(async (req, res) => {
 
   const flags = await getOrderFlags(req.user._id, productId);
 
+  // Mask bad words on review update as well
   review.rating = rating;
-  review.title = (req.body.title || "").trim();
-  review.comment = comment;
+  review.title = cleanBadWords((req.body.title || "").trim());
+  review.comment = cleanBadWords(comment);
   review.isVerifiedPurchase = flags.received;
   review.order = flags.orderId;
   await review.save();

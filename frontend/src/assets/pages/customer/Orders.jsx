@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { getMyOrders, payInstallmentAmortization } from "../../../actions/orderActions";
 import { ProductImagePlaceholder } from "../../components/ProductImagePlaceholder";
@@ -8,32 +9,108 @@ import { toast } from "react-toastify";
 const fmt = (n) =>
   `₱${Number(n || 0).toLocaleString("en-US", { minimumFractionDigits: 2 })}`;
 
-const statusColor = (s) => {
-  const map = {
-    pending: "bg-zinc-100 text-zinc-700 border-zinc-300",
-    processing: "bg-blue-50 text-blue-800 border-blue-200",
-    ready_for_pickup: "bg-amber-50 text-amber-800 border-amber-200",
-    shipped: "bg-sky-50 text-sky-800 border-sky-200",
-    completed: "bg-emerald-50 text-emerald-800 border-emerald-200",
-    canceled: "bg-red-50 text-red-700 border-red-200",
-    paid: "bg-emerald-50 text-emerald-800 border-emerald-200",
-    failed: "bg-red-50 text-red-700 border-red-200",
-    approved: "bg-emerald-50 text-emerald-800 border-emerald-200",
-    rejected: "bg-red-50 text-red-700 border-red-200",
-    "for approval": "bg-amber-50 text-amber-800 border-amber-200",
-  };
-  return map[s?.toLowerCase()] || "bg-zinc-100 text-zinc-600 border-zinc-200";
-};
+const StatusBadge = ({ label, type = "fulfillment" }) => {
+  const s = label?.toLowerCase() || "";
 
-const StatusBadge = ({ label }) => (
-  <span
-    className={`inline-block text-[11px] font-medium px-2 py-0.5 rounded border ${statusColor(
-      label
-    )}`}
-  >
-    {label}
-  </span>
-);
+  if (type === "payment") {
+    if (s === "paid") {
+      return (
+        <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-full border bg-emerald-50 text-emerald-800 border-emerald-300 font-mono">
+          <svg className="w-3 h-3 text-emerald-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+          <span>Payment: Paid</span>
+        </span>
+      );
+    }
+    if (s === "pending") {
+      return (
+        <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-0.5 rounded-full border bg-amber-50 text-amber-800 border-amber-300 font-mono">
+          <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+          <span>Payment: Pending (Pay upon Releasing)</span>
+        </span>
+      );
+    }
+    if (s === "failed" || s === "rejected") {
+      return (
+        <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-full border bg-rose-50 text-rose-800 border-rose-300 font-mono">
+          <span>Payment: Failed</span>
+        </span>
+      );
+    }
+    return (
+      <span className="inline-flex items-center text-[11px] font-mono font-medium px-2 py-0.5 rounded-full border bg-zinc-100 text-zinc-700 border-zinc-200">
+        Payment: {label}
+      </span>
+    );
+  }
+
+  if (s === "completed") {
+    return (
+      <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-full border bg-emerald-50 text-emerald-800 border-emerald-300">
+        <svg className="w-3 h-3 text-emerald-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+          <polyline points="20 6 9 17 4 12" />
+        </svg>
+        <span>Completed &amp; Delivered</span>
+      </span>
+    );
+  }
+  if (s === "ready_for_pickup") {
+    return (
+      <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-0.5 rounded-full border bg-amber-50 text-amber-800 border-amber-300">
+        <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+        <span>Ready for Pickup</span>
+      </span>
+    );
+  }
+  if (s === "shipped") {
+    return (
+      <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-0.5 rounded-full border bg-sky-50 text-sky-800 border-sky-300">
+        <svg className="w-3 h-3 text-sky-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0" />
+        </svg>
+        <span>In Transit</span>
+      </span>
+    );
+  }
+  if (s === "processing") {
+    return (
+      <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-0.5 rounded-full border bg-blue-50 text-blue-800 border-blue-300">
+        <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+        <span>Processing</span>
+      </span>
+    );
+  }
+  if (s === "pending") {
+    return (
+      <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full border bg-zinc-100 text-zinc-700 border-zinc-300 font-mono">
+        <span>Order Placed</span>
+      </span>
+    );
+  }
+  if (s === "canceled" || s === "failed" || s === "rejected") {
+    return (
+      <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full border bg-rose-50 text-rose-800 border-rose-300">
+        <span>✕ {label}</span>
+      </span>
+    );
+  }
+  if (s === "approved") {
+    return (
+      <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-full border bg-emerald-50 text-emerald-800 border-emerald-300">
+        <svg className="w-3 h-3 text-emerald-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+          <polyline points="20 6 9 17 4 12" />
+        </svg>
+        <span>Loan Approved</span>
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center text-[11px] font-medium px-2 py-0.5 rounded-full border bg-zinc-100 text-zinc-700 border-zinc-200 capitalize">
+      {label}
+    </span>
+  );
+};
 
 const generatePaymentRef = () => `MP-${Math.floor(100000 + Math.random() * 900000)}`;
 
@@ -55,8 +132,15 @@ export const Orders = () => {
     dispatch(getMyOrders());
   }, [dispatch]);
 
+  const completedOrders = orders.filter((o) => o.orderStatus === "completed");
   const shownOrders =
-    activeTab === "all" || activeTab === "orders" ? orders : [];
+    activeTab === "all"
+      ? orders
+      : activeTab === "completed"
+      ? completedOrders
+      : activeTab === "orders"
+      ? orders
+      : [];
   const shownApplications =
     activeTab === "all" || activeTab === "applications" ? applications : [];
 
@@ -121,7 +205,7 @@ export const Orders = () => {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-50/50 text-zinc-900 antialiased flex flex-col font-sans selection:bg-emerald-100 selection:text-emerald-900">
+    <div className="min-h-screen bg-zinc-50/60 text-zinc-900 antialiased flex flex-col font-sans selection:bg-emerald-100 selection:text-emerald-900">
       <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-8 space-y-8">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-4 border-b border-zinc-200">
@@ -133,9 +217,10 @@ export const Orders = () => {
               Track your cash purchases, in-house motorcycle loan applications, and monthly installment amortization schedules.
             </p>
           </div>
-          <div className="flex items-center gap-1 border border-zinc-200 p-0.5 rounded-xl bg-white text-xs font-medium self-start sm:self-auto shadow-2xs">
+          <div className="flex items-center gap-1 border border-zinc-200 p-1 rounded-xl bg-white text-xs font-medium self-start sm:self-auto shadow-2xs overflow-x-auto max-w-full">
             {[
-              { key: "all", label: "All Records" },
+              { key: "all", label: "All Records", count: orders.length + applications.length },
+              { key: "completed", label: "Completed & Ready to Review", count: completedOrders.length, highlight: true },
               { key: "orders", label: `Cash Orders (${orders.length})` },
               { key: "applications", label: `Financing Loans (${applications.length})` },
             ].map((t) => (
@@ -143,13 +228,28 @@ export const Orders = () => {
                 key={t.key}
                 type="button"
                 onClick={() => setActiveTab(t.key)}
-                className={`px-3.5 py-1.5 rounded-lg transition-colors cursor-pointer ${
+                className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
                   activeTab === t.key
                     ? "bg-zinc-900 text-white font-semibold shadow-xs"
-                    : "text-zinc-500 hover:text-zinc-900"
+                    : t.highlight && completedOrders.length > 0
+                    ? "text-emerald-700 bg-emerald-50 hover:bg-emerald-100 font-semibold"
+                    : "text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100"
                 }`}
               >
-                {t.label}
+                <span>{t.label}</span>
+                {t.count !== undefined && (
+                  <span
+                    className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+                      activeTab === t.key
+                        ? "bg-zinc-700 text-white"
+                        : t.highlight && completedOrders.length > 0
+                        ? "bg-emerald-200 text-emerald-900"
+                        : "bg-zinc-100 text-zinc-600"
+                    }`}
+                  >
+                    {t.count}
+                  </span>
+                )}
               </button>
             ))}
           </div>
@@ -162,117 +262,276 @@ export const Orders = () => {
         )}
 
         {/* ────────────────────────────────────────────────────────────── */}
-        {/* SECTION 1: CASH ORDERS                                         */}
+        {/* SECTION 1: CASH PURCHASES & DELIVERIES                         */}
         {/* ────────────────────────────────────────────────────────────── */}
-        {shownOrders.length > 0 && (
+        {activeTab !== "applications" && (
           <ScrollReveal threshold={0.05} duration={500}>
             <section className="space-y-4">
-              <h2 className="text-base font-bold text-zinc-900 border-b border-zinc-200 pb-2">
-                Cash Purchases & Deliveries
-              </h2>
-              {shownOrders.map((order) => (
-                <div
-                  key={order._id}
-                  className="border border-zinc-200 rounded-2xl bg-white overflow-hidden shadow-2xs"
-                >
-                  {/* Order header */}
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-5 py-3 bg-zinc-50/80 border-b border-zinc-100">
-                    <div className="flex items-center gap-3 flex-wrap">
-                      <span className="font-mono font-bold text-zinc-900 text-sm">
-                        {order.orderNumber}
-                      </span>
-                      <StatusBadge label={order.orderStatus} />
-                      <StatusBadge label={order.paymentStatus} />
-                    </div>
-                    <div className="text-[11px] text-zinc-500 font-mono">
-                      {new Date(order.createdAt).toLocaleDateString("en-PH", {
-                        year: "numeric",
-                        month: "short",
-                        day: "numeric",
-                      })}
-                    </div>
-                  </div>
+              <div className="flex items-center justify-between border-b border-zinc-200 pb-2">
+                <h2 className="text-base font-bold text-zinc-900 flex items-center gap-2">
+                  <span>Cash Purchases &amp; Deliveries</span>
+                  <span className="text-xs text-zinc-400 font-mono font-normal">
+                    ({shownOrders.length} {shownOrders.length === 1 ? "order" : "orders"})
+                  </span>
+                </h2>
+                {activeTab === "completed" && (
+                  <span className="text-xs text-emerald-700 font-medium bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full flex items-center gap-1">
+                    <svg className="w-3.5 h-3.5 text-emerald-600" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                    <span>Showing delivered items ready for customer reviews</span>
+                  </span>
+                )}
+              </div>
 
-                  {/* Order items */}
-                  <div className="px-5 py-4 space-y-3">
-                    {order.orderItems?.map((item, idx) => (
-                      <div
-                        key={idx}
-                        className="flex items-center gap-3 text-xs"
-                      >
-                        <div className="w-12 h-12 shrink-0 rounded-lg bg-zinc-100 border border-zinc-200 overflow-hidden">
-                          {item.image ? (
-                            <img
-                              src={item.image}
-                              alt={item.name}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <ProductImagePlaceholder
-                              category={item.itemType}
-                              name={item.name}
-                              compact
-                            />
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-semibold text-zinc-900 truncate">
-                            {item.name}
-                          </p>
-                          <p className="text-zinc-500">
-                            {fmt(item.price)} × {item.quantity}
-                          </p>
-                        </div>
-                        <p className="font-mono font-bold text-zinc-900 shrink-0">
-                          {fmt(item.price * item.quantity)}
-                        </p>
-                      </div>
-                    ))}
+              {shownOrders.length === 0 ? (
+                <div className="border border-dashed border-zinc-300 rounded-2xl p-10 bg-white text-center space-y-3">
+                  <div className="w-12 h-12 rounded-full bg-zinc-100 text-zinc-500 mx-auto flex items-center justify-center">
+                    <svg className="w-6 h-6 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                    </svg>
                   </div>
-
-                  {/* Order footer */}
-                  <div className="px-5 py-3 border-t border-zinc-100 bg-zinc-50/40 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                    <div className="text-xs text-zinc-500 space-y-0.5">
-                      <p>
-                        <span className="font-semibold text-zinc-700">Settlement:</span>{" "}
-                        {order.paymentMethod?.replace(/_/g, " ").toUpperCase()}
-                      </p>
-                      {order.shippingInfo?.fulfillmentMethod === "delivery" ? (
-                        <p>
-                          <span className="font-semibold text-zinc-700">
-                            Doorstep Courier:
-                          </span>{" "}
-                          {order.shippingInfo?.address}, {order.shippingInfo?.city} (₱{order.shippingPrice || 0} Freight)
-                        </p>
-                      ) : (
-                        <p>
-                          <span className="font-semibold text-zinc-700">
-                            Showroom Pickup:
-                          </span>{" "}
-                          {order.shippingInfo?.branch}
-                        </p>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-4">
-                      <a
-                        href={`http://localhost:4001/api/v1/order/${order._id}/receipt`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-xs font-semibold text-emerald-700 hover:text-emerald-800 hover:underline inline-flex items-center gap-1"
-                      >
-                        <span>Official Receipt</span>
-                        <span>↗</span>
-                      </a>
-                      <div className="text-right">
-                        <p className="text-[10px] text-zinc-400 font-mono">Order Total</p>
-                        <p className="font-mono font-bold text-zinc-900 text-base">
-                          {fmt(order.totalPrice)}
-                        </p>
-                      </div>
-                    </div>
+                  <h3 className="font-bold text-zinc-900 text-base">
+                    {activeTab === "completed"
+                      ? "No Completed Orders to Review"
+                      : "No Cash Orders Found"}
+                  </h3>
+                  <p className="text-xs text-zinc-500 max-w-md mx-auto">
+                    {activeTab === "completed"
+                      ? "When your order status is marked 'Completed' by the showroom admin, your products will be listed here with a direct link to rate and write a customer review."
+                      : "Browse our showroom catalog to purchase motorcycles, OEM replacement parts, or rider gear."}
+                  </p>
+                  <div className="pt-2">
+                    <Link
+                      to="/shop"
+                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-xs transition-colors"
+                    >
+                      <span>Explore Catalog</span>
+                      <span>&rarr;</span>
+                    </Link>
                   </div>
                 </div>
-              ))}
+              ) : (
+                shownOrders.map((order) => {
+                  const isCompleted = order.orderStatus === "completed";
+                  return (
+                    <div
+                      key={order._id}
+                      className={`border rounded-2xl bg-white overflow-hidden shadow-xs transition-all hover:shadow-md ${
+                        isCompleted
+                          ? "border-emerald-200 ring-1 ring-emerald-500/10"
+                          : "border-zinc-200"
+                      }`}
+                    >
+                      {/* Order header */}
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-3.5 bg-gradient-to-r from-zinc-50 via-zinc-50/50 to-white border-b border-zinc-100">
+                        <div className="flex items-center gap-2.5 flex-wrap">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-zinc-400 text-xs font-mono">Order</span>
+                            <span className="font-mono font-bold text-zinc-900 text-sm tracking-tight bg-zinc-100 px-2 py-0.5 rounded border border-zinc-200">
+                              {order.orderNumber}
+                            </span>
+                          </div>
+                          <StatusBadge type="fulfillment" label={order.orderStatus} />
+                          {isCompleted && (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-800 bg-emerald-100/90 border border-emerald-200 px-2 py-0.5 rounded-full">
+                              <svg className="w-2.5 h-2.5 text-amber-500 fill-amber-500" viewBox="0 0 24 24">
+                                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                              </svg>
+                              <span>Ready to Rate &amp; Review</span>
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1.5 text-xs text-zinc-500 font-mono">
+                          <svg className="w-3.5 h-3.5 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                          <span>
+                            {new Date(order.createdAt).toLocaleDateString("en-PH", {
+                              year: "numeric",
+                              month: "short",
+                              day: "numeric",
+                            })}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Completed order review prompt banner */}
+                      {isCompleted && (
+                        <div className="px-5 py-2.5 bg-emerald-50/70 border-b border-emerald-100 flex items-center justify-between gap-3 text-xs">
+                          <div className="flex items-center gap-2 text-emerald-900">
+                            <svg className="w-4 h-4 text-emerald-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                            </svg>
+                            <span className="font-medium">
+                              Your order was delivered! How was your experience with the unit and service?
+                            </span>
+                          </div>
+                          <span className="text-[11px] text-emerald-700 font-semibold hidden sm:inline">
+                            Verified Purchase Benefit
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Order items */}
+                      <div className="px-5 py-4 divide-y divide-zinc-100">
+                        {order.orderItems?.map((item, idx) => {
+                          const prodId = item.product?._id || item.product;
+                          return (
+                            <div
+                              key={idx}
+                              className="py-3.5 first:pt-0 last:pb-0 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                            >
+                              <div className="flex items-center gap-3.5 min-w-0">
+                                <Link
+                                  to={`/product/${prodId}`}
+                                  className="w-14 h-14 shrink-0 rounded-xl bg-zinc-50 border border-zinc-200 overflow-hidden group/img relative block cursor-pointer"
+                                  title={`View details for ${item.name}`}
+                                >
+                                  {item.image ? (
+                                    <img
+                                      src={item.image}
+                                      alt={item.name}
+                                      className="w-full h-full object-cover group-hover/img:scale-105 transition-transform"
+                                    />
+                                  ) : (
+                                    <ProductImagePlaceholder
+                                      category={item.itemType}
+                                      name={item.name}
+                                      compact
+                                    />
+                                  )}
+                                </Link>
+                                <div className="min-w-0 space-y-1">
+                                  <Link
+                                    to={`/product/${prodId}`}
+                                    className="font-bold text-zinc-900 text-sm hover:text-emerald-700 transition-colors line-clamp-1 block cursor-pointer"
+                                  >
+                                    {item.name}
+                                  </Link>
+                                  <div className="flex items-center gap-2 text-xs text-zinc-500">
+                                    <span className="font-mono">{fmt(item.price)}</span>
+                                    <span>×</span>
+                                    <span className="bg-zinc-100 px-1.5 py-0.2 rounded font-mono text-[11px] font-semibold text-zinc-700">
+                                      Qty: {item.quantity}
+                                    </span>
+                                    <span className="text-zinc-300">•</span>
+                                    <span className="capitalize text-zinc-500 font-medium">
+                                      {item.itemType || "item"}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Item Right Side: Price & Actions */}
+                              <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-zinc-100">
+                                <div className="text-left sm:text-right pr-1">
+                                  <span className="text-[10px] text-zinc-400 block font-mono">Item Total</span>
+                                  <span className="font-mono font-bold text-zinc-900 text-sm">
+                                    {fmt(item.price * item.quantity)}
+                                  </span>
+                                </div>
+
+                                <div className="flex items-center gap-2">
+                                  <Link
+                                    to={`/product/${prodId}`}
+                                    className="h-8 px-2.5 rounded-lg border border-zinc-200 text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50 text-xs font-medium transition-colors inline-flex items-center cursor-pointer"
+                                  >
+                                    View
+                                  </Link>
+
+                                  {isCompleted && (
+                                    <Link
+                                      to={`/product/${prodId}#reviews`}
+                                      className="h-8 px-3.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-xs font-semibold inline-flex items-center gap-1.5 shadow-xs hover:shadow transition-all cursor-pointer whitespace-nowrap"
+                                      title={`Write a verified customer review for ${item.name}`}
+                                    >
+                                      <svg className="w-3.5 h-3.5 fill-amber-300 text-amber-300" viewBox="0 0 24 24">
+                                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                                      </svg>
+                                      <span>Write Review</span>
+                                    </Link>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* Order Details & Settlement Footer */}
+                      <div className="px-5 py-4 border-t border-zinc-100 bg-zinc-50/60 grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
+                        {/* Left: Fulfillment & Payment */}
+                        <div className="md:col-span-7 space-y-2 text-xs">
+                          <div className="flex items-start gap-2.5">
+                            <div className="w-6 h-6 rounded-md bg-white border border-zinc-200 flex items-center justify-center shrink-0 mt-0.5 text-zinc-600">
+                              {order.shippingInfo?.fulfillmentMethod === "delivery" ? (
+                                <svg className="w-3.5 h-3.5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                                </svg>
+                              ) : (
+                                <svg className="w-3.5 h-3.5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                </svg>
+                              )}
+                            </div>
+                            <div>
+                              <span className="font-semibold text-zinc-900 block">
+                                {order.shippingInfo?.fulfillmentMethod === "delivery"
+                                  ? "Doorstep Courier Delivery"
+                                  : "Dealership Showroom Pickup"}
+                              </span>
+                              <span className="text-zinc-500 text-[11px]">
+                                {order.shippingInfo?.fulfillmentMethod === "delivery"
+                                  ? `${order.shippingInfo?.address || ""}, ${order.shippingInfo?.city || ""}`
+                                  : `Claim at ${order.shippingInfo?.branch || "Central Flagship Showroom"}`}
+                                {order.shippingPrice > 0 && ` (₱${order.shippingPrice} Freight)`}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 pt-0.5 flex-wrap">
+                            <span className="text-[11px] text-zinc-400 font-mono uppercase">Settlement:</span>
+                            <span className="font-semibold text-zinc-800 text-[11px] bg-white border border-zinc-200 px-2 py-0.5 rounded font-mono">
+                              {order.paymentMethod?.replace(/_/g, " ").toUpperCase()}
+                            </span>
+                            <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded ${
+                              order.paymentStatus === 'paid'
+                                ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                                : 'bg-amber-100 text-amber-800 border border-amber-200'
+                            }`}>
+                              {order.paymentStatus === 'paid' ? 'PAID' : 'PAYMENT PENDING'}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Right: Totals & Receipt Action */}
+                        <div className="md:col-span-5 flex flex-col sm:flex-row md:flex-col lg:flex-row items-start sm:items-center md:items-end lg:items-center justify-between md:justify-end gap-3 pt-2 md:pt-0 border-t md:border-t-0 border-zinc-200">
+                          <a
+                            href={`http://localhost:4001/api/v1/order/${order._id}/receipt`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="h-8 px-3 rounded-lg border border-zinc-300 hover:border-zinc-400 bg-white hover:bg-zinc-50 text-zinc-700 text-xs font-semibold transition-colors shadow-2xs inline-flex items-center gap-1.5 cursor-pointer"
+                          >
+                            <svg className="w-3.5 h-3.5 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                            <span>Official Receipt</span>
+                            <span className="text-zinc-400 text-[10px]">↗</span>
+                          </a>
+
+                          <div className="text-right">
+                            <p className="text-[10px] text-zinc-400 font-mono uppercase tracking-wider">Total Paid / Due</p>
+                            <p className="font-mono font-extrabold text-zinc-900 text-lg leading-tight">
+                              {fmt(order.totalPrice)}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
             </section>
           </ScrollReveal>
         )}
