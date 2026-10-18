@@ -18,6 +18,8 @@ import { getProducts, getCategories, getBrands } from "../../../actions/productA
 import { addToCart } from "../../../actions/cartActions";
 import { toast } from "react-toastify";
 
+const API = import.meta.env.VITE_API;
+
 export const Shop = ({ onNavigate }) => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -115,8 +117,7 @@ export const Shop = ({ onNavigate }) => {
     setLoadingMore(true);
     const nextPage = infinitePage + 1;
     try {
-      const api = import.meta.env.VITE_API;
-      let url = `${api}/products?page=${nextPage}&limit=12&price[gte]=${priceRange[0]}&price[lte]=${priceRange[1]}`;
+      let url = `${API}/products?page=${nextPage}&limit=12&price[gte]=${priceRange[0]}&price[lte]=${priceRange[1]}`;
       if (searchQuery.trim()) url += `&keyword=${encodeURIComponent(searchQuery.trim())}`;
       if (selectedCategory && selectedCategory !== "All") url += `&category=${encodeURIComponent(selectedCategory)}`;
       if (selectedBrand && selectedBrand !== "All") url += `&brand=${encodeURIComponent(selectedBrand)}`;

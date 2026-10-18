@@ -97,5 +97,9 @@ orderSchema.pre("validate", async function () {
   }
 });
 
+// Indexes for fast customer order lookups and admin order status filtering
+orderSchema.index({ user: 1, createdAt: -1 });
+orderSchema.index({ orderStatus: 1, createdAt: -1 });
+
 const Order = mongoose.model("Order", orderSchema);
 export default Order;

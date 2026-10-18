@@ -370,6 +370,85 @@ export const newCheckout = async (req, res) => {
   }
 };
 
+// ─── newOrder (Reference / Course API Compatibility) ──────────────────────────
+// POST /api/v1/order/new
+// Reference: itcp318-s3a-2026/backend/controllers/order.js
+export const newOrder = async (req, res) => {
+  try {
+    const {
+      orderItems = [],
+      shippingInfo = {},
+      itemsPrice,
+      taxPrice = 0,
+      shippingPrice = 0,
+      totalPrice,
+      paymentMethod = "cash_on_releasing",
+      paymentInfo,
+    } = req.body;
+
+    if (!orderItems || orderItems.length === 0) {
+      return res.status(400).json({ success: false, message: "No order items provided" });
+    }
+
+    const items = orderItems.map((item) => ({
+      product: item.product || item._id,
+      name: item.name,
+      quantity: item.quantity || 1,
+      price: item.price,
+      image: item.image || "",
+      itemType: item.itemType || "part",
+    }));
+
+    const finalShippingInfo = {
+      recipientName:
+        shippingInfo.recipientName ||
+        shippingInfo.name ||
+        `${req.user.firstName || ""} ${req.user.lastName || ""}`.trim() ||
+        "Customer",
+      contactNumber: shippingInfo.contactNumber || shippingInfo.phoneNo || "—",
+      email: shippingInfo.email || req.user.email || "—",
+      address: shippingInfo.address || "—",
+      city: shippingInfo.city || "—",
+      postalCode: shippingInfo.postalCode || "—",
+      fulfillmentMethod: shippingInfo.fulfillmentMethod || "delivery",
+    };
+
+    const calculatedItemsPrice =
+      itemsPrice !== undefined
+        ? Number(itemsPrice)
+        : items.reduce((sum, i) => sum + i.price * i.quantity, 0);
+    const calculatedTotalPrice =
+      totalPrice !== undefined
+        ? Number(totalPrice)
+        : calculatedItemsPrice + Number(shippingPrice) + Number(taxPrice);
+
+    const order = new Order({
+      checkoutSessionId: req.body.checkoutSessionId || `session_${Date.now()}`,
+      user: req.user._id,
+      orderItems: items,
+      shippingInfo: finalShippingInfo,
+      paymentMethod: ["cash_on_releasing", "bank_deposit", "gcash", "maya"].includes(
+        paymentMethod
+      )
+        ? paymentMethod
+        : "cash_on_releasing",
+      paymentStatus: paymentInfo?.status === "succeeded" ? "paid" : "pending",
+      itemsPrice: calculatedItemsPrice,
+      shippingPrice: Number(shippingPrice) || 0,
+      totalPrice: calculatedTotalPrice,
+      paidAt: paymentInfo?.status === "succeeded" ? new Date() : undefined,
+    });
+
+    await order.save();
+    return res.status(200).json({ success: true, order });
+  } catch (error) {
+    console.error("newOrder error:", error);
+    return res
+      .status(500)
+      .json({ success: false, message: error.message || "Failed to create order" });
+  }
+};
+
 // ─── getMyOrders ───────────────────────────────────────────────────────────────
 
 /**
@@ -1058,7 +1137,6 @@ export const getDashboardStats = async (req, res) => {
       allOrders,
       allApps,
       lowStockProducts,
-      pendingApps,
     ] = await Promise.all([
       Order.find()
         .populate("user", "firstName lastName email contactNumber")
@@ -1071,11 +1149,9 @@ export const getDashboardStats = async (req, res) => {
       Product.find({ stock: { $lte: 5 }, isArchived: false })
         .select("name price stock category brand images")
         .sort({ stock: 1 }),
-      InstallmentApplication.find({ applicationStatus: "pending" })
-        .populate("user", "firstName lastName email contactNumber validId proofOfIncome")
-        .populate("product", "name price category images")
-        .sort({ createdAt: -1 }),
     ]);
+
+    const pendingApps = allApps.filter((a) => a.applicationStatus === "pending");
 
     // Financial totals across all time
     const completedOrders = allOrders.filter(

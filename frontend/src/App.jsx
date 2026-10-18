@@ -94,6 +94,10 @@ function App() {
                 </ProtectedRoute>
               }
             />
+            {/* Compatibility aliases matching reference repo routes */}
+            <Route path="/shipping" element={<Navigate to="/checkout/shipping" replace />} />
+            <Route path="/confirm" element={<Navigate to="/checkout/confirm" replace />} />
+            <Route path="/orders/me" element={<Navigate to="/orders" replace />} />
           </Route>
 
           {/* Admin routes — requires authenticated admin role

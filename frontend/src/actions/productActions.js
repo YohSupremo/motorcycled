@@ -89,6 +89,7 @@ export const getProducts =
     ratings = 0,
     limit = 12,
     hasReviews = false,
+    isFeatured = false,
   ) =>
   async (dispatch) => {
     try {
@@ -111,6 +112,9 @@ export const getProducts =
       }
       if (hasReviews) {
         link += `&hasReviews=true`;
+      }
+      if (isFeatured) {
+        link += `&isFeatured=true`;
       }
       const { data } = await axios.get(link);
       dispatch({ type: ALL_PRODUCTS_SUCCESS, payload: data });
@@ -251,6 +255,23 @@ export const toggleArchiveProduct = (id) => async (dispatch) => {
       type: ARCHIVE_PRODUCT_FAIL,
       payload: error.response?.data?.message,
     });
+  }
+};
+
+// ─── Admin: toggle featured status ───────────────────────────────────────────
+export const toggleFeatureProduct = (id) => async (dispatch) => {
+  try {
+    const { data } = await axios.patch(
+      `${API}/admin/product/${id}/feature`,
+      {},
+      { withCredentials: true }
+    );
+    // Refresh products list for admin
+    dispatch(getAdminProducts());
+    return { success: true, isFeatured: data.isFeatured, message: data.message };
+  } catch (error) {
+    const message = error.response?.data?.message || "Failed to update featured status";
+    return { success: false, message };
   }
 };
 

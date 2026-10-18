@@ -74,15 +74,13 @@ const productSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
-    // FK → installment_plans (PDF §4.5)
-    eligiblePlans: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "InstallmentPlan",
-      },
-    ],
     // Archive flag instead of hard-delete (PDF §1 Design Principles #5)
     isArchived: {
+      type: Boolean,
+      default: false,
+    },
+    // Featured status for Homepage Showcase
+    isFeatured: {
       type: Boolean,
       default: false,
     },
@@ -97,10 +95,11 @@ const productSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
-// Indexes from PDF §4.5
+// Indexes from PDF §4.5 + Storefront Compound Filters
 productSchema.index({ name: "text", description: "text" });
 productSchema.index({ category: 1, brand: 1, price: 1 });
 productSchema.index({ compatibleModels: 1 });
+productSchema.index({ isArchived: 1, isFeatured: 1, category: 1, price: 1 });
 
 const Product = mongoose.model("Product", productSchema);
 export default Product;

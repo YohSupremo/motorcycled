@@ -16,6 +16,8 @@ import { getProducts } from "../../../actions/productActions";
 import { addToCart } from "../../../actions/cartActions";
 import { toast } from "react-toastify";
 
+const API = import.meta.env.VITE_API;
+
 const financeSteps = [
   {
     title: "Configure repayment plan",
@@ -168,8 +170,7 @@ export const Homepage = ({ onNavigate }) => {
     let isMounted = true;
     const fetchBrands = async () => {
       try {
-        const api = import.meta.env.VITE_API;
-        const res = await axios.get(`${api}/brands`);
+        const res = await axios.get(`${API}/brands`);
         if (isMounted && res.data && res.data.brands) {
           setLiveBrands(res.data.brands);
         }
@@ -188,7 +189,7 @@ export const Homepage = ({ onNavigate }) => {
     (state) => state.products || {}
   );
 
-  // Fetch live catalog units for hero carousel on mount and filter changes
+  // Fetch live featured units for hero carousel on mount and filter changes
   useEffect(() => {
     dispatch(
       getProducts(
@@ -196,7 +197,12 @@ export const Homepage = ({ onNavigate }) => {
         searchQuery,
         [0, 9999999],
         "",
-        selectedBrandFilter === "All" ? "" : selectedBrandFilter
+        selectedBrandFilter === "All" ? "" : selectedBrandFilter,
+        false,
+        0,
+        12,
+        false,
+        true // isFeatured: only fetch featured showroom models
       )
     );
   }, [dispatch, searchQuery, selectedBrandFilter]);
@@ -206,8 +212,7 @@ export const Homepage = ({ onNavigate }) => {
     let isMounted = true;
     const fetchInitial = async () => {
       try {
-        const api = import.meta.env.VITE_API;
-        const res = await axios.get(`${api}/products?page=1&limit=8`);
+        const res = await axios.get(`${API}/products?page=1&limit=8`);
         if (isMounted && res.data) {
           const fetched = res.data.products || [];
           setInfiniteProducts(fetched);
@@ -231,8 +236,7 @@ export const Homepage = ({ onNavigate }) => {
     setLoadingMore(true);
     const nextPage = infinitePage + 1;
     try {
-      const api = import.meta.env.VITE_API;
-      const res = await axios.get(`${api}/products?page=${nextPage}&limit=8`);
+      const res = await axios.get(`${API}/products?page=${nextPage}&limit=8`);
       if (res.data) {
         const newItems = res.data.products || [];
         setInfiniteProducts((prev) => {
@@ -275,7 +279,11 @@ export const Homepage = ({ onNavigate }) => {
     }
   };
 
-  const featuredUnits = useMemo(() => products.slice(0, 8), [products]);
+  const featuredUnits = useMemo(() => {
+    const featured = products.filter((p) => p.isFeatured && !p.isArchived);
+    if (featured.length > 0) return featured;
+    return products.filter((p) => !p.isArchived).slice(0, 8);
+  }, [products]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -505,7 +513,7 @@ export const Homepage = ({ onNavigate }) => {
               </div>
               <div className="flex items-center gap-4 text-xs">
                 <span className="text-zinc-500">
-                  Showing {products.length} of {productsCount} showroom models
+                  Showing {featuredUnits.length} showroom model{featuredUnits.length === 1 ? "" : "s"}
                 </span>
                 <button
                   type="button"
@@ -1136,7 +1144,12 @@ const FeaturedProductCarousel = ({
       )}
 
       <div className="max-w-xl mx-auto px-4 mt-5 sm:mt-6 flex flex-col items-center text-center gap-3">
-        <div className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-wider text-zinc-500">
+        <div className="flex flex-wrap items-center justify-center gap-2 text-[10px] font-mono uppercase tracking-wider text-zinc-500">
+          {current.isFeatured && (
+            <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-700 font-bold px-2 py-0.5 rounded border border-amber-200 shadow-2xs">
+              ★ Featured Showroom Unit
+            </span>
+          )}
           <span className="font-semibold text-emerald-700">{brandName}</span>
           <span className="text-zinc-300">-</span>
           <span>{categoryName}</span>

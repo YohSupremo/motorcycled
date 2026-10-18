@@ -8,6 +8,7 @@ import {
   bulkDeleteProducts,
   bulkRestoreProducts,
   toggleArchiveProduct,
+  toggleFeatureProduct,
   getProducts,
 } from "../controllers/productController.js";
 import { auth, authorizeRoles } from "../middleware/authMiddleware.js";
@@ -65,6 +66,13 @@ router.patch(
   auth,
   authorizeRoles("admin"),
   toggleArchiveProduct,
+);
+
+router.patch(
+  "/admin/product/:id/feature",
+  auth,
+  authorizeRoles("admin"),
+  toggleFeatureProduct,
 );
 
 // ── Public routes ─────────────────────────────────────────────────────────────

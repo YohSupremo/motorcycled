@@ -394,6 +394,15 @@ export const getProducts = async (req, res) => {
     }
   }
 
+  // Featured filter (Homepage curated showcase)
+  if (
+    req.query.isFeatured === "true" ||
+    req.query.featured === "true" ||
+    req.query.isFeatured === true
+  ) {
+    filter.isFeatured = true;
+  }
+
   const productsCount = await Product.countDocuments(filter);
 
   const products = await Product.find(filter)
@@ -410,4 +419,33 @@ export const getProducts = async (req, res) => {
     filteredProductsCount: productsCount,
     products,
   });
+};
+
+// ─── ADMIN: TOGGLE FEATURED STATUS ───────────────────────────────────────────
+// PATCH /api/v1/admin/product/:id/feature
+export const toggleFeatureProduct = async (req, res) => {
+  try {
+    const product = await Product.findById(req.params.id);
+
+    if (!product) {
+      return res.status(404).json({ success: false, message: "Product not found" });
+    }
+
+    product.isFeatured = !product.isFeatured;
+    await product.save();
+
+    return res.status(200).json({
+      success: true,
+      isFeatured: product.isFeatured,
+      message: product.isFeatured
+        ? `"${product.name}" is now featured on the homepage showcase!`
+        : `"${product.name}" removed from featured homepage items.`,
+    });
+  } catch (error) {
+    console.error("toggleFeatureProduct error:", error);
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Failed to toggle featured status",
+    });
+  }
 };

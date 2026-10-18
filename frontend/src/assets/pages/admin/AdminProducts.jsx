@@ -12,6 +12,7 @@ import {
   bulkDeleteProducts,
   bulkRestoreProducts,
   toggleArchiveProduct,
+  toggleFeatureProduct,
   getCategories,
   getBrands,
   clearErrors,
@@ -195,6 +196,7 @@ const EMPTY_FORM = {
   compatibleModels: "",
   installmentEligible: false,
   minInstallmentPrice: "",
+  isFeatured: false,
   category: "",
   brand: "",
 };
@@ -233,6 +235,7 @@ const ProductModal = ({
         compatibleModels: (editingProduct.compatibleModels || []).join(", "),
         installmentEligible: editingProduct.installmentEligible || false,
         minInstallmentPrice: editingProduct.minInstallmentPrice ?? "",
+        isFeatured: Boolean(editingProduct.isFeatured),
         category: editingProduct.category?._id || editingProduct.category || "",
         brand: editingProduct.brand?._id || editingProduct.brand || "",
       });
@@ -334,6 +337,7 @@ const ProductModal = ({
         .filter(Boolean),
       installmentEligible: form.installmentEligible,
       minInstallmentPrice: form.installmentEligible ? Number(form.minInstallmentPrice) : 0,
+      isFeatured: Boolean(form.isFeatured),
       category: form.category,
       brand: form.brand,
       images: imageList.map((item) => item.data),
@@ -503,6 +507,25 @@ const ProductModal = ({
                 />
               </div>
             )}
+          </div>
+
+          {/* Featured on Homepage */}
+          <div className="pt-2 border-t border-zinc-100">
+            <label className="flex items-center gap-2 cursor-pointer font-semibold text-zinc-900">
+              <input
+                type="checkbox"
+                checked={form.isFeatured}
+                onChange={(e) => setForm({ ...form, isFeatured: e.target.checked })}
+                className="rounded text-amber-500 focus:ring-0 w-3.5 h-3.5"
+              />
+              <span className="flex items-center gap-1.5">
+                <span className="text-amber-500 font-bold">★</span>
+                <span>Feature on Homepage Showroom Carousel</span>
+                <span className="text-[11px] text-zinc-400 font-normal">
+                  (Spotlights this unit on the homepage showroom carousel)
+                </span>
+              </span>
+            </label>
           </div>
 
           {/* Images */}
@@ -685,14 +708,16 @@ export const AdminProducts = () => {
     setEditingProduct(null);
   };
 
-  // Active & Archived counts
+  // Active, Archived & Featured counts
   const activeProducts = products.filter((p) => !p.isArchived);
   const archivedProducts = products.filter((p) => p.isArchived);
+  const featuredProducts = products.filter((p) => p.isFeatured && !p.isArchived);
 
   // Filter products
   const filtered = products.filter((p) => {
     if (statusFilter === "active" && p.isArchived) return false;
     if (statusFilter === "archived" && !p.isArchived) return false;
+    if (statusFilter === "featured" && (!p.isFeatured || p.isArchived)) return false;
     const catId = typeof p.category === "object" ? p.category?._id : p.category;
     const brandId = typeof p.brand === "object" ? p.brand?._id : p.brand;
     if (selectedCategory !== "all" && catId !== selectedCategory) return false;
@@ -905,6 +930,45 @@ export const AdminProducts = () => {
             </span>
           ) : (
             <span className="text-[11px] text-zinc-400">Cash / COD</span>
+          );
+        },
+      },
+      {
+        field: "isFeatured",
+        headerName: "Featured",
+        width: 100,
+        headerAlign: "center",
+        align: "center",
+        renderCell: (params) => {
+          const p = params.row;
+          const isFeatured = Boolean(p.isFeatured);
+          return (
+            <button
+              type="button"
+              onClick={async (e) => {
+                e.stopPropagation();
+                const res = await dispatch(toggleFeatureProduct(p._id));
+                if (res?.success) {
+                  toast.success(res.message);
+                } else {
+                  toast.error(res?.message || "Failed to update featured status");
+                }
+              }}
+              className={`p-1.5 rounded-md flex items-center justify-center transition-all cursor-pointer ${
+                isFeatured
+                  ? "text-amber-500 hover:text-amber-600 bg-amber-50 hover:bg-amber-100 ring-1 ring-amber-300"
+                  : "text-zinc-300 hover:text-zinc-500 hover:bg-zinc-100"
+              }`}
+              title={
+                isFeatured
+                  ? "Featured in Homepage Showroom (click to remove)"
+                  : "Not featured (click to feature on homepage)"
+              }
+            >
+              <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+              </svg>
+            </button>
           );
         },
       },
@@ -1146,6 +1210,18 @@ export const AdminProducts = () => {
               }`}
             >
               Soft-Deleted ({archivedProducts.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setStatusFilter("featured")}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors cursor-pointer flex items-center gap-1 ${
+                statusFilter === "featured"
+                  ? "bg-white text-amber-700 shadow-2xs"
+                  : "text-zinc-600 hover:text-zinc-900"
+              }`}
+            >
+              <span className="text-amber-500">★</span>
+              <span>Featured ({featuredProducts.length})</span>
             </button>
           </div>
         </div>

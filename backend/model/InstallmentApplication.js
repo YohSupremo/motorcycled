@@ -128,6 +128,10 @@ installmentApplicationSchema.pre("validate", async function () {
   }
 });
 
+// Indexes for fast customer application lookups and admin status filtering
+installmentApplicationSchema.index({ user: 1, createdAt: -1 });
+installmentApplicationSchema.index({ applicationStatus: 1, createdAt: -1 });
+
 const InstallmentApplication = mongoose.model(
   "InstallmentApplication",
   installmentApplicationSchema,

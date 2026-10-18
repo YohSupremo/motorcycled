@@ -2,6 +2,7 @@ import express from "express";
 import { auth, authorizeRoles } from "../middleware/authMiddleware.js";
 import {
   newCheckout,
+  newOrder,
   getMyOrders,
   getOrderDetails,
   getApplicationDetails,
@@ -20,6 +21,7 @@ const router = express.Router();
 
 // ── Customer routes ──────────────────────────────────────────────────────────
 router.post("/checkout", auth, newCheckout);
+router.post("/order/new", auth, newOrder);
 router.get("/orders/me", auth, getMyOrders);
 router.get("/order/:id", auth, getOrderDetails);
 router.get("/order/:id/receipt", auth, getOrderReceipt);

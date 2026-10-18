@@ -6,44 +6,13 @@ import { ProductImagePlaceholder } from "../../components/ProductImagePlaceholde
 import { ScrollReveal } from "../../components/ScrollReveal";
 import { toast } from "react-toastify";
 
+const API = import.meta.env.VITE_API || "http://localhost:4001/api/v1";
+
 const fmt = (n) =>
   `₱${Number(n || 0).toLocaleString("en-US", { minimumFractionDigits: 2 })}`;
 
-const StatusBadge = ({ label, type = "fulfillment" }) => {
+const StatusBadge = ({ label }) => {
   const s = label?.toLowerCase() || "";
-
-  if (type === "payment") {
-    if (s === "paid") {
-      return (
-        <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-full border bg-emerald-50 text-emerald-800 border-emerald-300 font-mono">
-          <svg className="w-3 h-3 text-emerald-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-            <polyline points="20 6 9 17 4 12" />
-          </svg>
-          <span>Payment: Paid</span>
-        </span>
-      );
-    }
-    if (s === "pending") {
-      return (
-        <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-0.5 rounded-full border bg-amber-50 text-amber-800 border-amber-300 font-mono">
-          <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-          <span>Payment: Pending (Pay upon Releasing)</span>
-        </span>
-      );
-    }
-    if (s === "failed" || s === "rejected") {
-      return (
-        <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-full border bg-rose-50 text-rose-800 border-rose-300 font-mono">
-          <span>Payment: Failed</span>
-        </span>
-      );
-    }
-    return (
-      <span className="inline-flex items-center text-[11px] font-mono font-medium px-2 py-0.5 rounded-full border bg-zinc-100 text-zinc-700 border-zinc-200">
-        Payment: {label}
-      </span>
-    );
-  }
 
   if (s === "completed") {
     return (
@@ -508,7 +477,7 @@ export const Orders = () => {
                         {/* Right: Totals & Receipt Action */}
                         <div className="md:col-span-5 flex flex-col sm:flex-row md:flex-col lg:flex-row items-start sm:items-center md:items-end lg:items-center justify-between md:justify-end gap-3 pt-2 md:pt-0 border-t md:border-t-0 border-zinc-200">
                           <a
-                            href={`http://localhost:4001/api/v1/order/${order._id}/receipt`}
+                            href={`${API}/order/${order._id}/receipt`}
                             target="_blank"
                             rel="noreferrer"
                             className="h-8 px-3 rounded-lg border border-zinc-300 hover:border-zinc-400 bg-white hover:bg-zinc-50 text-zinc-700 text-xs font-semibold transition-colors shadow-2xs inline-flex items-center gap-1.5 cursor-pointer"
