@@ -1,7 +1,17 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { login, clearErrors } from "../../actions/userActions";
+import { LOGIN_SUCCESS, LOGIN_FAIL } from "../../constants/userConstants";
+import axios from "axios";
+import {
+  auth,
+  googleProvider,
+  signInWithPopup,
+  isFirebaseConfigured,
+} from "../../firebase";
+
+const API = import.meta.env.VITE_API;
 
 export const Login = () => {
   const { isAuthenticated, user, error, loading } = useSelector(
@@ -12,6 +22,13 @@ export const Login = () => {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
+  const [socialLoading, setSocialLoading] = useState("");
+  const [socialError, setSocialError] = useState("");
+
+  // useRef so it updates SYNCHRONOUSLY — unlike useState, changes to a ref
+  // are visible immediately in the same render cycle (no batching delay).
+  // This blocks the isAuthenticated redirect while the Google popup is open.
+  const googleAuthInProgress = useRef(false);
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -20,8 +37,12 @@ export const Login = () => {
   const redirect = new URLSearchParams(location.search).get("redirect");
 
   // Redirect once login succeeds (supporting ?redirect=shipping or admin dashboard).
+  // Guard: skip redirect while a Google auth popup is in progress.
+  // We use a ref (not state) because refs update synchronously — state updates
+  // are batched and may not be visible until the next render, which can cause
+  // the redirect to fire before handleGoogleSignIn sets socialLoading.
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isAuthenticated && !googleAuthInProgress.current) {
       const defaultTarget = user?.role === "admin" ? "/admin/dashboard" : "/";
       const target =
         redirect && redirect !== ""
@@ -32,6 +53,83 @@ export const Login = () => {
       navigate(target);
     }
   }, [isAuthenticated, redirect, navigate, user]);
+
+  const handleGoogleSignIn = async () => {
+    setSocialError("");
+    if (!isFirebaseConfigured || !auth || !googleProvider) {
+      setSocialError(
+        "Firebase is not configured yet. Please add your VITE_FIREBASE_API_KEY and credentials to frontend/.env.",
+      );
+      return;
+    }
+
+    // Block the isAuthenticated redirect SYNCHRONOUSLY before the popup opens.
+    googleAuthInProgress.current = true;
+
+    try {
+      setSocialLoading("google");
+
+      // 1. Authenticate with Firebase (opens Google account picker popup).
+      const result = await signInWithPopup(auth, googleProvider);
+      const socialUser = result.user;
+      const email = socialUser.email;
+      const fullName = (socialUser.displayName || "").trim();
+      const [firstName = "", ...lastNameParts] = fullName.split(" ");
+      const lastName = lastNameParts.join(" ");
+
+      // 2. Ask OUR backend whether this email is registered.
+      //    We call axios directly so we can read the raw response immediately,
+      //    before any Redux state change has a chance to trigger a re-render
+      //    and fire the isAuthenticated redirect.
+      let data;
+      try {
+        const response = await axios.post(
+          `${API}/firebase-login`,
+          { email, provider: "google" },
+          { withCredentials: true },
+        );
+        data = response.data;
+      } catch (apiErr) {
+        const msg =
+          apiErr?.response?.data?.message ||
+          apiErr?.message ||
+          "Server error during Google sign-in.";
+        setSocialError(msg);
+        return;
+      }
+
+      // 3a. Not registered → go to registration with their Google info pre-filled.
+      if (data.isRegistered === false) {
+        navigate("/register", {
+          state: { email, firstName, lastName, fromGoogle: true },
+        });
+        return;
+      }
+
+      // 3b. Registered → store session marker and update Redux store.
+      try {
+        localStorage.setItem("isLoggedIn", "1");
+      } catch { /* ignore */ }
+
+      dispatch({
+        type: LOGIN_SUCCESS,
+        payload: { ...data.user, address: data.address },
+      });
+
+      // Release the guard — isAuthenticated is now true, let the redirect fire.
+      googleAuthInProgress.current = false;
+    } catch (err) {
+      console.error("Google Auth error:", err);
+      dispatch({ type: LOGIN_FAIL, payload: null });
+      if (err.code !== "auth/popup-closed-by-user") {
+        setSocialError(err.message || "Failed to sign in with Google.");
+      }
+    } finally {
+      setSocialLoading("");
+      // Safety net: always release the guard when the function exits.
+      googleAuthInProgress.current = false;
+    }
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -190,13 +288,67 @@ export const Login = () => {
             <div className="pt-2">
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || Boolean(socialLoading)}
                 className="h-10! w-full px-4 rounded-md bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-sm font-medium transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {loading ? "Signing in..." : "Sign in"}
               </button>
             </div>
           </form>
+
+          {/* Social login divider (Quiz 4: 15pts) */}
+          <div className="relative my-5">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-zinc-200" />
+            </div>
+            <div className="relative flex justify-center text-xs">
+              <span className="bg-white px-2 text-zinc-400 uppercase tracking-wider text-[11px]">
+                or continue with
+              </span>
+            </div>
+          </div>
+
+          {/* Social error notification */}
+          {socialError && (
+            <div className="mb-3 p-2.5 rounded-md bg-amber-50 border border-amber-200 text-[11px] text-amber-800 leading-snug">
+              {socialError}
+            </div>
+          )}
+
+          {/* Social Auth Providers */}
+          <div className="space-y-2">
+            {/* Google Sign-In */}
+            <button
+              type="button"
+              onClick={handleGoogleSignIn}
+              disabled={loading || Boolean(socialLoading)}
+              className="w-full h-10 px-4 rounded-md border border-zinc-300 bg-white hover:bg-zinc-50 active:bg-zinc-100 text-zinc-800 text-xs font-semibold flex items-center justify-center gap-2.5 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-xs"
+            >
+              <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+                <path
+                  fill="#4285F4"
+                  d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.66v3.02h3.87c2.26-2.09 3.675-5.17 3.675-9.12z"
+                />
+                <path
+                  fill="#34A853"
+                  d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.87-3.02c-1.08.72-2.45 1.16-4.06 1.16-3.13 0-5.78-2.11-6.73-4.96H1.27v3.12C3.26 21.36 7.36 24 12 24z"
+                />
+                <path
+                  fill="#FBBC05"
+                  d="M5.27 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.61H1.27C.46 8.23 0 10.06 0 12s.46 3.77 1.27 5.39l4-3.12z"
+                />
+                <path
+                  fill="#EA4335"
+                  d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.36 0 3.26 2.64 1.27 6.61l4 3.12c.95-2.85 3.6-4.98 6.73-4.98z"
+                />
+              </svg>
+              <span>
+                {socialLoading === "google"
+                  ? "Connecting to Google..."
+                  : "Sign in with Google"}
+              </span>
+            </button>
+          </div>
 
           {/* Footer Navigation */}
           <div className="mt-6 pt-5 border-t border-zinc-100 text-center">

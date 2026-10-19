@@ -26,3 +26,5 @@ dist-ssr
 # clean-ui snapshot history
 *.history/
 tet
+CHECKLIST.txt
+ITCP318-Proj.txt

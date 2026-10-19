@@ -61,7 +61,8 @@ export const authReducer = (state = initialAuthState, action) => {
         loading: false,
         isAuthenticated: false,
         user: null,
-        error: action.payload,
+        // null payload means "reset only" (e.g. notRegistered path) – don't surface an error
+        error: action.payload || null,
       };
 
     // A failed /me just means "no active session" - not an error to surface.

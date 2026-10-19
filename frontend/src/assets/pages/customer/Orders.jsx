@@ -106,10 +106,10 @@ export const Orders = () => {
     activeTab === "all"
       ? orders
       : activeTab === "completed"
-      ? completedOrders
-      : activeTab === "orders"
-      ? orders
-      : [];
+        ? completedOrders
+        : activeTab === "orders"
+          ? orders
+          : [];
   const shownApplications =
     activeTab === "all" || activeTab === "applications" ? applications : [];
 
@@ -197,24 +197,22 @@ export const Orders = () => {
                 key={t.key}
                 type="button"
                 onClick={() => setActiveTab(t.key)}
-                className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
-                  activeTab === t.key
+                className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${activeTab === t.key
                     ? "bg-zinc-900 text-white font-semibold shadow-xs"
                     : t.highlight && completedOrders.length > 0
-                    ? "text-emerald-700 bg-emerald-50 hover:bg-emerald-100 font-semibold"
-                    : "text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100"
-                }`}
+                      ? "text-emerald-700 bg-emerald-50 hover:bg-emerald-100 font-semibold"
+                      : "text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100"
+                  }`}
               >
                 <span>{t.label}</span>
                 {t.count !== undefined && (
                   <span
-                    className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
-                      activeTab === t.key
+                    className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${activeTab === t.key
                         ? "bg-zinc-700 text-white"
                         : t.highlight && completedOrders.length > 0
-                        ? "bg-emerald-200 text-emerald-900"
-                        : "bg-zinc-100 text-zinc-600"
-                    }`}
+                          ? "bg-emerald-200 text-emerald-900"
+                          : "bg-zinc-100 text-zinc-600"
+                      }`}
                   >
                     {t.count}
                   </span>
@@ -286,11 +284,10 @@ export const Orders = () => {
                   return (
                     <div
                       key={order._id}
-                      className={`border rounded-2xl bg-white overflow-hidden shadow-xs transition-all hover:shadow-md ${
-                        isCompleted
+                      className={`border rounded-2xl bg-white overflow-hidden shadow-xs transition-all hover:shadow-md ${isCompleted
                           ? "border-emerald-200 ring-1 ring-emerald-500/10"
                           : "border-zinc-200"
-                      }`}
+                        }`}
                     >
                       {/* Order header */}
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-3.5 bg-gradient-to-r from-zinc-50 via-zinc-50/50 to-white border-b border-zinc-100">
@@ -464,11 +461,10 @@ export const Orders = () => {
                             <span className="font-semibold text-zinc-800 text-[11px] bg-white border border-zinc-200 px-2 py-0.5 rounded font-mono">
                               {order.paymentMethod?.replace(/_/g, " ").toUpperCase()}
                             </span>
-                            <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded ${
-                              order.paymentStatus === 'paid'
+                            <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded ${order.paymentStatus === 'paid'
                                 ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
                                 : 'bg-amber-100 text-amber-800 border border-amber-200'
-                            }`}>
+                              }`}>
                               {order.paymentStatus === 'paid' ? 'PAID' : 'PAYMENT PENDING'}
                             </span>
                           </div>
@@ -476,18 +472,33 @@ export const Orders = () => {
 
                         {/* Right: Totals & Receipt Action */}
                         <div className="md:col-span-5 flex flex-col sm:flex-row md:flex-col lg:flex-row items-start sm:items-center md:items-end lg:items-center justify-between md:justify-end gap-3 pt-2 md:pt-0 border-t md:border-t-0 border-zinc-200">
-                          <a
-                            href={`${API}/order/${order._id}/receipt`}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="h-8 px-3 rounded-lg border border-zinc-300 hover:border-zinc-400 bg-white hover:bg-zinc-50 text-zinc-700 text-xs font-semibold transition-colors shadow-2xs inline-flex items-center gap-1.5 cursor-pointer"
-                          >
-                            <svg className="w-3.5 h-3.5 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                            </svg>
-                            <span>Official Receipt</span>
-                            <span className="text-zinc-400 text-[10px]">↗</span>
-                          </a>
+                          <div className="flex items-center gap-1.5">
+                            <a
+                              href={`${API}/order/${order._id}/receipt`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="h-8 px-2.5 rounded-lg border border-zinc-300 hover:border-zinc-400 bg-white hover:bg-zinc-50 text-zinc-700 text-xs font-semibold transition-colors shadow-2xs inline-flex items-center gap-1.5 cursor-pointer"
+                              title="View HTML Receipt"
+                            >
+                              <svg className="w-3.5 h-3.5 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                              </svg>
+                              <span>Receipt</span>
+                            </a>
+                            <a
+                              href={`${API}/order/${order._id}/receipt?format=pdf`}
+                              target="_blank"
+                              rel="noreferrer"
+                              download={`Receipt-${order.orderNumber}.pdf`}
+                              className="h-8 px-2.5 rounded-lg border border-emerald-300 hover:border-emerald-400 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-semibold transition-colors shadow-2xs inline-flex items-center gap-1.5 cursor-pointer"
+                              title="Download Official PDF Receipt"
+                            >
+                              <svg className="w-3.5 h-3.5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                              </svg>
+                              <span>PDF</span>
+                            </a>
+                          </div>
 
                           <div className="text-right">
                             <p className="text-[10px] text-zinc-400 font-mono uppercase tracking-wider">Total Paid / Due</p>
@@ -664,7 +675,7 @@ export const Orders = () => {
                           <span className="font-bold font-mono text-[10px] bg-emerald-600 text-white px-2 py-0.5 rounded font-bold">LOAN APPROVED</span>
                           <span className="font-bold text-sm text-emerald-950">Next Step: Claim Your Motorcycle at Showroom</span>
                         </div>
-                        
+
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
                           <div className="bg-white/80 rounded-xl p-3 border border-emerald-200/80 space-y-1">
                             <span className="text-[10px] font-mono font-bold text-emerald-800 uppercase block">Where to Go:</span>
@@ -763,7 +774,7 @@ export const Orders = () => {
                 onClick={() => setPayingApp(null)}
                 className="w-6 h-6 rounded flex items-center justify-center text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 text-xs cursor-pointer"
               >
-                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
               </button>
             </div>
 
@@ -800,11 +811,10 @@ export const Orders = () => {
                       key={ch.id}
                       type="button"
                       onClick={() => setPayMethod(ch.id)}
-                      className={`p-2.5 rounded-xl border text-left flex items-center gap-2 transition-all cursor-pointer ${
-                        payMethod === ch.id
+                      className={`p-2.5 rounded-xl border text-left flex items-center gap-2 transition-all cursor-pointer ${payMethod === ch.id
                           ? "border-emerald-600 bg-emerald-50/40 text-emerald-900 font-bold ring-1 ring-emerald-600"
                           : "border-zinc-200 bg-white hover:border-zinc-300 text-zinc-700"
-                      }`}
+                        }`}
                     >
                       <span className="font-mono text-[9px] font-bold bg-zinc-100 text-zinc-700 px-1 py-0.5 rounded border border-zinc-200">{ch.code}</span>
                       <span>{ch.label}</span>

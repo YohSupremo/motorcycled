@@ -119,15 +119,7 @@ export const register = async (req, res) => {
       isDefault: true,
     });
 
-    // Never expose the hashed password in the response.
-    user.password = undefined;
-
-    return res.status(201).json({
-      message: "User created successfully!",
-      success: true,
-      user,
-      address,
-    });
+    return await sendToken(user, 201, res);
   } catch (error) {
     console.error(error);
     return res.status(500).json({
@@ -215,3 +207,45 @@ export const getUserProfile = async (req, res) => {
 export const forgotPassword = (req, res) => {};
 
 export const resetPassword = (req, res) => {};
+
+/**
+ * Quiz 4 (15 pts): Social login handler (Firebase / Google / Facebook)
+ * Authenticates or automatically creates customer account using Firebase credentials
+ */
+export const firebaseLogin = async (req, res) => {
+  try {
+    const { email, firstName, lastName, profilePicture, provider } = req.body;
+
+    console.log("[firebaseLogin] provider:", provider, "| email received:", email);
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: "Email is required for social authentication",
+      });
+    }
+
+    const user = await User.findOne({ email: email.toLowerCase() });
+
+
+
+    if (!user) {
+      return res.status(200).json({
+        success: false,
+        isRegistered: false,
+        message:
+          "This Google account is not registered yet. Please complete registration.",
+      });
+    }
+
+    // Existing user: sign token and log in
+    return await sendToken(user, 200, res);
+  } catch (error) {
+    console.error("Firebase authentication error:", error);
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Failed to process Firebase authentication",
+    });
+  }
+};
+

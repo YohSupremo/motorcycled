@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { Register } from "./assets/pages/Register";
 import { Login } from "./assets/pages/Login";
 import { loadUser } from "./actions/userActions";
@@ -14,6 +14,7 @@ import { ConfirmOrder } from "./assets/pages/customer/ConfirmOrder";
 import { About } from "./assets/pages/customer/About";
 import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
 import { Layout } from "./assets/components/Layout";
+import { ScrollToTop } from "./assets/components/ScrollToTop";
 import "./App.css";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -28,6 +29,11 @@ import { AdminBrands } from "./assets/pages/admin/AdminBrands";
 import { AdminReviews } from "./assets/pages/admin/AdminReviews";
 import { AdminSettings } from "./assets/pages/admin/AdminSettings";
 import ProtectedRoute from "./assets/components/ProtectedRoute";
+
+const DashboardRedirect = () => {
+  const { user } = useSelector((state) => state.auth);
+  return <Navigate to={user?.role === "admin" ? "/admin/dashboard" : "/"} replace />;
+};
 
 function App() {
   const dispatch = useDispatch();
@@ -50,6 +56,7 @@ function App() {
   return (
     <>
       <BrowserRouter>
+        <ScrollToTop />
         <Routes>
           <Route element={<Layout />}>
             <Route path="/" element={<Homepage />} />
@@ -123,6 +130,7 @@ function App() {
 
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/dashboard" element={<DashboardRedirect />} />
         </Routes>
         <ToastContainer
           position="bottom-right"

@@ -126,3 +126,59 @@ export const clearErrors = () => async (dispatch) => {
     type: CLEAR_ERRORS,
   });
 };
+
+/**
+ * Quiz 4 (15 pts): Social authentication via Firebase (Google/Facebook)
+ */
+export const firebaseLoginAction = (socialUserData) => async (dispatch) => {
+  try {
+    dispatch({ type: LOGIN_REQUEST });
+
+    const config = {
+      headers: {
+        "Content-Type": "application/json",
+      },
+      withCredentials: true,
+    };
+
+    const { data } = await axios.post(
+      `${api}/firebase-login`,
+      socialUserData,
+      config,
+    );
+
+    if (data.isRegistered === false) {
+      clearSessionMarker();
+      // Reset loading state so the auth reducer doesn't leave a stale
+      // loading:true that could interfere with the redirect to /register.
+      dispatch({ type: LOGIN_FAIL, payload: null });
+      return {
+        success: false,
+        notRegistered: true,
+        email: socialUserData.email,
+        message: data.message,
+      };
+    }
+
+    markLoggedIn();
+
+    dispatch({
+      type: LOGIN_SUCCESS,
+      payload: {
+        ...data.user,
+        address: data.address,
+      },
+    });
+
+    return { success: true };
+  } catch (error) {
+    clearSessionMarker();
+    const message = getErrorMessage(error);
+    dispatch({
+      type: LOGIN_FAIL,
+      payload: message,
+    });
+    return { success: false, message };
+  }
+};
+

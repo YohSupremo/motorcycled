@@ -27,19 +27,24 @@ const userSchema = new mongoose.Schema({
   },
   contactNumber: {
     type: String,
-    required: true,
+    default: "",
   },
   profilePicture: {
     type: String,
-    required: true,
+    default: "https://res.cloudinary.com/chqrvlr4/image/upload/v1/profile/default-avatar.png",
   },
   validId: {
     type: String,
-    required: true,
+    default: "",
   },
   proofOfIncome: {
     type: String,
-    required: true,
+    default: "",
+  },
+  authProvider: {
+    type: String,
+    enum: ["local", "google", "facebook", "firebase"],
+    default: "local",
   },
   isActive: {
     type: Boolean,

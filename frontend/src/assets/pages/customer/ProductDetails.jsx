@@ -69,7 +69,7 @@ export const ProductDetails = () => {
     };
   }, [dispatch, id, isAuthenticated]);
 
-  // Handle auto-scroll to review section if coming from completed orders redirect
+  // Scroll to top on navigation, or auto-scroll to review section if explicitly requested
   useEffect(() => {
     if (
       window.location.hash === "#reviews" ||
@@ -82,6 +82,8 @@ export const ProductDetails = () => {
         }
       }, 350);
       return () => clearTimeout(timer);
+    } else {
+      window.scrollTo({ top: 0, left: 0, behavior: "instant" });
     }
   }, [id]);
 

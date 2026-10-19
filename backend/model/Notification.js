@@ -18,6 +18,7 @@ const notificationSchema = new mongoose.Schema(
       enum: [
         "order_summary",
         "order_status",
+        "order_status_update",
         "installment_approved",
         "installment_rejected",
         "downpayment_confirmed",

@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import {
@@ -78,6 +78,7 @@ export const ConfirmOrder = () => {
   const [paymentMethod, setPaymentMethod] = useState("cash_on_releasing");
   const [agreedTerms, setAgreedTerms] = useState(false);
   const [agreedInspection, setAgreedInspection] = useState(false);
+  const hasNotifiedRef = useRef(false);
 
   const [sessionId] = useState(() => {
     const saved = sessionStorage.getItem("mcCheckoutSessionId");
@@ -142,8 +143,11 @@ export const ConfirmOrder = () => {
   }, [installmentMotorcycles]);
 
   const handlePlaceOrder = () => {
+    hasNotifiedRef.current = false;
     if ((hasInstallment || selectedMotorcycles.length > 0) && (!agreedTerms || !agreedInspection)) {
-      toast.warning("Please acknowledge the dealership policies and PDI inspection agreement.");
+      toast.warning("Please acknowledge the dealership policies and PDI inspection agreement.", {
+        toastId: "agree-terms-warning",
+      });
       return;
     }
 
@@ -174,7 +178,7 @@ export const ConfirmOrder = () => {
   };
 
   useEffect(() => {
-    if (success && results) {
+    if (success && results && !hasNotifiedRef.current) {
       const responseData = results?.data || results || {};
       const checkoutResults = responseData.results || [];
       const successfulProductIds = new Set(
@@ -183,7 +187,10 @@ export const ConfirmOrder = () => {
           .map((r) => r.productId)
       );
       if (successfulProductIds.size > 0) {
-        toast.success("Order and financing application submitted successfully.");
+        hasNotifiedRef.current = true;
+        toast.success("Order and financing application submitted successfully.", {
+          toastId: "order-placed-success",
+        });
         const itemIdsToRemove = cartItems
           .filter((item) => successfulProductIds.has(item.productId))
           .map((item) => item.cartItemId);
@@ -196,9 +203,18 @@ export const ConfirmOrder = () => {
 
   useEffect(() => {
     if (error) {
-      toast.error(error || "Checkout failed. Please try again.");
+      toast.error(error || "Checkout failed. Please try again.", {
+        toastId: "checkout-error",
+      });
     }
   }, [error]);
+
+  useEffect(() => {
+    return () => {
+      hasNotifiedRef.current = false;
+      dispatch(resetCheckout());
+    };
+  }, [dispatch]);
 
   // SUCCESS VIEW: Premium Dealership Dossier
   if (success && results) {
@@ -215,7 +231,7 @@ export const ConfirmOrder = () => {
     return (
       <div className="min-h-screen bg-zinc-50 text-zinc-900 antialiased flex flex-col font-sans">
         <main className="flex-1 max-w-4xl w-full mx-auto px-4 sm:px-6 py-8 space-y-6">
-          
+
           {/* MUI Stepper (Step 4: Complete) */}
           <Box sx={{ width: "100%", pb: 1 }}>
             <Stepper activeStep={3} alternativeLabel>
@@ -242,7 +258,7 @@ export const ConfirmOrder = () => {
               ))}
             </Stepper>
           </Box>
-          
+
           {/* Hero Banner */}
           <div className="bg-emerald-900 text-white rounded-3xl p-8 shadow-sm space-y-3">
             <div className="flex items-center gap-2">
@@ -321,7 +337,7 @@ export const ConfirmOrder = () => {
                   {/* Documents Checklist */}
                   <div className="bg-zinc-50 rounded-xl p-4 border border-zinc-200 space-y-2 text-xs">
                     <span className="font-bold text-zinc-900 block">
-                       Documents to Bring for Showroom Releasing:
+                      Documents to Bring for Showroom Releasing:
                     </span>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-zinc-600 text-[11px]">
                       <div className="flex items-center gap-1.5"><svg className="w-3 h-3 text-emerald-600 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg><span>2 Valid Philippine Government IDs (Original + Photocopies)</span></div>
@@ -418,7 +434,7 @@ export const ConfirmOrder = () => {
             to="/cart"
             className="inline-block w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs py-2.5 rounded-lg transition-colors"
           >
-            ← Return to Cart
+            Return to Cart
           </Link>
         </div>
       </div>
@@ -429,7 +445,7 @@ export const ConfirmOrder = () => {
   return (
     <div className="min-h-screen bg-zinc-50 text-zinc-900 antialiased flex flex-col font-sans">
       <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-8 space-y-6">
-        
+
         {/* MUI Stepper (Step 3: Review & Terms) */}
         <Box sx={{ width: "100%", pb: 1 }}>
           <Stepper activeStep={2} alternativeLabel>
@@ -457,19 +473,19 @@ export const ConfirmOrder = () => {
           </Stepper>
         </Box>
 
-        {/* Page Sub-header Toolbar */}
-        <div className="bg-white border border-zinc-200 rounded-xl p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        {/* Page Sub-header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-zinc-200">
           <div>
             <div className="flex items-center gap-2.5">
               <h1 className="text-xl sm:text-2xl font-extrabold text-zinc-900 tracking-tight">
                 Review & Authorize Order
               </h1>
-              <span className="text-xs font-mono font-bold bg-emerald-50 text-emerald-800 px-2.5 py-0.5 rounded-full border border-emerald-200">
+              <span className="text-xs font-mono font-bold bg-emerald-50 text-emerald-800 px-2 py-0.5 rounded border border-emerald-200">
                 Step 3 of 3
               </span>
             </div>
-            <p className="text-xs text-zinc-500 mt-1">
-              Verify your financing breakdown, payment arrangements, and dealership handover protocols.
+            <p className="text-xs text-zinc-500 mt-1.5">
+              Verify financing, payment, and handover details.
             </p>
           </div>
 
@@ -477,16 +493,16 @@ export const ConfirmOrder = () => {
             to="/checkout/shipping"
             className="text-xs text-zinc-500 hover:text-zinc-900 font-semibold self-start sm:self-auto transition-colors"
           >
-            ← Back to Fulfillment
+            Back to Fulfillment
           </Link>
         </div>
 
         {/* 2-Column Main Section */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          
+
           {/* LEFT COLUMN: Review Cards & Agreements (7 cols) */}
           <div className="lg:col-span-7 space-y-6">
-            
+
             {/* FINANCING MOTORCYCLES DOSSIER */}
             {installmentMotorcycles.length > 0 && (
               <div className="space-y-4">
@@ -571,7 +587,7 @@ export const ConfirmOrder = () => {
 
             {/* CASH PURCHASES BREAKDOWN */}
             {(cashMotorcycles.length > 0 || selectedParts.length > 0) && (
-              <div className="bg-white border border-zinc-200 rounded-2xl p-6 shadow-xs space-y-4">
+              <div className="space-y-4 border-b border-zinc-200 pb-6">
                 <div className="flex items-center justify-between pb-3 border-b border-zinc-100">
                   <h3 className="font-extrabold text-zinc-900 text-base">
                     Outright Cash Items
@@ -620,11 +636,10 @@ export const ConfirmOrder = () => {
                     {PAYMENT_METHODS.map((pm) => (
                       <label
                         key={pm.value}
-                        className={`border rounded-xl p-3 flex items-start gap-2.5 cursor-pointer transition-all ${
-                          paymentMethod === pm.value
-                            ? "border-emerald-600 bg-emerald-50/30 ring-1 ring-emerald-600 shadow-xs"
-                            : "border-zinc-200 hover:border-zinc-300"
-                        }`}
+                        className={`border rounded-xl p-3 flex items-start gap-2.5 cursor-pointer transition-all ${paymentMethod === pm.value
+                          ? "border-emerald-600 bg-emerald-50/30 ring-1 ring-emerald-600 shadow-xs"
+                          : "border-zinc-200 hover:border-zinc-300"
+                          }`}
                       >
                         <input
                           type="radio"
@@ -646,7 +661,7 @@ export const ConfirmOrder = () => {
             )}
 
             {/* FULFILLMENT & PURCHASER RECAP */}
-            <div className="bg-white border border-zinc-200 rounded-2xl p-6 shadow-xs space-y-4 text-xs">
+            <div className="space-y-4 text-xs">
               <div className="flex items-center justify-between pb-3 border-b border-zinc-100">
                 <h3 className="font-extrabold text-zinc-900 text-base">
                   Releasing & Ownership Verification
@@ -681,7 +696,7 @@ export const ConfirmOrder = () => {
 
                 <div className="bg-zinc-50 rounded-xl p-3.5 border border-zinc-200 space-y-2">
                   <span className="text-[10px] font-mono uppercase text-zinc-400 font-bold block">Logistics Routing</span>
-                  
+
                   {selectedMotorcycles.length > 0 && (
                     <div className="space-y-0.5">
                       <span className="font-bold text-zinc-900 block text-xs">Dealership Showroom Releasing Bay:</span>
@@ -713,7 +728,7 @@ export const ConfirmOrder = () => {
             </div>
 
             {/* MANDATORY SAFEGUARD AGREEMENTS */}
-            <div className="bg-white border border-zinc-200 rounded-2xl p-6 shadow-xs space-y-3">
+            <div className="space-y-3">
               <span className="text-xs font-bold text-zinc-900 uppercase tracking-wide block">
                 Dealership Agreements & Acknowledgments:
               </span>
@@ -748,8 +763,8 @@ export const ConfirmOrder = () => {
 
           {/* RIGHT COLUMN: Sticky Financial Summary & Checkout Action (5 cols) */}
           <div className="lg:col-span-5 lg:sticky lg:top-24 space-y-4">
-            <div className="bg-white border border-zinc-200 rounded-2xl p-6 shadow-xs space-y-5">
-              
+            <div className="border border-zinc-200 rounded-xl p-5 shadow-sm space-y-5">
+
               <div className="flex items-center justify-between pb-3 border-b border-zinc-100">
                 <h3 className="font-extrabold text-zinc-900 text-base">
                   Financial Authorization

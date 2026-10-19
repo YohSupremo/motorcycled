@@ -5,7 +5,9 @@ import InstallmentApplication from "../model/InstallmentApplication.js";
 import Category from "../model/Category.js";
 import User from "../model/User.js";
 import { cloudConf } from "../config/cloudinary.js";
-import { notifyOrderPlaced, notifyInstallmentUpdate } from "../services/notificationService.js";
+import { notifyOrderPlaced, notifyInstallmentUpdate, sendNotification } from "../services/notificationService.js";
+import { generateOrderInvoicePDF } from "../services/pdfService.js";
+import { sendOrderStatusEmail } from "../services/emailService.js";
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -25,6 +27,24 @@ function computeFinancing(productPrice, termMonths) {
     downPayment + monthlyPayment * termMonths + PROCESSING_FEE;
   return { interestRate, downPayment, financedAmount, monthlyPayment, totalRepayment };
 }
+
+/**
+ * Check if the chosen payment method is cash on delivery / cash on releasing / COD.
+ * Note: Digital wallets like 'gcash' contain the letters 'cash' but are NOT cash on delivery.
+ */
+export const isCashOnDeliveryMethod = (method) => {
+  if (!method) return false;
+  const m = String(method).toLowerCase().trim();
+  if (m === "gcash" || m === "maya" || m === "bank_deposit") {
+    return false;
+  }
+  return (
+    m === "cash_on_releasing" ||
+    m === "cash_on_delivery" ||
+    m === "cod" ||
+    m === "cash"
+  );
+};
 
 // ─── newCheckout ───────────────────────────────────────────────────────────────
 
@@ -233,12 +253,15 @@ export const newCheckout = async (req, res) => {
         );
         const totalPrice = itemsPrice + shippingPrice;
 
+        const isCod = isCashOnDeliveryMethod(paymentMethod);
         const partsOrder = new Order({
           checkoutSessionId,
           user: req.user._id,
           orderItems,
           shippingInfo: partsShippingInfo,
           paymentMethod,
+          paymentStatus: isCod ? "pending" : "paid",
+          paidAt: isCod ? undefined : new Date(),
           itemsPrice,
           shippingPrice,
           totalPrice,
@@ -279,6 +302,7 @@ export const newCheckout = async (req, res) => {
       const itemsPrice = mi.product.price * mi.quantity;
       // Motorcycles are always picked up from dealership for delivery coordination;
       // use shippingPrice = 0 for motorcycles (dealership standard).
+      const isCod = isCashOnDeliveryMethod(paymentMethod);
       const motoOrder = new Order({
         checkoutSessionId,
         user: req.user._id,
@@ -294,6 +318,8 @@ export const newCheckout = async (req, res) => {
         ],
         shippingInfo: motorcycleShippingInfo,
         paymentMethod,
+        paymentStatus: isCod ? "pending" : "paid",
+        paidAt: isCod ? undefined : new Date(),
         itemsPrice,
         shippingPrice: 0,
         totalPrice: itemsPrice,
@@ -422,21 +448,32 @@ export const newOrder = async (req, res) => {
         ? Number(totalPrice)
         : calculatedItemsPrice + Number(shippingPrice) + Number(taxPrice);
 
+    const isCod = isCashOnDeliveryMethod(paymentMethod);
+    const resolvedPaymentStatus =
+      paymentInfo?.status === "succeeded" || !isCod ? "paid" : "pending";
+    const resolvedPaidAt =
+      paymentInfo?.status === "succeeded" || !isCod ? new Date() : undefined;
+
     const order = new Order({
       checkoutSessionId: req.body.checkoutSessionId || `session_${Date.now()}`,
       user: req.user._id,
       orderItems: items,
       shippingInfo: finalShippingInfo,
-      paymentMethod: ["cash_on_releasing", "bank_deposit", "gcash", "maya"].includes(
-        paymentMethod
-      )
+      paymentMethod: [
+        "cash_on_releasing",
+        "cash_on_delivery",
+        "cod",
+        "bank_deposit",
+        "gcash",
+        "maya",
+      ].includes(paymentMethod)
         ? paymentMethod
         : "cash_on_releasing",
-      paymentStatus: paymentInfo?.status === "succeeded" ? "paid" : "pending",
+      paymentStatus: resolvedPaymentStatus,
       itemsPrice: calculatedItemsPrice,
       shippingPrice: Number(shippingPrice) || 0,
       totalPrice: calculatedTotalPrice,
-      paidAt: paymentInfo?.status === "succeeded" ? new Date() : undefined,
+      paidAt: resolvedPaidAt,
     });
 
     await order.save();
@@ -645,10 +682,47 @@ export const updateOrderStatus = async (req, res) => {
 
     await order.save();
 
+    // Populate user and order details for email + PDF receipt generation
+    const populatedOrder = await Order.findById(order._id)
+      .populate("user", "firstName lastName email contactNumber")
+      .populate("orderItems.product", "name category brand");
+
+    let emailResult = null;
+    let pdfBuffer = null;
+
+    try {
+      // 1. Generate the official PDF invoice/receipt
+      pdfBuffer = await generateOrderInvoicePDF(populatedOrder, populatedOrder.user);
+
+      // 2. Email customer on status update with item list, subtotal, and total + PDF attachment
+      emailResult = await sendOrderStatusEmail({
+        order: populatedOrder,
+        user: populatedOrder.user,
+        newStatus: order.orderStatus,
+        pdfBuffer,
+      });
+
+      // 3. Persist notification in database ledger
+      await sendNotification({
+        recipientId: populatedOrder.user?._id || order.user,
+        type: "order_status_update",
+        subject: `Order ${order.orderNumber} Status Updated: ${order.orderStatus.toUpperCase()}`,
+        message: `Your order status has been updated to ${order.orderStatus.toUpperCase()}. An updated receipt has been emailed to ${populatedOrder.user?.email || order.shippingInfo?.email}.`,
+        orderId: order._id,
+      });
+    } catch (notifyErr) {
+      console.error("[updateOrderStatus] Notification/PDF receipt error:", notifyErr.message);
+    }
+
     return res.status(200).json({
       success: true,
-      message: "Order status updated",
-      data: { order },
+      message: "Order status updated and receipt emailed to customer",
+      data: {
+        order,
+        emailSent: emailResult?.success ?? false,
+        emailRecipient: populatedOrder.user?.email || order.shippingInfo?.email,
+        emailPreviewUrl: emailResult?.previewUrl || null,
+      },
     });
   } catch (error) {
     console.error("updateOrderStatus error:", error);
@@ -908,11 +982,22 @@ export const getOrderReceipt = async (req, res) => {
       return res.status(403).send("Unauthorized to access this receipt");
     }
 
+    // Direct binary PDF stream if format=pdf or download=true requested
+    if (req.query.format === "pdf" || req.query.download === "true") {
+      const pdfBuffer = await generateOrderInvoicePDF(order, order.user);
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader(
+        "Content-Disposition",
+        `inline; filename="Receipt-${order.orderNumber}.pdf"`
+      );
+      return res.status(200).send(pdfBuffer);
+    }
+
     const itemsHtml = (order.orderItems || [])
       .map(
         (i) => `
         <tr>
-          <td style="padding: 10px; border-bottom: 1px solid #e4e4e7;"><strong>${i.name}</strong> (${i.itemType})</td>
+          <td style="padding: 10px; border-bottom: 1px solid #e4e4e7;"><strong>${i.name}</strong></td>
           <td style="padding: 10px; border-bottom: 1px solid #e4e4e7; text-align: center;">${i.quantity}</td>
           <td style="padding: 10px; border-bottom: 1px solid #e4e4e7; text-align: right; font-family: monospace;">₱${i.price.toLocaleString("en-US", { minimumFractionDigits: 2 })}</td>
           <td style="padding: 10px; border-bottom: 1px solid #e4e4e7; text-align: right; font-family: monospace; font-weight: bold;">₱${(i.price * i.quantity).toLocaleString("en-US", { minimumFractionDigits: 2 })}</td>
@@ -929,8 +1014,8 @@ export const getOrderReceipt = async (req, res) => {
   <title>Receipt — ${order.orderNumber}</title>
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #18181b; margin: 0; padding: 40px; background: #fafafa; }
-    .invoice-box { max-width: 800px; margin: auto; padding: 35px; border: 1px solid #e4e4e7; background: #ffffff; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
-    .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #18181b; padding-bottom: 20px; margin-bottom: 25px; }
+    .invoice-box { max-width: 800px; margin: auto; padding: 35px; border: 1px solid #e4e4e7; border-top: 4px solid #047857; background: #ffffff; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
+    .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid #e4e4e7; padding-bottom: 20px; margin-bottom: 25px; }
     .brand-title { font-size: 24px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: #047857; }
     .badge { display: inline-block; padding: 4px 10px; font-size: 11px; font-weight: 700; border-radius: 4px; text-transform: uppercase; }
     .badge-paid { background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0; }

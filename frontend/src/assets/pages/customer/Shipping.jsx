@@ -14,24 +14,24 @@ const BRANCH_DETAILS = [
     shortName: "Pasig Central Showroom & Service Bay",
     badge: "Flagship Showroom & PDI Depot",
     address: "Eulogio Amang Rodriguez Ave, Rosario, Pasig City, Metro Manila",
-    hours: "Mon – Sat: 8:30 AM – 6:00 PM | Sun: 9:00 AM – 4:00 PM",
-    phone: "(02) 8642-9901 / 0917-882-3490",
+    hours: "Mon-Sat 8:30 AM-6:00 PM, Sun 9:00 AM-4:00 PM",
+    phone: "(02) 8642-9901, 0917-882-3490",
   },
   {
     name: "Quezon City — North Boulevard Showroom",
     shortName: "QC North Boulevard Showroom",
     badge: "North Metro Releasing Hub",
     address: "North EDSA Cor. Mindanao Ave, Project 7, Quezon City",
-    hours: "Mon – Sat: 9:00 AM – 6:30 PM",
-    phone: "(02) 8928-4412 / 0918-902-1145",
+    hours: "Mon-Sat 9:00 AM-6:30 PM",
+    phone: "(02) 8928-4412, 0918-902-1145",
   },
   {
     name: "Cebu City — Visayas Releasing Depot",
     shortName: "Cebu Central Releasing Depot",
     badge: "Visayas Regional Center",
     address: "Subangdaku National Highway, Mandaue City, Metro Cebu",
-    hours: "Mon – Sat: 8:30 AM – 5:30 PM",
-    phone: "(032) 346-8800 / 0920-911-7723",
+    hours: "Mon-Sat 8:30 AM-5:30 PM",
+    phone: "(032) 346-8800, 0920-911-7723",
   },
 ];
 
@@ -284,7 +284,7 @@ export const Shipping = () => {
             to="/cart"
             className="inline-block w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs py-2.5 rounded-lg transition-colors"
           >
-            ← Return to Shopping Cart
+            Return to Cart
           </Link>
         </div>
       </div>
@@ -294,7 +294,7 @@ export const Shipping = () => {
   return (
     <div className="min-h-screen bg-zinc-50 text-zinc-900 antialiased flex flex-col font-sans">
       <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-8 space-y-6">
-        
+
         {/* MUI Stepper (Step 2: Fulfillment & Verification) */}
         <Box sx={{ width: "100%", pb: 1 }}>
           <Stepper activeStep={1} alternativeLabel>
@@ -322,23 +322,23 @@ export const Shipping = () => {
           </Stepper>
         </Box>
 
-        {/* Page Sub-header Toolbar */}
-        <div className="bg-white border border-zinc-200 rounded-2xl p-5 sm:p-6 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        {/* Page Sub-header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-zinc-200">
           <div>
             <div className="flex items-center gap-2.5">
               <h1 className="text-xl sm:text-2xl font-extrabold text-zinc-900 tracking-tight">
                 Fulfillment & Customer Verification
               </h1>
-              <span className="text-xs font-mono font-bold bg-emerald-50 text-emerald-800 px-2.5 py-0.5 rounded-full border border-emerald-200">
+              <span className="text-xs font-mono font-bold bg-emerald-50 text-emerald-800 px-2 py-0.5 rounded border border-emerald-200">
                 Step 2 of 3
               </span>
             </div>
-            <p className="text-xs text-zinc-500 mt-1">
+            <p className="text-xs text-zinc-500 mt-1.5">
               {hasMotorcycles && hasParts
-                ? "Split-Fulfillment: Configure your vehicle showroom releasing bay and choose whether parts ship to your home or showroom."
+                ? "Vehicle releasing bay and parts delivery preference."
                 : hasMotorcycles
-                ? "Configure your authorized showroom handover bay and verify vehicle registration credentials."
-                : "Specify your doorstep courier delivery address or authorized parts counter pickup."}
+                  ? "Choose your authorized showroom releasing bay and verification details."
+                  : "Choose parts delivery or pickup."}
             </p>
           </div>
 
@@ -352,17 +352,17 @@ export const Shipping = () => {
 
         {/* 2-Column Main Form Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          
+
           {/* LEFT COLUMN: Clear Operational Cards (7 cols) */}
           <div className="lg:col-span-7 space-y-6">
             <form onSubmit={handleSubmit} className="space-y-6">
-              
+
               {/* ─────────────────────────────────────────────────────────── */}
               {/* CHANNEL 1: MOTORCYCLE SHOWROOM RELEASING DEPOT              */}
               {/* ─────────────────────────────────────────────────────────── */}
               {hasMotorcycles && (
-                <section className="bg-white border border-zinc-200 rounded-2xl p-6 sm:p-7 shadow-xs space-y-5">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-zinc-100 gap-1">
+                <section className="border-b border-zinc-200 pb-8 space-y-5">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
                     <div>
                       <div className="flex items-center gap-2">
                         <span className="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px] font-bold">
@@ -373,12 +373,9 @@ export const Shipping = () => {
                         </h2>
                       </div>
                       <p className="text-xs text-zinc-500 mt-0.5 pl-7">
-                        Motorcycles require physical Pre-Delivery Inspection (PDI), conduction release, and registration turnover.
+                        Motorcycles require PDI, conduction release, and registration turnover.
                       </p>
                     </div>
-                    <span className="text-[11px] font-mono font-bold text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded border border-emerald-200 self-start sm:self-center">
-                      Official Releasing Bay
-                    </span>
                   </div>
 
                   <div className="space-y-2.5 pt-1">
@@ -393,11 +390,10 @@ export const Shipping = () => {
                           <div
                             key={branch.name}
                             onClick={() => handleChange("branch", branch.name)}
-                            className={`border-2 rounded-xl p-4 cursor-pointer transition-all flex items-start gap-3.5 ${
-                              isSelected
-                                ? "border-emerald-600 bg-emerald-50/20 shadow-xs ring-1 ring-emerald-600/30"
-                                : "border-zinc-200 bg-white hover:border-zinc-300 hover:bg-zinc-50/50"
-                            }`}
+                            className={`border-2 rounded-xl p-4 cursor-pointer transition-all flex items-start gap-3.5 ${isSelected
+                              ? "border-emerald-600 bg-emerald-50/20 shadow-xs ring-1 ring-emerald-600/30"
+                              : "border-zinc-200 bg-white hover:border-zinc-300 hover:bg-zinc-50/50"
+                              }`}
                           >
                             <input
                               type="radio"
@@ -440,8 +436,8 @@ export const Shipping = () => {
               {/* CHANNEL 2: PARTS & ACCESSORIES DISPATCH                     */}
               {/* ─────────────────────────────────────────────────────────── */}
               {hasParts && (
-                <section className="bg-white border border-zinc-200 rounded-2xl p-6 sm:p-7 shadow-xs space-y-5">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-zinc-100 gap-1">
+                <section className="border-b border-zinc-200 pb-8 space-y-5">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
                     <div>
                       <div className="flex items-center gap-2">
                         <span className="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px] font-bold">
@@ -453,13 +449,10 @@ export const Shipping = () => {
                       </div>
                       <p className="text-xs text-zinc-500 mt-0.5 pl-7">
                         {hasMotorcycles
-                          ? "Want your parts delivered directly to your home via courier, or bundled with your motorcycle at the showroom?"
-                          : "Choose doorstep courier parcel delivery or pick up directly at our dealership parts counter."}
+                          ? "Deliver parts to home or bundle with your motorcycle pickup."
+                          : "Choose delivery or pickup at our parts counter."}
                       </p>
                     </div>
-                    <span className="text-[11px] font-mono font-bold text-zinc-600 bg-zinc-100 px-2.5 py-0.5 rounded border border-zinc-200 self-start sm:self-center">
-                      Genuine OEM Parts
-                    </span>
                   </div>
 
                   {/* Tactile 2-Option Selector for Parts */}
@@ -467,11 +460,10 @@ export const Shipping = () => {
                     <button
                       type="button"
                       onClick={() => handleChange("partsFulfillmentMethod", "delivery")}
-                      className={`p-4 rounded-xl border-2 text-left transition-all cursor-pointer flex flex-col justify-between gap-3 ${
-                        form.partsFulfillmentMethod === "delivery"
-                          ? "border-emerald-600 bg-emerald-50/30 ring-1 ring-emerald-600/30 shadow-xs"
-                          : "border-zinc-200 bg-white hover:border-zinc-300 hover:bg-zinc-50/40"
-                      }`}
+                      className={`p-4 rounded-xl border-2 text-left transition-all cursor-pointer flex flex-col justify-between gap-3 ${form.partsFulfillmentMethod === "delivery"
+                        ? "border-emerald-600 bg-emerald-50/30 ring-1 ring-emerald-600/30 shadow-xs"
+                        : "border-zinc-200 bg-white hover:border-zinc-300 hover:bg-zinc-50/40"
+                        }`}
                     >
                       <div className="flex items-start gap-3">
                         <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-[10px] shrink-0 font-mono">
@@ -495,11 +487,10 @@ export const Shipping = () => {
                     <button
                       type="button"
                       onClick={() => handleChange("partsFulfillmentMethod", "pickup")}
-                      className={`p-4 rounded-xl border-2 text-left transition-all cursor-pointer flex flex-col justify-between gap-3 ${
-                        form.partsFulfillmentMethod === "pickup"
-                          ? "border-emerald-600 bg-emerald-50/30 ring-1 ring-emerald-600/30 shadow-xs"
-                          : "border-zinc-200 bg-white hover:border-zinc-300 hover:bg-zinc-50/40"
-                      }`}
+                      className={`p-4 rounded-xl border-2 text-left transition-all cursor-pointer flex flex-col justify-between gap-3 ${form.partsFulfillmentMethod === "pickup"
+                        ? "border-emerald-600 bg-emerald-50/30 ring-1 ring-emerald-600/30 shadow-xs"
+                        : "border-zinc-200 bg-white hover:border-zinc-300 hover:bg-zinc-50/40"
+                        }`}
                     >
                       <div className="flex items-start gap-3">
                         <div className="w-8 h-8 rounded-lg bg-zinc-100 text-zinc-700 flex items-center justify-center font-bold text-[10px] shrink-0 font-mono">
@@ -621,11 +612,10 @@ export const Shipping = () => {
                           <div
                             key={branch.name}
                             onClick={() => handleChange("branch", branch.name)}
-                            className={`p-3.5 border rounded-xl cursor-pointer transition-all flex items-center justify-between text-xs ${
-                              form.branch === branch.name
-                                ? "border-emerald-600 bg-emerald-50/20 font-bold text-zinc-900"
-                                : "border-zinc-200 bg-white hover:border-zinc-300 text-zinc-700"
-                            }`}
+                            className={`p-3.5 border rounded-xl cursor-pointer transition-all flex items-center justify-between text-xs ${form.branch === branch.name
+                              ? "border-emerald-600 bg-emerald-50/20 font-bold text-zinc-900"
+                              : "border-zinc-200 bg-white hover:border-zinc-300 text-zinc-700"
+                              }`}
                           >
                             <span>{branch.shortName}</span>
                             <span className="text-zinc-500 font-mono text-[11px]">{branch.hours}</span>
@@ -640,8 +630,8 @@ export const Shipping = () => {
               {/* ─────────────────────────────────────────────────────────── */}
               {/* SECTION 3: PURCHASER IDENTIFICATION & KYC DOSSIER            */}
               {/* ─────────────────────────────────────────────────────────── */}
-              <section className="bg-white border border-zinc-200 rounded-2xl p-6 sm:p-7 shadow-xs space-y-6">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-zinc-100 gap-1">
+              <section className="space-y-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px] font-bold">
@@ -652,12 +642,9 @@ export const Shipping = () => {
                       </h2>
                     </div>
                     <p className="text-xs text-zinc-500 mt-0.5 pl-7">
-                      Official credentials used for BIR sales invoicing, conduction permits, and vehicle warranty records.
+                      Credentials for invoicing, permits, and warranty records.
                     </p>
                   </div>
-                  <span className="text-[11px] font-mono font-bold text-zinc-600 bg-zinc-100 px-2.5 py-0.5 rounded border border-zinc-200 self-start sm:self-center">
-                    KYC Verification
-                  </span>
                 </div>
 
                 {/* Primary Contact Details */}
@@ -730,7 +717,7 @@ export const Shipping = () => {
                       <span className="text-[11px] font-mono font-bold text-amber-900 uppercase tracking-wider block">
                         1. Primary Source of Income
                       </span>
-                      
+
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                           <label className="text-xs font-semibold text-zinc-800 block mb-1">
@@ -981,7 +968,7 @@ export const Shipping = () => {
                   to="/cart"
                   className="text-xs font-semibold text-zinc-600 hover:text-zinc-900 transition-colors"
                 >
-                  ← Return to Cart
+                  Return to Cart
                 </Link>
 
                 <button
@@ -997,7 +984,7 @@ export const Shipping = () => {
           {/* RIGHT COLUMN: Sticky Order Summary (5 cols) */}
           <div className="lg:col-span-5 lg:sticky lg:top-24 space-y-4">
             <div className="bg-white border border-zinc-200 rounded-2xl p-6 shadow-xs space-y-5">
-              
+
               <div className="flex items-center justify-between pb-3 border-b border-zinc-100">
                 <h3 className="font-extrabold text-zinc-900 text-base">
                   Order Summary

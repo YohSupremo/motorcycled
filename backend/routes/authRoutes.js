@@ -4,6 +4,7 @@ import {
   login,
   logout,
   getUserProfile,
+  firebaseLogin,
 } from "../controllers/AuthController.js";
 import upload from "../middleware/multer.js";
 import { auth } from "../middleware/authMiddleware.js";
@@ -21,6 +22,7 @@ router.post(
 );
 
 router.post("/login", login);
+router.post("/firebase-login", firebaseLogin);
 router.get("/logout", logout);
 router.get("/me", auth, getUserProfile);
 

@@ -62,7 +62,7 @@ const orderSchema = new mongoose.Schema(
     paymentMethod: {
       type: String,
       required: true,
-      enum: ["cash_on_releasing", "bank_deposit", "gcash", "maya"],
+      enum: ["cash_on_releasing", "cash_on_delivery", "cod", "bank_deposit", "gcash", "maya"],
     },
     paymentStatus: {
       type: String,
@@ -83,8 +83,35 @@ const orderSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
-// Auto-generate orderNumber before validation
+// Auto-generate orderNumber and enforce paymentStatus before validation
 orderSchema.pre("validate", async function () {
+  if (this.paymentMethod) {
+    const m = String(this.paymentMethod).toLowerCase().trim();
+    if (m === "gcash" || m === "maya" || m === "bank_deposit") {
+      // Online payments are never COD
+      if (!this.paymentStatus || this.paymentStatus === "pending") {
+        this.paymentStatus = "paid";
+      }
+      if (!this.paidAt) {
+        this.paidAt = new Date();
+      }
+    } else {
+      const isCod =
+        m === "cash_on_releasing" ||
+        m === "cash_on_delivery" ||
+        m === "cod" ||
+        m === "cash";
+      if (!isCod) {
+        if (!this.paymentStatus || this.paymentStatus === "pending") {
+          this.paymentStatus = "paid";
+        }
+        if (!this.paidAt) {
+          this.paidAt = new Date();
+        }
+      }
+    }
+  }
+
   if (!this.orderNumber) {
     try {
       const year = new Date().getFullYear();

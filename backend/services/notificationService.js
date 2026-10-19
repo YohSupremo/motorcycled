@@ -31,7 +31,7 @@ export const sendNotification = async ({
 };
 
 /**
- * Trigger order placed email notification
+ * Trigger order placed email notification with attached PDF receipt
  */
 export const notifyOrderPlaced = async (order, user) => {
   const subject = `MotorCycled Order Confirmation — ${order.orderNumber}`;
@@ -49,6 +49,21 @@ export const notifyOrderPlaced = async (order, user) => {
     `Total Amount: ₱${order.totalPrice?.toLocaleString("en-US", { minimumFractionDigits: 2 })}\n\n` +
     `Items:\n${itemsText}\n\n` +
     `You can track your order status in your MotorCycled Account under My Orders.`;
+
+  // Asynchronously generate PDF and send official email
+  try {
+    const { generateOrderInvoicePDF } = await import("./pdfService.js");
+    const { sendOrderStatusEmail } = await import("./emailService.js");
+    const pdfBuffer = await generateOrderInvoicePDF(order, user);
+    await sendOrderStatusEmail({
+      order,
+      user,
+      newStatus: order.orderStatus || "pending",
+      pdfBuffer,
+    });
+  } catch (emailErr) {
+    console.error("[notifyOrderPlaced] Email error:", emailErr.message);
+  }
 
   return sendNotification({
     recipientId: user._id,

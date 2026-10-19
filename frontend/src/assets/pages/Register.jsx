@@ -1,11 +1,26 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
-import { Link } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useDispatch } from "react-redux";
 import { zodResolver } from "@hookform/resolvers/zod";
 import registerSchema from "../schema/registerSchema.js";
 import axios from "axios";
+import { LOGIN_SUCCESS } from "../../constants/userConstants";
+import { toast } from "react-toastify";
+
+const API = import.meta.env.VITE_API;
 export const Register = () => {
   const [step, setStep] = useState(0);
+  const [submitError, setSubmitError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const navigate = useNavigate();
+  const dispatch = useDispatch();
+  const location = useLocation();
+  const googleEmail = location.state?.email || "";
+  const googleFirstName = location.state?.firstName || "";
+  const googleLastName = location.state?.lastName || "";
+  const fromGoogle = Boolean(location.state?.fromGoogle);
 
   const {
     handleSubmit,
@@ -13,13 +28,27 @@ export const Register = () => {
     clearErrors,
     trigger,
     getValues,
+    setValue,
     formState: { errors },
   } = useForm({
     resolver: zodResolver(registerSchema),
     mode: "onChange",
+    defaultValues: {
+      email: googleEmail,
+      firstName: googleFirstName,
+      lastName: googleLastName,
+    },
   });
 
+  useEffect(() => {
+    if (googleEmail) setValue("email", googleEmail);
+    if (googleFirstName) setValue("firstName", googleFirstName);
+    if (googleLastName) setValue("lastName", googleLastName);
+  }, [googleEmail, googleFirstName, googleLastName, setValue]);
+
   const onSubmit = async (data) => {
+    setSubmitError("");
+    setIsSubmitting(true);
     try {
       const formData = new FormData();
       formData.append("profilePicture", data.profilePicture);
@@ -35,15 +64,55 @@ export const Register = () => {
       formData.append("email", data.email);
       formData.append("password", data.password);
       formData.append("confirmPassword", data.confirmPassword);
-      const response = await axios.post(
-        "http://localhost:4001/api/v1/register",
-        formData,
-      );
 
-      console.log(response.data);
-      setSubmitted(true);
+      // Step 1: Create the account with session cookie support
+      const res = await axios.post(`${API}/register`, formData, {
+        withCredentials: true,
+      });
+
+      let loggedInUser = res.data?.user;
+      let userAddress = res.data?.address;
+
+      // Fallback: If running against a backend instance that hasn't reloaded yet,
+      // authenticate via /login
+      if (!loggedInUser) {
+        try {
+          const loginRes = await axios.post(
+            `${API}/login`,
+            { email: data.email, password: data.password },
+            { withCredentials: true, headers: { "Content-Type": "application/json" } },
+          );
+          loggedInUser = loginRes.data?.user;
+          userAddress = loginRes.data?.address;
+        } catch (loginErr) {
+          console.warn("Auto-login fallback error:", loginErr);
+        }
+      }
+
+      if (loggedInUser) {
+        localStorage.setItem("isLoggedIn", "1");
+        dispatch({
+          type: LOGIN_SUCCESS,
+          payload: { ...loggedInUser, address: userAddress },
+        });
+
+        toast.success("Account created and logged in successfully!");
+        const defaultTarget =
+          loggedInUser.role === "admin" ? "/admin/dashboard" : "/";
+        navigate(defaultTarget);
+      } else {
+        toast.info("Registration received. Please sign in.");
+        navigate("/login");
+      }
     } catch (error) {
-      console.log(error);
+      const msg =
+        error?.response?.data?.message ||
+        error?.message ||
+        "Registration failed. Please try again.";
+      setSubmitError(msg);
+      toast.error(msg);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -154,6 +223,32 @@ export const Register = () => {
             </div>
           ) : (
             <>
+              {/* Google Account Alert */}
+              {fromGoogle && (
+                <div className="mb-4 p-3 rounded-md bg-emerald-50 border border-emerald-200 text-xs text-emerald-900 flex items-start gap-2.5">
+                  <svg
+                    className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    aria-hidden="true"
+                  >
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                    <polyline points="22 4 12 14.01 9 11.01" />
+                  </svg>
+                  <div>
+                    <p className="font-semibold text-emerald-950">
+                      Google Account Selected
+                    </p>
+                    <p className="text-[11px] text-emerald-800 mt-0.5">
+                      No account found for <strong>{googleEmail}</strong>. Please
+                      complete your registration details below.
+                    </p>
+                  </div>
+                </div>
+              )}
+
               {/* Step Title & Description */}
               <div className="mb-5">
                 <h1 className="text-xl font-semibold text-zinc-900 tracking-tight">
@@ -464,21 +559,32 @@ export const Register = () => {
                 {step === 3 && (
                   <>
                     <div className="mb-0">
-                      <label
-                        htmlFor="accountEmail"
-                        className="block text-xs font-medium text-zinc-700 mb-1"
-                      >
-                        Email address
-                      </label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label
+                          htmlFor="accountEmail"
+                          className="block text-xs font-medium text-zinc-700"
+                        >
+                          Email address
+                        </label>
+                        {fromGoogle && (
+                          <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded">
+                            Verified via Google
+                          </span>
+                        )}
+                      </div>
                       <input
                         id="accountEmail"
                         type="email"
-                        // value={formData.email}
                         {...register("email", {
                           onChange: () => clearErrors("email"),
                         })}
                         placeholder="rider@example.com"
-                        className="h-10! w-full px-3 py-2 text-sm text-zinc-900 bg-white border border-zinc-300 rounded-md placeholder:text-zinc-400 focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 transition-colors"
+                        readOnly={fromGoogle}
+                        className={`h-10! w-full px-3 py-2 text-sm border border-zinc-300 rounded-md placeholder:text-zinc-400 focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 transition-colors ${
+                          fromGoogle
+                            ? "bg-zinc-100 text-zinc-700 cursor-not-allowed"
+                            : "bg-white text-zinc-900"
+                        }`}
                       />
                     </div>
                     {errors.email && (
@@ -743,6 +849,11 @@ export const Register = () => {
                 )}
 
                 {/* Action Buttons */}
+                {submitError && (
+                  <p className="text-[11px] text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2 leading-relaxed">
+                    {submitError}
+                  </p>
+                )}
                 <div className="flex gap-2.5 pt-4">
                   {step > 0 && (
                     <button
@@ -765,10 +876,36 @@ export const Register = () => {
                   ) : (
                     <button
                       type="button"
+                      disabled={isSubmitting}
                       onClick={handleSubmit(onSubmit)}
-                      className="h-10! px-4 flex-1 rounded-md bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-sm font-medium transition-colors cursor-pointer"
+                      className="h-10! px-4 flex-1 rounded-md bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium transition-colors cursor-pointer flex items-center justify-center gap-2"
                     >
-                      Submit registration
+                      {isSubmitting ? (
+                        <>
+                          <svg
+                            className="animate-spin h-4 w-4 text-white"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                          >
+                            <circle
+                              className="opacity-25"
+                              cx="12"
+                              cy="12"
+                              r="10"
+                              stroke="currentColor"
+                              strokeWidth="4"
+                            />
+                            <path
+                              className="opacity-75"
+                              fill="currentColor"
+                              d="M4 12a8 8 0 018-8v8H4z"
+                            />
+                          </svg>
+                          <span>Creating account...</span>
+                        </>
+                      ) : (
+                        "Submit registration"
+                      )}
                     </button>
                   )}
                 </div>
