@@ -502,7 +502,7 @@ export const Homepage = ({ onNavigate }) => {
       )}
 
       {/* Featured product spotlight - full-bleed carousel, live catalog units */}
-      <ScrollReveal threshold={0.08} duration={400} revealOnExit>
+      <ScrollReveal threshold={0.08} duration={400}>
         <section className="w-full bg-white">
           <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-12 pb-4">
             <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2 pb-3 border-b border-zinc-900">
@@ -594,7 +594,7 @@ export const Homepage = ({ onNavigate }) => {
       {/* Main Content Area */}
       <main className="flex-1 w-full">
         {/* Section 2: Catalog Categories (Structured Directory Index - NO floating cards) */}
-        <ScrollReveal threshold={0.08} delay={60} duration={400} revealOnExit>
+        <ScrollReveal threshold={0.08} delay={60} duration={400}>
           <section className="w-full bg-zinc-900">
             <div className="max-w-6xl mx-auto px-4 sm:px-6 py-12 sm:py-16 space-y-4">
             <div className="pb-3 border-b border-zinc-700">
@@ -634,7 +634,7 @@ export const Homepage = ({ onNavigate }) => {
         </ScrollReveal>
 
         {/* Section: Live Inventory with Infinite Scroll (white band) */}
-        <ScrollReveal threshold={0.08} delay={70} duration={400} revealOnExit>
+        <ScrollReveal threshold={0.08} delay={70} duration={400}>
           <section className="w-full bg-white">
             <div className="max-w-6xl mx-auto px-4 sm:px-6 py-12 sm:py-16 space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 pb-3 border-b border-zinc-900">
@@ -784,7 +784,7 @@ export const Homepage = ({ onNavigate }) => {
         </ScrollReveal>
 
         {/* Section 3: Financing Protocol (dark band) */}
-        <ScrollReveal threshold={0.08} delay={80} duration={400} revealOnExit>
+        <ScrollReveal threshold={0.08} delay={80} duration={400}>
           <section className="w-full bg-zinc-900">
             <div className="max-w-6xl mx-auto px-4 sm:px-6 py-12 sm:py-16 space-y-8">
             <div className="max-w-2xl space-y-1">
@@ -853,7 +853,7 @@ export const Homepage = ({ onNavigate }) => {
         </ScrollReveal>
 
         {/* Section 4: Verified Customer Testimonials (white band) */}
-        <ScrollReveal threshold={0.08} delay={90} duration={650} revealOnExit>
+        <ScrollReveal threshold={0.08} delay={90} duration={650}>
           <section className="w-full bg-white">
             <div className="max-w-6xl mx-auto px-4 sm:px-6 py-12 sm:py-16 space-y-6">
             <div className="pb-3 border-b border-zinc-900">

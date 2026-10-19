@@ -3,7 +3,6 @@ import { Link } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { getMyOrders, payInstallmentAmortization } from "../../../actions/orderActions";
 import { ProductImagePlaceholder } from "../../components/ProductImagePlaceholder";
-import { ScrollReveal } from "../../components/ScrollReveal";
 import { toast } from "react-toastify";
 
 const API = import.meta.env.VITE_API || "http://localhost:4001/api/v1";
@@ -177,37 +176,37 @@ export const Orders = () => {
     <div className="min-h-screen bg-zinc-50/60 text-zinc-900 antialiased flex flex-col font-sans selection:bg-emerald-100 selection:text-emerald-900">
       <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-8 space-y-8">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-4 border-b border-zinc-200">
+        <div className="space-y-4 pb-4 border-b border-zinc-200">
           <div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-zinc-900 tracking-tight">
               My Orders & Financing Applications
             </h1>
-            <p className="text-xs text-zinc-500 mt-1 max-w-xl">
+            <p className="text-xs text-zinc-500 mt-1 max-w-2xl">
               Track your cash purchases, in-house motorcycle loan applications, and monthly installment amortization schedules.
             </p>
           </div>
-          <div className="flex items-center gap-1 border border-zinc-200 p-1 rounded-xl bg-white text-xs font-medium self-start sm:self-auto shadow-2xs overflow-x-auto max-w-full">
+          <div className="flex flex-wrap items-center gap-2 pt-1">
             {[
               { key: "all", label: "All Records", count: orders.length + applications.length },
-              { key: "completed", label: "Completed & Ready to Review", count: completedOrders.length, highlight: true },
-              { key: "orders", label: `Cash Orders (${orders.length})` },
-              { key: "applications", label: `Financing Loans (${applications.length})` },
+              { key: "completed", label: "Ready to Review", count: completedOrders.length, highlight: true },
+              { key: "orders", label: "Cash Orders", count: orders.length },
+              { key: "applications", label: "Financing Loans", count: applications.length },
             ].map((t) => (
               <button
                 key={t.key}
                 type="button"
                 onClick={() => setActiveTab(t.key)}
-                className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${activeTab === t.key
+                className={`px-3.5 py-1.5 rounded-lg text-xs transition-all cursor-pointer flex items-center gap-2 ${activeTab === t.key
                     ? "bg-zinc-900 text-white font-semibold shadow-xs"
                     : t.highlight && completedOrders.length > 0
-                      ? "text-emerald-700 bg-emerald-50 hover:bg-emerald-100 font-semibold"
-                      : "text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100"
+                      ? "text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 font-semibold"
+                      : "text-zinc-600 bg-white hover:bg-zinc-100 hover:text-zinc-900 border border-zinc-200"
                   }`}
               >
                 <span>{t.label}</span>
                 {t.count !== undefined && (
                   <span
-                    className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${activeTab === t.key
+                    className={`text-[10px] px-1.5 py-0.5 rounded-full font-mono ${activeTab === t.key
                         ? "bg-zinc-700 text-white"
                         : t.highlight && completedOrders.length > 0
                           ? "bg-emerald-200 text-emerald-900"
@@ -232,8 +231,7 @@ export const Orders = () => {
         {/* SECTION 1: CASH PURCHASES & DELIVERIES                         */}
         {/* ────────────────────────────────────────────────────────────── */}
         {activeTab !== "applications" && (
-          <ScrollReveal threshold={0.05} duration={500}>
-            <section className="space-y-4">
+          <section className="space-y-4">
               <div className="flex items-center justify-between border-b border-zinc-200 pb-2">
                 <h2 className="text-base font-bold text-zinc-900 flex items-center gap-2">
                   <span>Cash Purchases &amp; Deliveries</span>
@@ -290,15 +288,15 @@ export const Orders = () => {
                         }`}
                     >
                       {/* Order header */}
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-3.5 bg-gradient-to-r from-zinc-50 via-zinc-50/50 to-white border-b border-zinc-100">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-3.5 bg-zinc-50/80 border-b border-zinc-200/80">
                         <div className="flex items-center gap-2.5 flex-wrap">
                           <div className="flex items-center gap-1.5">
                             <span className="text-zinc-400 text-xs font-mono">Order</span>
-                            <span className="font-mono font-bold text-zinc-900 text-sm tracking-tight bg-zinc-100 px-2 py-0.5 rounded border border-zinc-200">
+                            <span className="font-mono font-bold text-zinc-900 text-sm tracking-tight bg-white px-2 py-0.5 rounded border border-zinc-200 shadow-2xs">
                               {order.orderNumber}
                             </span>
                           </div>
-                          <StatusBadge type="fulfillment" label={order.orderStatus} />
+                          <StatusBadge label={order.orderStatus} />
                           {isCompleted && (
                             <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-800 bg-emerald-100/90 border border-emerald-200 px-2 py-0.5 rounded-full">
                               <svg className="w-2.5 h-2.5 text-amber-500 fill-amber-500" viewBox="0 0 24 24">
@@ -426,37 +424,36 @@ export const Orders = () => {
                       </div>
 
                       {/* Order Details & Settlement Footer */}
-                      <div className="px-5 py-4 border-t border-zinc-100 bg-zinc-50/60 grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
+                      <div className="px-5 py-3.5 border-t border-zinc-200/80 bg-zinc-50/70 flex flex-col md:flex-row md:items-center justify-between gap-4">
                         {/* Left: Fulfillment & Payment */}
-                        <div className="md:col-span-7 space-y-2 text-xs">
-                          <div className="flex items-start gap-2.5">
-                            <div className="w-6 h-6 rounded-md bg-white border border-zinc-200 flex items-center justify-center shrink-0 mt-0.5 text-zinc-600">
+                        <div className="space-y-1.5 text-xs">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <div className="w-5 h-5 rounded-md bg-white border border-zinc-200 flex items-center justify-center shrink-0 text-zinc-600">
                               {order.shippingInfo?.fulfillmentMethod === "delivery" ? (
-                                <svg className="w-3.5 h-3.5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <svg className="w-3 h-3 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
                                 </svg>
                               ) : (
-                                <svg className="w-3.5 h-3.5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <svg className="w-3 h-3 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                                 </svg>
                               )}
                             </div>
-                            <div>
-                              <span className="font-semibold text-zinc-900 block">
-                                {order.shippingInfo?.fulfillmentMethod === "delivery"
-                                  ? "Doorstep Courier Delivery"
-                                  : "Dealership Showroom Pickup"}
-                              </span>
-                              <span className="text-zinc-500 text-[11px]">
-                                {order.shippingInfo?.fulfillmentMethod === "delivery"
-                                  ? `${order.shippingInfo?.address || ""}, ${order.shippingInfo?.city || ""}`
-                                  : `Claim at ${order.shippingInfo?.branch || "Central Flagship Showroom"}`}
-                                {order.shippingPrice > 0 && ` (₱${order.shippingPrice} Freight)`}
-                              </span>
-                            </div>
+                            <span className="font-semibold text-zinc-900">
+                              {order.shippingInfo?.fulfillmentMethod === "delivery"
+                                ? "Doorstep Courier Delivery"
+                                : "Dealership Showroom Pickup"}
+                            </span>
+                            <span className="text-zinc-300 hidden sm:inline">•</span>
+                            <span className="text-zinc-500 text-[11px]">
+                              {order.shippingInfo?.fulfillmentMethod === "delivery"
+                                ? `${order.shippingInfo?.address || ""}, ${order.shippingInfo?.city || ""}`
+                                : `Claim at ${order.shippingInfo?.branch || "Central Flagship Showroom"}`}
+                              {order.shippingPrice > 0 && ` (₱${order.shippingPrice} Freight)`}
+                            </span>
                           </div>
 
-                          <div className="flex items-center gap-2 pt-0.5 flex-wrap">
+                          <div className="flex items-center gap-2 text-xs">
                             <span className="text-[11px] text-zinc-400 font-mono uppercase">Settlement:</span>
                             <span className="font-semibold text-zinc-800 text-[11px] bg-white border border-zinc-200 px-2 py-0.5 rounded font-mono">
                               {order.paymentMethod?.replace(/_/g, " ").toUpperCase()}
@@ -471,7 +468,7 @@ export const Orders = () => {
                         </div>
 
                         {/* Right: Totals & Receipt Action */}
-                        <div className="md:col-span-5 flex flex-col sm:flex-row md:flex-col lg:flex-row items-start sm:items-center md:items-end lg:items-center justify-between md:justify-end gap-3 pt-2 md:pt-0 border-t md:border-t-0 border-zinc-200">
+                        <div className="flex items-center justify-between md:justify-end gap-3.5 shrink-0 pt-2 md:pt-0 border-t md:border-t-0 border-zinc-200/70">
                           <div className="flex items-center gap-1.5">
                             <a
                               href={`${API}/order/${order._id}/receipt`}
@@ -500,6 +497,8 @@ export const Orders = () => {
                             </a>
                           </div>
 
+                          <div className="h-6 w-px bg-zinc-200 hidden sm:block" />
+
                           <div className="text-right">
                             <p className="text-[10px] text-zinc-400 font-mono uppercase tracking-wider">Total Paid / Due</p>
                             <p className="font-mono font-extrabold text-zinc-900 text-lg leading-tight">
@@ -513,15 +512,13 @@ export const Orders = () => {
                 })
               )}
             </section>
-          </ScrollReveal>
         )}
 
         {/* ────────────────────────────────────────────────────────────── */}
         {/* SECTION 2: IN-HOUSE FINANCING APPLICATIONS & AMORTIZATION      */}
         {/* ────────────────────────────────────────────────────────────── */}
         {shownApplications.length > 0 && (
-          <ScrollReveal threshold={0.05} delay={50} duration={500}>
-            <section className="space-y-4">
+          <section className="space-y-4">
               <h2 className="text-base font-bold text-zinc-900 border-b border-zinc-200 pb-2">
                 In-House Motorcycle Financing & Installment Schedules
               </h2>
@@ -534,12 +531,12 @@ export const Orders = () => {
                 return (
                   <div
                     key={app._id}
-                    className="border-2 border-zinc-200 rounded-2xl bg-white overflow-hidden shadow-2xs space-y-0"
+                    className="border border-zinc-200 rounded-2xl bg-white overflow-hidden shadow-xs space-y-0"
                   >
                     {/* Application header */}
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-5 py-3 bg-zinc-50 border-b border-zinc-100">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-5 py-3.5 bg-zinc-50/80 border-b border-zinc-200/80">
                       <div className="flex items-center gap-3 flex-wrap">
-                        <span className="font-mono font-bold text-zinc-900 text-sm">
+                        <span className="font-mono font-bold text-zinc-900 text-sm bg-white px-2 py-0.5 rounded border border-zinc-200 shadow-2xs">
                           {app.applicationRef}
                         </span>
                         <StatusBadge label={app.applicationStatus} />
@@ -725,7 +722,6 @@ export const Orders = () => {
                 );
               })}
             </section>
-          </ScrollReveal>
         )}
 
         {/* Empty state */}
