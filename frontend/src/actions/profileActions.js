@@ -71,7 +71,7 @@ export const addAddress = (address) => async (dispatch) => {
     dispatch({ type: ADD_ADDRESS_REQUEST });
     const { data } = await axios.post(`${api}/profile/addresses`, address, config);
     dispatch({ type: ADD_ADDRESS_SUCCESS, payload: data.address });
-    return true;
+    return data.address || true;
   } catch (error) {
     dispatch({ type: ADD_ADDRESS_FAIL, payload: getErrorMessage(error) });
     return false;
@@ -83,7 +83,7 @@ export const updateAddress = (id, address) => async (dispatch) => {
     dispatch({ type: UPDATE_ADDRESS_REQUEST });
     const { data } = await axios.put(`${api}/profile/addresses/${id}`, address, config);
     dispatch({ type: UPDATE_ADDRESS_SUCCESS, payload: data.address });
-    return true;
+    return data.address || true;
   } catch (error) {
     dispatch({ type: UPDATE_ADDRESS_FAIL, payload: getErrorMessage(error) });
     return false;

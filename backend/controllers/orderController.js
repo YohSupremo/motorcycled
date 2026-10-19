@@ -56,7 +56,7 @@ export const isCashOnDeliveryMethod = (method) => {
  */
 export const newCheckout = async (req, res) => {
   try {
-    const { checkoutSessionId, items, shippingInfo, paymentMethod } = req.body;
+    const { checkoutSessionId, items, shippingInfo, paymentMethod, paymentDetails } = req.body;
 
     // ── 1. Basic validation ──────────────────────────────────────────────────
     if (!checkoutSessionId) {
@@ -260,6 +260,7 @@ export const newCheckout = async (req, res) => {
           orderItems,
           shippingInfo: partsShippingInfo,
           paymentMethod,
+          paymentDetails: paymentDetails || {},
           paymentStatus: isCod ? "pending" : "paid",
           paidAt: isCod ? undefined : new Date(),
           itemsPrice,
@@ -318,6 +319,7 @@ export const newCheckout = async (req, res) => {
         ],
         shippingInfo: motorcycleShippingInfo,
         paymentMethod,
+        paymentDetails: paymentDetails || {},
         paymentStatus: isCod ? "pending" : "paid",
         paidAt: isCod ? undefined : new Date(),
         itemsPrice,

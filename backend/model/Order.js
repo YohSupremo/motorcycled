@@ -64,6 +64,12 @@ const orderSchema = new mongoose.Schema(
       required: true,
       enum: ["cash_on_releasing", "cash_on_delivery", "cod", "bank_deposit", "gcash", "maya"],
     },
+    paymentDetails: {
+      accountName: { type: String, default: "" },
+      accountNumber: { type: String, default: "" },
+      referenceNumber: { type: String, default: "" },
+      bankName: { type: String, default: "" },
+    },
     paymentStatus: {
       type: String,
       enum: ["pending", "processing", "paid", "failed", "refunded"],
