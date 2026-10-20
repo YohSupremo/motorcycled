@@ -1,24 +1,60 @@
 import { useState, useMemo } from "react";
+import { useForm } from "react-hook-form";
+import { yupResolver } from "@hookform/resolvers/yup";
+import * as yup from "yup";
 import { DataGrid } from "@mui/x-data-grid";
+
+const planSchema = yup.object({
+  name: yup.string().trim().required("Plan title is required"),
+  termMonths: yup
+    .number()
+    .typeError("Tenure must be a number")
+    .required("Tenure is required")
+    .min(1, "Tenure must be at least 1 month"),
+  interestRate: yup
+    .number()
+    .typeError("Interest rate must be a number")
+    .required("Interest rate is required")
+    .min(0, "Interest rate cannot be negative"),
+  minDownpaymentPercent: yup
+    .number()
+    .typeError("Min downpayment must be a number")
+    .required("Min downpayment is required")
+    .min(10, "Minimum downpayment is 10%")
+    .max(100, "Maximum downpayment is 100%"),
+  processingFee: yup
+    .number()
+    .typeError("Fee must be a number")
+    .min(0, "Fee cannot be negative")
+    .default(0),
+});
+
+const settingsSchema = yup.object({
+  taxRate: yup
+    .number()
+    .typeError("Tax rate must be a number")
+    .required("Tax rate is required")
+    .min(0, "Tax rate cannot be negative"),
+  defaultLowStockThreshold: yup
+    .number()
+    .typeError("Threshold must be a number")
+    .required("Threshold is required")
+    .min(1, "Threshold must be at least 1"),
+  downpaymentRefundable: yup.string().required(),
+  latePenaltyEnabled: yup.boolean(),
+  latePenaltyType: yup.string(),
+  gracePeriodDays: yup
+    .number()
+    .typeError("Grace period must be a number")
+    .min(0, "Cannot be negative"),
+  defaultAfterMissedPayments: yup
+    .number()
+    .typeError("Missed payments must be a number")
+    .min(1, "Must be at least 1"),
+});
 
 export const AdminSettings = () => {
   const [saveFeedback, setSaveFeedback] = useState(false);
-
-  // Settings matching schema 4.15
-  const [settings, setSettings] = useState({
-    taxRate: 12, // 12% statutory VAT
-    defaultLowStockThreshold: 5,
-    latePenalty: {
-      enabled: true,
-      type: "fixed", // 'fixed' | 'percentage'
-      value: 250,
-      gracePeriodDays: 5,
-    },
-    defaultAfterMissedPayments: 3,
-    cancellationPolicy: {
-      downpaymentRefundable: false, // Dealership policy
-    },
-  });
 
   // Installment plans matching schema 4.7
   const [plans, setPlans] = useState([
@@ -70,16 +106,44 @@ export const AdminSettings = () => {
   ]);
 
   const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
-  const [newPlan, setNewPlan] = useState({
-    name: "",
-    termMonths: 12,
-    interestRate: 7.0,
-    minDownpaymentPercent: 20,
-    processingFee: 1500,
+
+  const {
+    register: registerSettings,
+    handleSubmit: handleSubmitSettings,
+    watch: watchSettings,
+    formState: { errors: settingsErrors, isSubmitting: isSettingsSubmitting },
+  } = useForm({
+    resolver: yupResolver(settingsSchema),
+    defaultValues: {
+      taxRate: 12,
+      defaultLowStockThreshold: 5,
+      downpaymentRefundable: "forfeited",
+      latePenaltyEnabled: true,
+      latePenaltyType: "fixed",
+      gracePeriodDays: 5,
+      defaultAfterMissedPayments: 3,
+    },
   });
 
-  const handleSaveSettings = (e) => {
-    e.preventDefault();
+  const latePenaltyEnabled = watchSettings("latePenaltyEnabled");
+
+  const {
+    register: registerPlan,
+    handleSubmit: handleSubmitPlan,
+    reset: resetPlan,
+    formState: { errors: planErrors, isSubmitting: isPlanSubmitting },
+  } = useForm({
+    resolver: yupResolver(planSchema),
+    defaultValues: {
+      name: "",
+      termMonths: 12,
+      interestRate: 7.0,
+      minDownpaymentPercent: 20,
+      processingFee: 1500,
+    },
+  });
+
+  const handleSaveSettings = () => {
     setSaveFeedback(true);
     setTimeout(() => setSaveFeedback(false), 2500);
   };
@@ -90,26 +154,30 @@ export const AdminSettings = () => {
     );
   };
 
-  const handleAddPlan = (e) => {
-    e.preventDefault();
-    const plan = {
-      id: `PLAN-${Date.now().toString().slice(-4)}`,
-      name: newPlan.name,
-      termMonths: Number(newPlan.termMonths),
-      interestRate: Number(newPlan.interestRate),
-      minDownpaymentPercent: Number(newPlan.minDownpaymentPercent),
-      processingFee: Number(newPlan.processingFee),
-      isArchived: false,
-    };
-    setPlans([...plans, plan]);
-    setIsPlanModalOpen(false);
-    setNewPlan({
+  const handleOpenPlanModal = () => {
+    resetPlan({
       name: "",
       termMonths: 12,
       interestRate: 7.0,
       minDownpaymentPercent: 20,
       processingFee: 1500,
     });
+    setIsPlanModalOpen(true);
+  };
+
+  const handleAddPlan = (data) => {
+    const plan = {
+      id: `PLAN-${Date.now().toString().slice(-4)}`,
+      name: data.name.trim(),
+      termMonths: Number(data.termMonths),
+      interestRate: Number(data.interestRate),
+      minDownpaymentPercent: Number(data.minDownpaymentPercent),
+      processingFee: Number(data.processingFee || 0),
+      isArchived: false,
+    };
+    setPlans((prev) => [...prev, plan]);
+    setIsPlanModalOpen(false);
+    resetPlan();
   };
 
   const planColumns = useMemo(
@@ -269,7 +337,7 @@ export const AdminSettings = () => {
         )}
       </div>
 
-      <form onSubmit={handleSaveSettings} className="space-y-8">
+      <form onSubmit={handleSubmitSettings(handleSaveSettings)} noValidate className="space-y-8">
         {/* Section 1: Tax, Logistics & Inventory Rules (Flat Section, NO CARDS) */}
         <section className="space-y-4">
           <div className="border-b border-zinc-900 pb-2">
@@ -290,12 +358,16 @@ export const AdminSettings = () => {
                 type="number"
                 step="0.1"
                 min={0}
-                value={settings.taxRate}
-                onChange={(e) =>
-                  setSettings({ ...settings, taxRate: Number(e.target.value) })
-                }
-                className="w-full !h-8 px-2.5 border border-zinc-300 font-mono focus:border-emerald-600 focus:outline-none"
+                {...registerSettings("taxRate")}
+                className={`w-full !h-8 px-2.5 border ${
+                  settingsErrors.taxRate ? "border-red-500 focus:border-red-500" : "border-zinc-300 focus:border-emerald-600"
+                } font-mono focus:outline-none`}
               />
+              {settingsErrors.taxRate && (
+                <span className="text-[11px] text-red-600 block">
+                  {settingsErrors.taxRate.message}
+                </span>
+              )}
               <span className="text-[10px] text-zinc-400 block mt-0.5">
                 Copied to order snapshot at checkout
               </span>
@@ -308,15 +380,16 @@ export const AdminSettings = () => {
               <input
                 type="number"
                 min={1}
-                value={settings.defaultLowStockThreshold}
-                onChange={(e) =>
-                  setSettings({
-                    ...settings,
-                    defaultLowStockThreshold: Number(e.target.value),
-                  })
-                }
-                className="w-full !h-8 px-2.5 border border-zinc-300 font-mono focus:border-emerald-600 focus:outline-none"
+                {...registerSettings("defaultLowStockThreshold")}
+                className={`w-full !h-8 px-2.5 border ${
+                  settingsErrors.defaultLowStockThreshold ? "border-red-500 focus:border-red-500" : "border-zinc-300 focus:border-emerald-600"
+                } font-mono focus:outline-none`}
               />
+              {settingsErrors.defaultLowStockThreshold && (
+                <span className="text-[11px] text-red-600 block">
+                  {settingsErrors.defaultLowStockThreshold.message}
+                </span>
+              )}
               <span className="text-[10px] text-zinc-400 block mt-0.5">
                 Trigger threshold when product is absent
               </span>
@@ -327,19 +400,7 @@ export const AdminSettings = () => {
                 Downpayment Policy on Cancel
               </label>
               <select
-                value={
-                  settings.cancellationPolicy.downpaymentRefundable
-                    ? "refundable"
-                    : "forfeited"
-                }
-                onChange={(e) =>
-                  setSettings({
-                    ...settings,
-                    cancellationPolicy: {
-                      downpaymentRefundable: e.target.value === "refundable",
-                    },
-                  })
-                }
+                {...registerSettings("downpaymentRefundable")}
                 className="w-full !h-8 px-2 border border-zinc-300 focus:border-emerald-600 focus:outline-none"
               >
                 <option value="forfeited">
@@ -356,7 +417,7 @@ export const AdminSettings = () => {
           </div>
         </section>
 
-        {/* Section 2: Late Penalties & Default Delinquency (Flat Section, NO CARDS) */}
+        {/* Section 2: Late Penalties & Delinquency Rules */}
         <section className="space-y-4">
           <div className="border-b border-zinc-900 pb-2">
             <span className="font-mono text-[10px] uppercase tracking-wider text-emerald-700 font-bold block">
@@ -371,16 +432,7 @@ export const AdminSettings = () => {
             <label className="flex items-center gap-2 cursor-pointer font-semibold text-zinc-900">
               <input
                 type="checkbox"
-                checked={settings.latePenalty.enabled}
-                onChange={(e) =>
-                  setSettings({
-                    ...settings,
-                    latePenalty: {
-                      ...settings.latePenalty,
-                      enabled: e.target.checked,
-                    },
-                  })
-                }
+                {...registerSettings("latePenaltyEnabled")}
                 className="text-emerald-600 focus:ring-0"
               />
               <span>
@@ -388,23 +440,14 @@ export const AdminSettings = () => {
               </span>
             </label>
 
-            {settings.latePenalty.enabled && (
+            {latePenaltyEnabled && (
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 pt-2 border-t border-zinc-100">
                 <div className="space-y-1">
                   <label className="text-zinc-700 font-medium block">
                     Penalty Assessment Method
                   </label>
                   <select
-                    value={settings.latePenalty.type}
-                    onChange={(e) =>
-                      setSettings({
-                        ...settings,
-                        latePenalty: {
-                          ...settings.latePenalty,
-                          type: e.target.value,
-                        },
-                      })
-                    }
+                    {...registerSettings("latePenaltyType")}
                     className="w-full !h-8 px-2 border border-zinc-300 focus:border-emerald-600 focus:outline-none"
                   >
                     <option value="fixed">Fixed Penalty Fee (₱250)</option>
@@ -421,18 +464,16 @@ export const AdminSettings = () => {
                   <input
                     type="number"
                     min={0}
-                    value={settings.latePenalty.gracePeriodDays}
-                    onChange={(e) =>
-                      setSettings({
-                        ...settings,
-                        latePenalty: {
-                          ...settings.latePenalty,
-                          gracePeriodDays: Number(e.target.value),
-                        },
-                      })
-                    }
-                    className="w-full !h-8 px-2.5 border border-zinc-300 font-mono focus:border-emerald-600 focus:outline-none"
+                    {...registerSettings("gracePeriodDays")}
+                    className={`w-full !h-8 px-2.5 border ${
+                      settingsErrors.gracePeriodDays ? "border-red-500 focus:border-red-500" : "border-zinc-300 focus:border-emerald-600"
+                    } font-mono focus:outline-none`}
                   />
+                  {settingsErrors.gracePeriodDays && (
+                    <span className="text-[11px] text-red-600 block">
+                      {settingsErrors.gracePeriodDays.message}
+                    </span>
+                  )}
                   <span className="text-[10px] text-zinc-400 block mt-0.5">
                     Calendar days before penalty attaches
                   </span>
@@ -445,15 +486,16 @@ export const AdminSettings = () => {
                   <input
                     type="number"
                     min={1}
-                    value={settings.defaultAfterMissedPayments}
-                    onChange={(e) =>
-                      setSettings({
-                        ...settings,
-                        defaultAfterMissedPayments: Number(e.target.value),
-                      })
-                    }
-                    className="w-full !h-8 px-2.5 border border-zinc-300 font-mono focus:border-emerald-600 focus:outline-none"
+                    {...registerSettings("defaultAfterMissedPayments")}
+                    className={`w-full !h-8 px-2.5 border ${
+                      settingsErrors.defaultAfterMissedPayments ? "border-red-500 focus:border-red-500" : "border-zinc-300 focus:border-emerald-600"
+                    } font-mono focus:outline-none`}
                   />
+                  {settingsErrors.defaultAfterMissedPayments && (
+                    <span className="text-[11px] text-red-600 block">
+                      {settingsErrors.defaultAfterMissedPayments.message}
+                    </span>
+                  )}
                   <span className="text-[10px] text-zinc-400 block mt-0.5">
                     Missed payments before legal default
                   </span>
@@ -476,7 +518,7 @@ export const AdminSettings = () => {
             </div>
             <button
               type="button"
-              onClick={() => setIsPlanModalOpen(true)}
+              onClick={handleOpenPlanModal}
               className="!h-7 px-3 bg-zinc-900 text-white font-medium text-xs hover:bg-zinc-800 cursor-pointer shadow-2xs"
             >
               + Add Plan
@@ -545,9 +587,10 @@ export const AdminSettings = () => {
         <div className="pt-2 flex items-center justify-end">
           <button
             type="submit"
-            className="h-9! px-6 rounded-md bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-xs font-semibold transition-colors cursor-pointer shadow-2xs"
+            disabled={isSettingsSubmitting}
+            className="h-9! px-6 rounded-md bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-xs font-semibold transition-colors cursor-pointer shadow-2xs disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            Save Dealership Settings
+            {isSettingsSubmitting ? "Saving..." : "Save Dealership Settings"}
           </button>
         </div>
       </form>
@@ -569,21 +612,24 @@ export const AdminSettings = () => {
               </button>
             </div>
 
-            <form onSubmit={handleAddPlan} className="p-4 space-y-3 text-xs">
+            <form onSubmit={handleSubmitPlan(handleAddPlan)} noValidate className="p-4 space-y-3 text-xs">
               <div className="space-y-1">
                 <label className="font-semibold text-zinc-900">
                   Plan Title *
                 </label>
                 <input
                   type="text"
-                  required
-                  value={newPlan.name}
-                  onChange={(e) =>
-                    setNewPlan({ ...newPlan, name: e.target.value })
-                  }
                   placeholder="e.g. 18 Months Promotional"
-                  className="w-full !h-8 px-2.5 border border-zinc-300 focus:border-emerald-600 focus:outline-none"
+                  {...registerPlan("name")}
+                  className={`w-full !h-8 px-2.5 border ${
+                    planErrors.name ? "border-red-500 focus:border-red-500" : "border-zinc-300 focus:border-emerald-600"
+                  } focus:outline-none`}
                 />
+                {planErrors.name && (
+                  <span className="text-[11px] text-red-600 block">
+                    {planErrors.name.message}
+                  </span>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -593,14 +639,17 @@ export const AdminSettings = () => {
                   </label>
                   <input
                     type="number"
-                    required
                     min={1}
-                    value={newPlan.termMonths}
-                    onChange={(e) =>
-                      setNewPlan({ ...newPlan, termMonths: e.target.value })
-                    }
-                    className="w-full !h-8 px-2.5 border border-zinc-300 font-mono focus:border-emerald-600 focus:outline-none"
+                    {...registerPlan("termMonths")}
+                    className={`w-full !h-8 px-2.5 border ${
+                      planErrors.termMonths ? "border-red-500 focus:border-red-500" : "border-zinc-300 focus:border-emerald-600"
+                    } font-mono focus:outline-none`}
                   />
+                  {planErrors.termMonths && (
+                    <span className="text-[11px] text-red-600 block">
+                      {planErrors.termMonths.message}
+                    </span>
+                  )}
                 </div>
 
                 <div className="space-y-1">
@@ -610,14 +659,17 @@ export const AdminSettings = () => {
                   <input
                     type="number"
                     step="0.1"
-                    required
                     min={0}
-                    value={newPlan.interestRate}
-                    onChange={(e) =>
-                      setNewPlan({ ...newPlan, interestRate: e.target.value })
-                    }
-                    className="w-full !h-8 px-2.5 border border-zinc-300 font-mono focus:border-emerald-600 focus:outline-none"
+                    {...registerPlan("interestRate")}
+                    className={`w-full !h-8 px-2.5 border ${
+                      planErrors.interestRate ? "border-red-500 focus:border-red-500" : "border-zinc-300 focus:border-emerald-600"
+                    } font-mono focus:outline-none`}
                   />
+                  {planErrors.interestRate && (
+                    <span className="text-[11px] text-red-600 block">
+                      {planErrors.interestRate.message}
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -628,18 +680,18 @@ export const AdminSettings = () => {
                   </label>
                   <input
                     type="number"
-                    required
                     min={10}
                     max={100}
-                    value={newPlan.minDownpaymentPercent}
-                    onChange={(e) =>
-                      setNewPlan({
-                        ...newPlan,
-                        minDownpaymentPercent: e.target.value,
-                      })
-                    }
-                    className="w-full !h-8 px-2.5 border border-zinc-300 font-mono focus:border-emerald-600 focus:outline-none"
+                    {...registerPlan("minDownpaymentPercent")}
+                    className={`w-full !h-8 px-2.5 border ${
+                      planErrors.minDownpaymentPercent ? "border-red-500 focus:border-red-500" : "border-zinc-300 focus:border-emerald-600"
+                    } font-mono focus:outline-none`}
                   />
+                  {planErrors.minDownpaymentPercent && (
+                    <span className="text-[11px] text-red-600 block">
+                      {planErrors.minDownpaymentPercent.message}
+                    </span>
+                  )}
                 </div>
 
                 <div className="space-y-1">
@@ -649,12 +701,16 @@ export const AdminSettings = () => {
                   <input
                     type="number"
                     min={0}
-                    value={newPlan.processingFee}
-                    onChange={(e) =>
-                      setNewPlan({ ...newPlan, processingFee: e.target.value })
-                    }
-                    className="w-full !h-8 px-2.5 border border-zinc-300 font-mono focus:border-emerald-600 focus:outline-none"
+                    {...registerPlan("processingFee")}
+                    className={`w-full !h-8 px-2.5 border ${
+                      planErrors.processingFee ? "border-red-500 focus:border-red-500" : "border-zinc-300 focus:border-emerald-600"
+                    } font-mono focus:outline-none`}
                   />
+                  {planErrors.processingFee && (
+                    <span className="text-[11px] text-red-600 block">
+                      {planErrors.processingFee.message}
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -668,9 +724,10 @@ export const AdminSettings = () => {
                 </button>
                 <button
                   type="submit"
-                  className="!h-8 px-4 rounded bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-medium cursor-pointer shadow-2xs"
+                  disabled={isPlanSubmitting}
+                  className="!h-8 px-4 rounded bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-medium cursor-pointer shadow-2xs disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  Save Plan
+                  {isPlanSubmitting ? "Saving..." : "Save Plan"}
                 </button>
               </div>
             </form>

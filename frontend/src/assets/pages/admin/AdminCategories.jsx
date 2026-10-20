@@ -1,4 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
+import { useForm } from "react-hook-form";
+import { yupResolver } from "@hookform/resolvers/yup";
+import * as yup from "yup";
 import { useDispatch, useSelector } from "react-redux";
 import { Link } from "react-router-dom";
 import { toast } from "react-toastify";
@@ -20,6 +23,11 @@ import {
   RESTORE_CATEGORY_RESET,
 } from "../../../constants/productConstants.js";
 
+const categorySchema = yup.object({
+  name: yup.string().trim().required("Category name is required"),
+  description: yup.string().default(""),
+});
+
 export const AdminCategories = () => {
   const dispatch = useDispatch();
 
@@ -39,7 +47,21 @@ export const AdminCategories = () => {
   const [sortBy, setSortBy] = useState("name-asc");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState(null);
-  const [formData, setFormData] = useState({ name: "", description: "" });
+
+  // Form handling via React Hook Form + Yup
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors, isSubmitting },
+  } = useForm({
+    resolver: yupResolver(categorySchema),
+    defaultValues: {
+      name: "",
+      description: "",
+    },
+  });
+
   const [reassignState, setReassignState] = useState({
     isOpen: false,
     sourceCategory: null,
@@ -63,18 +85,14 @@ export const AdminCategories = () => {
     if (isCategoryCreated) {
       toast.success("Category created successfully!", { position: "bottom-right" });
       dispatch({ type: CREATE_CATEGORY_RESET });
-      setIsModalOpen(false);
-      setEditingCategory(null);
-      setFormData({ name: "", description: "" });
+      handleCloseModal();
       dispatch(getCategories({ all: "true" }));
     }
 
     if (isCategoryUpdated) {
       toast.success("Category updated successfully!", { position: "bottom-right" });
       dispatch({ type: UPDATE_CATEGORY_RESET });
-      setIsModalOpen(false);
-      setEditingCategory(null);
-      setFormData({ name: "", description: "" });
+      handleCloseModal();
       dispatch(getCategories({ all: "true" }));
     }
 
@@ -87,14 +105,14 @@ export const AdminCategories = () => {
   // Open modal for add
   const handleOpenAdd = () => {
     setEditingCategory(null);
-    setFormData({ name: "", description: "" });
+    reset({ name: "", description: "" });
     setIsModalOpen(true);
   };
 
   // Open modal for edit
   const handleOpenEdit = (category) => {
     setEditingCategory(category);
-    setFormData({
+    reset({
       name: category.name || "",
       description: category.description || "",
     });
@@ -104,21 +122,20 @@ export const AdminCategories = () => {
   const handleCloseModal = () => {
     setIsModalOpen(false);
     setEditingCategory(null);
-    setFormData({ name: "", description: "" });
+    reset({ name: "", description: "" });
   };
 
   // Form submit
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (!formData.name.trim()) {
-      toast.warn("Category name is required");
-      return;
-    }
+  const onSubmitCategory = (data) => {
+    const payload = {
+      name: data.name.trim(),
+      description: data.description ? data.description.trim() : "",
+    };
 
     if (editingCategory) {
-      dispatch(updateCategory(editingCategory._id, formData));
+      dispatch(updateCategory(editingCategory._id, payload));
     } else {
-      dispatch(createCategory(formData));
+      dispatch(createCategory(payload));
     }
   };
 
@@ -665,21 +682,26 @@ export const AdminCategories = () => {
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-5 space-y-4 text-xs">
+            <form onSubmit={handleSubmit(onSubmitCategory)} noValidate className="p-5 space-y-4 text-xs">
               <div className="space-y-1.5">
                 <label className="font-semibold text-zinc-900 block">
                   Category Name <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
-                  required
                   placeholder="e.g. Motorcycles, Engine Parts, Brakes"
-                  value={formData.name}
-                  onChange={(e) =>
-                    setFormData({ ...formData, name: e.target.value })
-                  }
-                  className="w-full h-9 px-3 border border-zinc-300 rounded-lg focus:border-emerald-600 focus:outline-none transition-colors"
+                  {...register("name")}
+                  className={`w-full h-9 px-3 border ${
+                    errors.name
+                      ? "border-red-500 focus:border-red-500 focus:ring-red-500"
+                      : "border-zinc-300 focus:border-emerald-600 focus:ring-emerald-600"
+                  } rounded-lg focus:outline-none transition-colors`}
                 />
+                {errors.name && (
+                  <span className="text-[11px] text-red-600 block">
+                    {errors.name.message}
+                  </span>
+                )}
                 <span className="text-[10px] text-zinc-400 block">
                   Must be unique across the catalog (FR1.3.1).
                 </span>
@@ -692,10 +714,7 @@ export const AdminCategories = () => {
                 <textarea
                   rows={3}
                   placeholder="Brief summary of items classified under this category..."
-                  value={formData.description}
-                  onChange={(e) =>
-                    setFormData({ ...formData, description: e.target.value })
-                  }
+                  {...register("description")}
                   className="w-full p-2.5 border border-zinc-300 rounded-lg focus:border-emerald-600 focus:outline-none resize-none transition-colors"
                 />
               </div>
@@ -710,10 +729,10 @@ export const AdminCategories = () => {
                 </button>
                 <button
                   type="submit"
-                  disabled={actionLoading}
+                  disabled={actionLoading || isSubmitting}
                   className="h-8 px-4 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-xs disabled:opacity-60 transition-colors inline-flex items-center gap-1.5"
                 >
-                  {actionLoading ? (
+                  {actionLoading || isSubmitting ? (
                     <>
                       <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
                       <span>Saving...</span>

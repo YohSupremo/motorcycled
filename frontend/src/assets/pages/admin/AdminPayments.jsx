@@ -1,20 +1,60 @@
 import { useState, useMemo } from "react";
+import { useForm } from "react-hook-form";
+import { yupResolver } from "@hookform/resolvers/yup";
+import * as yup from "yup";
 import { DataGrid } from "@mui/x-data-grid";
+
+const paymentSchema = yup.object({
+  orderId: yup.string().trim().required("Target order reference is required"),
+  customer: yup.string().trim().required("Paying customer name is required"),
+  type: yup.string().required("Payment type is required"),
+  amount: yup
+    .number()
+    .typeError("Amount paid must be a number")
+    .required("Amount paid is required")
+    .min(1, "Amount must be at least ₱1"),
+  method: yup.string().required("Payment method is required"),
+  referenceNo: yup.string().trim().required("Bank / reference number is required"),
+});
 
 export const AdminPayments = () => {
   const [activeSubTab, setActiveSubTab] = useState("schedules"); // 'schedules' | 'payments'
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
-  const [paymentForm, setPaymentForm] = useState({
-    orderId: "ORD-2026-0891",
-    customer: "Juan Dela Cruz",
-    type: "installment",
-    amount: "10792",
-    method: "bank_deposit",
-    referenceNo: "BDO-DEP-9923841",
-    notes: "Over-the-counter deposit at Megamall branch",
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors, isSubmitting },
+  } = useForm({
+    resolver: yupResolver(paymentSchema),
+    defaultValues: {
+      orderId: "ORD-2026-0891",
+      customer: "Juan Dela Cruz",
+      type: "installment",
+      amount: 10792,
+      method: "bank_deposit",
+      referenceNo: "BDO-DEP-9923841",
+    },
   });
+
+  const handleOpenRecordModal = (
+    orderId = "ORD-2026-0891",
+    customer = "Juan Dela Cruz",
+    amount = 10792,
+    method = "bank_deposit"
+  ) => {
+    reset({
+      orderId,
+      customer,
+      type: "installment",
+      amount: Number(amount) || 0,
+      method,
+      referenceNo: `REF-${Date.now().toString().slice(-6)}`,
+    });
+    setIsModalOpen(true);
+  };
 
   const [schedules, setSchedules] = useState([
     {
@@ -127,26 +167,25 @@ export const AdminPayments = () => {
     },
   ]);
 
-  const handleRecordPayment = (e) => {
-    e.preventDefault();
+  const onRecordPaymentSubmit = (data) => {
     const newReceipt = {
       receiptNo: `REC-2026-${Math.floor(1000 + Math.random() * 9000)}`,
-      orderId: paymentForm.orderId,
-      customer: paymentForm.customer,
-      type: paymentForm.type,
-      amount: Number(paymentForm.amount),
-      method: paymentForm.method,
-      referenceNo: paymentForm.referenceNo,
+      orderId: data.orderId,
+      customer: data.customer,
+      type: data.type,
+      amount: Number(data.amount),
+      method: data.method,
+      referenceNo: data.referenceNo,
       paidAt: new Date().toISOString().slice(0, 16).replace("T", " "),
       recordedBy: "Kelly Laurence (Admin)",
     };
 
-    setPayments([newReceipt, ...payments]);
+    setPayments((prev) => [newReceipt, ...prev]);
 
     // If it settles a schedule, mark paid
     setSchedules((prev) =>
       prev.map((s) => {
-        if (s.orderId === paymentForm.orderId && s.status !== "Paid") {
+        if (s.orderId === data.orderId && s.status !== "Paid") {
           return { ...s, status: "Paid", penalty: 0 };
         }
         return s;
@@ -331,18 +370,14 @@ export const AdminPayments = () => {
               {s.status === "Unpaid" && (
                 <button
                   type="button"
-                  onClick={() => {
-                    setPaymentForm({
-                      orderId: s.orderId,
-                      customer: s.customer,
-                      type: "installment",
-                      amount: String(s.amountDue),
-                      method: "cash",
-                      referenceNo: `CASH-REC-${Date.now().toString().slice(-4)}`,
-                      notes: `Settle month ${s.installmentNo}`,
-                    });
-                    setIsModalOpen(true);
-                  }}
+                  onClick={() =>
+                    handleOpenRecordModal(
+                      s.orderId,
+                      s.customer,
+                      s.amountDue,
+                      "cash"
+                    )
+                  }
                   className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium border border-emerald-300 text-emerald-800 bg-emerald-50 hover:bg-emerald-100 rounded transition-colors cursor-pointer shadow-2xs whitespace-nowrap"
                 >
                   <svg
@@ -471,7 +506,7 @@ export const AdminPayments = () => {
 
         <button
           type="button"
-          onClick={() => setIsModalOpen(true)}
+          onClick={() => handleOpenRecordModal()}
           className="inline-flex items-center gap-2 h-9! px-4 rounded-md bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-xs font-semibold transition-colors cursor-pointer shadow-2xs self-start sm:self-auto"
         >
           <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -690,36 +725,45 @@ export const AdminPayments = () => {
               </button>
             </div>
 
-            <form onSubmit={handleRecordPayment} className="p-4 space-y-3.5 text-xs">
+            <form onSubmit={handleSubmit(onRecordPaymentSubmit)} noValidate className="p-4 space-y-3.5 text-xs">
               
               <div className="space-y-1">
                 <label className="font-semibold text-zinc-900">Target Order Reference *</label>
                 <input
                   type="text"
-                  required
-                  value={paymentForm.orderId}
-                  onChange={(e) => setPaymentForm({ ...paymentForm, orderId: e.target.value })}
-                  className="w-full !h-8 px-2.5 border border-zinc-300 rounded focus:border-emerald-600 focus:outline-none font-mono"
+                  {...register("orderId")}
+                  className={`w-full !h-8 px-2.5 border ${
+                    errors.orderId ? "border-red-500 focus:border-red-500" : "border-zinc-300 focus:border-emerald-600"
+                  } rounded focus:outline-none font-mono`}
                 />
+                {errors.orderId && (
+                  <span className="text-[11px] text-red-600 block">
+                    {errors.orderId.message}
+                  </span>
+                )}
               </div>
 
               <div className="space-y-1">
                 <label className="font-semibold text-zinc-900">Paying Customer Name *</label>
                 <input
                   type="text"
-                  required
-                  value={paymentForm.customer}
-                  onChange={(e) => setPaymentForm({ ...paymentForm, customer: e.target.value })}
-                  className="w-full !h-8 px-2.5 border border-zinc-300 rounded focus:border-emerald-600 focus:outline-none"
+                  {...register("customer")}
+                  className={`w-full !h-8 px-2.5 border ${
+                    errors.customer ? "border-red-500 focus:border-red-500" : "border-zinc-300 focus:border-emerald-600"
+                  } rounded focus:outline-none`}
                 />
+                {errors.customer && (
+                  <span className="text-[11px] text-red-600 block">
+                    {errors.customer.message}
+                  </span>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <label className="font-semibold text-zinc-900">Payment Type *</label>
                   <select
-                    value={paymentForm.type}
-                    onChange={(e) => setPaymentForm({ ...paymentForm, type: e.target.value })}
+                    {...register("type")}
                     className="w-full !h-8 px-2 border border-zinc-300 rounded focus:border-emerald-600 focus:outline-none capitalize"
                   >
                     <option value="installment">Installment Due</option>
@@ -733,12 +777,17 @@ export const AdminPayments = () => {
                   <label className="font-semibold text-zinc-900">Amount Paid (₱) *</label>
                   <input
                     type="number"
-                    required
                     min={1}
-                    value={paymentForm.amount}
-                    onChange={(e) => setPaymentForm({ ...paymentForm, amount: e.target.value })}
-                    className="w-full !h-8 px-2.5 border border-zinc-300 rounded focus:border-emerald-600 focus:outline-none font-mono"
+                    {...register("amount")}
+                    className={`w-full !h-8 px-2.5 border ${
+                      errors.amount ? "border-red-500 focus:border-red-500" : "border-zinc-300 focus:border-emerald-600"
+                    } rounded focus:outline-none font-mono`}
                   />
+                  {errors.amount && (
+                    <span className="text-[11px] text-red-600 block">
+                      {errors.amount.message}
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -746,8 +795,7 @@ export const AdminPayments = () => {
                 <div className="space-y-1">
                   <label className="font-semibold text-zinc-900">Method *</label>
                   <select
-                    value={paymentForm.method}
-                    onChange={(e) => setPaymentForm({ ...paymentForm, method: e.target.value })}
+                    {...register("method")}
                     className="w-full !h-8 px-2 border border-zinc-300 rounded focus:border-emerald-600 focus:outline-none"
                   >
                     <option value="cash">Showroom Cash</option>
@@ -761,12 +809,17 @@ export const AdminPayments = () => {
                   <label className="font-semibold text-zinc-900">Bank / Ref Number *</label>
                   <input
                     type="text"
-                    required
-                    value={paymentForm.referenceNo}
-                    onChange={(e) => setPaymentForm({ ...paymentForm, referenceNo: e.target.value })}
+                    {...register("referenceNo")}
                     placeholder="e.g. BDO-DEP-9921"
-                    className="w-full !h-8 px-2.5 border border-zinc-300 rounded focus:border-emerald-600 focus:outline-none font-mono"
+                    className={`w-full !h-8 px-2.5 border ${
+                      errors.referenceNo ? "border-red-500 focus:border-red-500" : "border-zinc-300 focus:border-emerald-600"
+                    } rounded focus:outline-none font-mono`}
                   />
+                  {errors.referenceNo && (
+                    <span className="text-[11px] text-red-600 block">
+                      {errors.referenceNo.message}
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -780,9 +833,10 @@ export const AdminPayments = () => {
                 </button>
                 <button
                   type="submit"
-                  className="!h-8 px-4 rounded bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-medium cursor-pointer shadow-2xs"
+                  disabled={isSubmitting}
+                  className="!h-8 px-4 rounded bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-medium cursor-pointer shadow-2xs disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  Generate Official Receipt
+                  {isSubmitting ? "Generating..." : "Generate Official Receipt"}
                 </button>
               </div>
 

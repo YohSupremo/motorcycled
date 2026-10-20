@@ -1,4 +1,7 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { useForm } from "react-hook-form";
+import { yupResolver } from "@hookform/resolvers/yup";
+import * as yup from "yup";
 import { Link } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { toast } from "react-toastify";
@@ -187,19 +190,42 @@ const ProductImageManager = ({
 );
 
 // ─── Product Modal Form ────────────────────────────────────────────────────────
-const EMPTY_FORM = {
-  name: "",
-  description: "",
-  price: "",
-  stock: "",
-  lowStockThreshold: 5,
-  compatibleModels: "",
-  installmentEligible: false,
-  minInstallmentPrice: "",
-  isFeatured: false,
-  category: "",
-  brand: "",
-};
+const productSchema = yup.object({
+  name: yup.string().trim().required("Product name is required"),
+  category: yup.string().trim().required("Category is required"),
+  brand: yup.string().trim().required("Brand is required"),
+  description: yup.string().default(""),
+  compatibleModels: yup.string().default(""),
+  price: yup
+    .number()
+    .typeError("Price must be a valid number")
+    .required("Price is required")
+    .min(0, "Price cannot be negative"),
+  stock: yup
+    .number()
+    .typeError("Stock must be a valid number")
+    .required("Stock is required")
+    .min(0, "Stock cannot be negative"),
+  lowStockThreshold: yup
+    .number()
+    .typeError("Threshold must be a valid number")
+    .required("Low stock threshold is required")
+    .min(1, "Threshold must be at least 1"),
+  installmentEligible: yup.boolean().default(false),
+  minInstallmentPrice: yup
+    .number()
+    .transform((val, orig) => (orig === "" || orig === null || orig === undefined ? 0 : val))
+    .nullable()
+    .when("installmentEligible", {
+      is: true,
+      then: (schema) =>
+        schema
+          .required("Minimum installment price is required")
+          .min(0, "Cannot be negative"),
+      otherwise: (schema) => schema.notRequired(),
+    }),
+  isFeatured: yup.boolean().default(false),
+});
 
 const ProductModal = ({
   isOpen,
@@ -210,34 +236,68 @@ const ProductModal = ({
   isLoading,
 }) => {
   const dispatch = useDispatch();
-  const [form, setForm] = useState(EMPTY_FORM);
   const [imageList, setImageList] = useState([]); // List of { id, preview, data, isNew }
 
   const isEdit = !!editingProduct;
-  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    watch,
+    formState: { errors, isSubmitting },
+  } = useForm({
+    resolver: yupResolver(productSchema),
+    defaultValues: {
+      name: "",
+      category: "",
+      brand: "",
+      description: "",
+      compatibleModels: "",
+      price: "",
+      stock: "",
+      lowStockThreshold: 5,
+      installmentEligible: false,
+      minInstallmentPrice: "",
+      isFeatured: false,
+    },
+  });
+
+  const installmentEligible = watch("installmentEligible");
 
   // Populate form and existing images when editing or reset on close
   useEffect(() => {
     if (!isOpen) {
-      setForm(EMPTY_FORM);
+      reset({
+        name: "",
+        category: "",
+        brand: "",
+        description: "",
+        compatibleModels: "",
+        price: "",
+        stock: "",
+        lowStockThreshold: 5,
+        installmentEligible: false,
+        minInstallmentPrice: "",
+        isFeatured: false,
+      });
       setImageList([]);
-      setIsSubmitting(false);
       return;
     }
 
     if (editingProduct) {
-      setForm({
+      reset({
         name: editingProduct.name || "",
+        category: editingProduct.category?._id || editingProduct.category || "",
+        brand: editingProduct.brand?._id || editingProduct.brand || "",
         description: editingProduct.description || "",
+        compatibleModels: (editingProduct.compatibleModels || []).join(", "),
         price: editingProduct.price ?? "",
         stock: editingProduct.stock ?? "",
         lowStockThreshold: editingProduct.lowStockThreshold ?? 5,
-        compatibleModels: (editingProduct.compatibleModels || []).join(", "),
         installmentEligible: editingProduct.installmentEligible || false,
         minInstallmentPrice: editingProduct.minInstallmentPrice ?? "",
         isFeatured: Boolean(editingProduct.isFeatured),
-        category: editingProduct.category?._id || editingProduct.category || "",
-        brand: editingProduct.brand?._id || editingProduct.brand || "",
       });
       const existing = (editingProduct.images || []).map((img, idx) => ({
         id: img.publicId || `existing-${idx}`,
@@ -247,18 +307,22 @@ const ProductModal = ({
       }));
       setImageList(existing);
     } else {
-      setForm(EMPTY_FORM);
+      reset({
+        name: "",
+        category: "",
+        brand: "",
+        description: "",
+        compatibleModels: "",
+        price: "",
+        stock: "",
+        lowStockThreshold: 5,
+        installmentEligible: false,
+        minInstallmentPrice: "",
+        isFeatured: false,
+      });
       setImageList([]);
     }
-    setIsSubmitting(false);
-  }, [editingProduct, isOpen]);
-
-  // Reset local submitting flag when Redux finishes loading
-  useEffect(() => {
-    if (!isLoading) {
-      setIsSubmitting(false);
-    }
-  }, [isLoading]);
+  }, [editingProduct, isOpen, reset]);
 
   // Handle adding multiple images via file picker (preserves and appends to existing list)
   const handleFilesAdded = (e) => {
@@ -319,27 +383,28 @@ const ProductModal = ({
     setImageList((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (isLoading || isSubmitting) return; // Prevent spamming / multiple submits
-
-    setIsSubmitting(true);
+  const onSubmitProduct = (data) => {
+    if (isLoading || isSubmitting) return;
 
     const payload = {
-      name: form.name,
-      description: form.description,
-      price: Number(form.price),
-      stock: Number(form.stock),
-      lowStockThreshold: Number(form.lowStockThreshold),
-      compatibleModels: form.compatibleModels
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean),
-      installmentEligible: form.installmentEligible,
-      minInstallmentPrice: form.installmentEligible ? Number(form.minInstallmentPrice) : 0,
-      isFeatured: Boolean(form.isFeatured),
-      category: form.category,
-      brand: form.brand,
+      name: data.name.trim(),
+      description: data.description ? data.description.trim() : "",
+      price: Number(data.price),
+      stock: Number(data.stock),
+      lowStockThreshold: Number(data.lowStockThreshold),
+      compatibleModels: data.compatibleModels
+        ? data.compatibleModels
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean)
+        : [],
+      installmentEligible: Boolean(data.installmentEligible),
+      minInstallmentPrice: data.installmentEligible
+        ? Number(data.minInstallmentPrice || 0)
+        : 0,
+      isFeatured: Boolean(data.isFeatured),
+      category: data.category,
+      brand: data.brand,
       images: imageList.map((item) => item.data),
     };
 
@@ -370,18 +435,23 @@ const ProductModal = ({
         </div>
 
         {/* Modal Body */}
-        <form onSubmit={handleSubmit} className="p-5 space-y-4 overflow-y-auto text-xs flex-1">
+        <form onSubmit={handleSubmit(onSubmitProduct)} noValidate className="p-5 space-y-4 overflow-y-auto text-xs flex-1">
           {/* Name */}
           <div className="space-y-1">
             <label className="font-semibold text-zinc-900">Product Name *</label>
             <input
               type="text"
-              required
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              {...register("name")}
               placeholder="e.g. Yamaha NMAX 155 ABS"
-              className="w-full h-9 px-3 border border-zinc-300 rounded-md focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-600"
+              className={`w-full h-9 px-3 border ${
+                errors.name ? "border-red-500 focus:border-red-500" : "border-zinc-300 focus:border-emerald-600"
+              } rounded-md focus:outline-none focus:ring-1 focus:ring-emerald-600`}
             />
+            {errors.name && (
+              <span className="text-[11px] text-red-600 block">
+                {errors.name.message}
+              </span>
+            )}
           </div>
 
           {/* Category & Brand */}
@@ -389,10 +459,10 @@ const ProductModal = ({
             <div className="space-y-1">
               <label className="font-semibold text-zinc-900">Category *</label>
               <select
-                required
-                value={form.category}
-                onChange={(e) => setForm({ ...form, category: e.target.value })}
-                className="w-full h-9 px-2 border border-zinc-300 rounded-md focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-600"
+                {...register("category")}
+                className={`w-full h-9 px-2 border ${
+                  errors.category ? "border-red-500 focus:border-red-500" : "border-zinc-300 focus:border-emerald-600"
+                } rounded-md focus:outline-none focus:ring-1 focus:ring-emerald-600`}
               >
                 <option value="">Select category...</option>
                 {categories.map((c) => (
@@ -401,14 +471,19 @@ const ProductModal = ({
                   </option>
                 ))}
               </select>
+              {errors.category && (
+                <span className="text-[11px] text-red-600 block">
+                  {errors.category.message}
+                </span>
+              )}
             </div>
             <div className="space-y-1">
               <label className="font-semibold text-zinc-900">Brand *</label>
               <select
-                required
-                value={form.brand}
-                onChange={(e) => setForm({ ...form, brand: e.target.value })}
-                className="w-full h-9 px-2 border border-zinc-300 rounded-md focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-600"
+                {...register("brand")}
+                className={`w-full h-9 px-2 border ${
+                  errors.brand ? "border-red-500 focus:border-red-500" : "border-zinc-300 focus:border-emerald-600"
+                } rounded-md focus:outline-none focus:ring-1 focus:ring-emerald-600`}
               >
                 <option value="">Select brand...</option>
                 {brands.map((b) => (
@@ -417,6 +492,11 @@ const ProductModal = ({
                   </option>
                 ))}
               </select>
+              {errors.brand && (
+                <span className="text-[11px] text-red-600 block">
+                  {errors.brand.message}
+                </span>
+              )}
             </div>
           </div>
 
@@ -425,8 +505,7 @@ const ProductModal = ({
             <label className="font-semibold text-zinc-900">Description</label>
             <textarea
               rows={3}
-              value={form.description}
-              onChange={(e) => setForm({ ...form, description: e.target.value })}
+              {...register("description")}
               placeholder="Technical specifications, features, displacement..."
               className="w-full p-2.5 border border-zinc-300 rounded-md focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-600 resize-none"
             />
@@ -437,8 +516,7 @@ const ProductModal = ({
             <label className="font-semibold text-zinc-900">Compatible Models</label>
             <input
               type="text"
-              value={form.compatibleModels}
-              onChange={(e) => setForm({ ...form, compatibleModels: e.target.value })}
+              {...register("compatibleModels")}
               placeholder="e.g. NMAX 155 V1, NMAX 155 V2, Aerox 155"
               className="w-full h-9 px-3 border border-zinc-300 rounded-md focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-600 font-mono"
             />
@@ -451,34 +529,49 @@ const ProductModal = ({
               <label className="font-semibold text-zinc-900">Price (₱) *</label>
               <input
                 type="number"
-                required
                 min={0}
-                value={form.price}
-                onChange={(e) => setForm({ ...form, price: e.target.value })}
-                className="w-full h-9 px-3 border border-zinc-300 rounded-md focus:border-emerald-600 focus:outline-none font-mono"
+                {...register("price")}
+                className={`w-full h-9 px-3 border ${
+                  errors.price ? "border-red-500 focus:border-red-500" : "border-zinc-300 focus:border-emerald-600"
+                } rounded-md focus:outline-none font-mono`}
               />
+              {errors.price && (
+                <span className="text-[11px] text-red-600 block">
+                  {errors.price.message}
+                </span>
+              )}
             </div>
             <div className="space-y-1">
               <label className="font-semibold text-zinc-900">Stock *</label>
               <input
                 type="number"
-                required
                 min={0}
-                value={form.stock}
-                onChange={(e) => setForm({ ...form, stock: e.target.value })}
-                className="w-full h-9 px-3 border border-zinc-300 rounded-md focus:border-emerald-600 focus:outline-none font-mono"
+                {...register("stock")}
+                className={`w-full h-9 px-3 border ${
+                  errors.stock ? "border-red-500 focus:border-red-500" : "border-zinc-300 focus:border-emerald-600"
+                } rounded-md focus:outline-none font-mono`}
               />
+              {errors.stock && (
+                <span className="text-[11px] text-red-600 block">
+                  {errors.stock.message}
+                </span>
+              )}
             </div>
             <div className="space-y-1">
               <label className="font-semibold text-zinc-900">Low Stock ≤</label>
               <input
                 type="number"
-                required
                 min={1}
-                value={form.lowStockThreshold}
-                onChange={(e) => setForm({ ...form, lowStockThreshold: e.target.value })}
-                className="w-full h-9 px-3 border border-zinc-300 rounded-md focus:border-emerald-600 focus:outline-none font-mono"
+                {...register("lowStockThreshold")}
+                className={`w-full h-9 px-3 border ${
+                  errors.lowStockThreshold ? "border-red-500 focus:border-red-500" : "border-zinc-300 focus:border-emerald-600"
+                } rounded-md focus:outline-none font-mono`}
               />
+              {errors.lowStockThreshold && (
+                <span className="text-[11px] text-red-600 block">
+                  {errors.lowStockThreshold.message}
+                </span>
+              )}
             </div>
           </div>
 
@@ -487,13 +580,12 @@ const ProductModal = ({
             <label className="flex items-center gap-2 cursor-pointer font-semibold text-zinc-900">
               <input
                 type="checkbox"
-                checked={form.installmentEligible}
-                onChange={(e) => setForm({ ...form, installmentEligible: e.target.checked })}
+                {...register("installmentEligible")}
                 className="rounded text-emerald-600 focus:ring-0 w-3.5 h-3.5"
               />
               Enable In-House Installment Financing
             </label>
-            {form.installmentEligible && (
+            {installmentEligible && (
               <div className="pl-5 space-y-1">
                 <label className="text-[11px] text-zinc-600 font-medium">
                   Min Qualifying Price (₱)
@@ -501,10 +593,16 @@ const ProductModal = ({
                 <input
                   type="number"
                   min={0}
-                  value={form.minInstallmentPrice}
-                  onChange={(e) => setForm({ ...form, minInstallmentPrice: e.target.value })}
-                  className="w-48 h-8 px-2.5 border border-zinc-300 rounded-md focus:border-emerald-600 focus:outline-none font-mono"
+                  {...register("minInstallmentPrice")}
+                  className={`w-48 h-8 px-2.5 border ${
+                    errors.minInstallmentPrice ? "border-red-500 focus:border-red-500" : "border-zinc-300 focus:border-emerald-600"
+                  } rounded-md focus:outline-none font-mono`}
                 />
+                {errors.minInstallmentPrice && (
+                  <span className="text-[11px] text-red-600 block">
+                    {errors.minInstallmentPrice.message}
+                  </span>
+                )}
               </div>
             )}
           </div>
@@ -514,8 +612,7 @@ const ProductModal = ({
             <label className="flex items-center gap-2 cursor-pointer font-semibold text-zinc-900">
               <input
                 type="checkbox"
-                checked={form.isFeatured}
-                onChange={(e) => setForm({ ...form, isFeatured: e.target.checked })}
+                {...register("isFeatured")}
                 className="rounded text-amber-500 focus:ring-0 w-3.5 h-3.5"
               />
               <span className="flex items-center gap-1.5">

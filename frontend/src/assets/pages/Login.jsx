@@ -1,4 +1,7 @@
 import { useState, useEffect, useRef } from "react";
+import { useForm } from "react-hook-form";
+import { yupResolver } from "@hookform/resolvers/yup";
+import * as yup from "yup";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { login, clearErrors } from "../../actions/userActions";
@@ -13,13 +16,30 @@ import {
 
 const API = import.meta.env.VITE_API;
 
+// Yup schema for login validation
+const loginSchema = yup.object({
+  identifier: yup.string().trim().required("Email or contact number is required"),
+  password: yup.string().required("Password is required"),
+});
+
 export const Login = () => {
   const { isAuthenticated, user, error, loading } = useSelector(
     (state) => state.auth,
   );
 
-  const [identifier, setIdentifier] = useState("");
-  const [password, setPassword] = useState("");
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm({
+    mode: "onTouched",
+    resolver: yupResolver(loginSchema),
+    defaultValues: {
+      identifier: "",
+      password: "",
+    },
+  });
+
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [socialLoading, setSocialLoading] = useState("");
@@ -131,19 +151,9 @@ export const Login = () => {
     }
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    dispatch(login(identifier, password));
-  };
-
-  const handleIdentifierChange = (e) => {
-    setIdentifier(e.target.value);
+  const onLoginSubmit = (data) => {
     if (error) dispatch(clearErrors());
-  };
-
-  const handlePasswordChange = (e) => {
-    setPassword(e.target.value);
-    if (error) dispatch(clearErrors());
+    dispatch(login(data.identifier, data.password));
   };
 
   return (
@@ -175,7 +185,7 @@ export const Login = () => {
             </p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit(onLoginSubmit)} noValidate className="space-y-4">
             {/* Error message from the server / network */}
             {error && (
               <p className="text-[11px] text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2 leading-relaxed">
@@ -194,12 +204,19 @@ export const Login = () => {
               <input
                 id="identifier"
                 type="text"
-                value={identifier}
-                onChange={handleIdentifierChange}
+                {...register("identifier")}
                 placeholder="rider@example.com or 09123456789"
-                required
-                className="h-10! w-full px-3 py-2 text-sm text-zinc-900 bg-white border border-zinc-300 rounded-md placeholder:text-zinc-400 focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 transition-colors"
+                className={`h-10! w-full px-3 py-2 text-sm text-zinc-900 bg-white border ${
+                  errors.identifier
+                    ? "border-red-500 focus:border-red-500 focus:ring-red-500"
+                    : "border-zinc-300 focus:border-emerald-600 focus:ring-emerald-600"
+                } rounded-md placeholder:text-zinc-400 focus:outline-none focus:ring-1 transition-colors`}
               />
+              {errors.identifier && (
+                <p className="mt-1 text-xs text-red-600">
+                  {errors.identifier.message}
+                </p>
+              )}
             </div>
 
             {/* Password input */}
@@ -214,11 +231,13 @@ export const Login = () => {
                 <input
                   id="password"
                   type={showPassword ? "text" : "password"}
-                  value={password}
-                  onChange={handlePasswordChange}
+                  {...register("password")}
                   placeholder="••••••••"
-                  required
-                  className="h-10! w-full px-3 py-2 pr-10 text-sm text-zinc-900 bg-white border border-zinc-300 rounded-md placeholder:text-zinc-400 focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 transition-colors"
+                  className={`h-10! w-full px-3 py-2 pr-10 text-sm text-zinc-900 bg-white border ${
+                    errors.password
+                      ? "border-red-500 focus:border-red-500 focus:ring-red-500"
+                      : "border-zinc-300 focus:border-emerald-600 focus:ring-emerald-600"
+                  } rounded-md placeholder:text-zinc-400 focus:outline-none focus:ring-1 transition-colors`}
                 />
                 <button
                   type="button"
@@ -257,6 +276,11 @@ export const Login = () => {
                   )}
                 </button>
               </div>
+              {errors.password && (
+                <p className="mt-1 text-xs text-red-600">
+                  {errors.password.message}
+                </p>
+              )}
             </div>
 
             {/* Remember me & Forgot password row below input */}
@@ -288,10 +312,10 @@ export const Login = () => {
             <div className="pt-2">
               <button
                 type="submit"
-                disabled={loading || Boolean(socialLoading)}
+                disabled={loading || isSubmitting || Boolean(socialLoading)}
                 className="h-10! w-full px-4 rounded-md bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-sm font-medium transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                {loading ? "Signing in..." : "Sign in"}
+                {loading || isSubmitting ? "Signing in..." : "Sign in"}
               </button>
             </div>
           </form>

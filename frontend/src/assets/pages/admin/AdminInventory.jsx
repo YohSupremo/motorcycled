@@ -1,5 +1,28 @@
 import { useState, useMemo } from "react";
+import { useForm } from "react-hook-form";
+import { yupResolver } from "@hookform/resolvers/yup";
+import * as yup from "yup";
 import { DataGrid } from "@mui/x-data-grid";
+
+const restockSchema = yup.object({
+  supplierId: yup.string().required("Supplier is required"),
+  product: yup.string().trim().required("Product name is required"),
+  quantity: yup
+    .number()
+    .typeError("Quantity must be a valid number")
+    .required("Quantity is required")
+    .min(1, "Quantity must be at least 1"),
+  unitCost: yup
+    .number()
+    .typeError("Unit cost must be a valid number")
+    .required("Unit cost is required")
+    .min(1, "Unit cost must be at least ₱1"),
+  referenceNo: yup
+    .string()
+    .trim()
+    .required("PO / invoice reference is required"),
+  notes: yup.string().default(""),
+});
 
 export const AdminInventory = () => {
   const [activeTab, setActiveTab] = useState("ledger"); // 'ledger' | 'suppliers'
@@ -108,30 +131,49 @@ export const AdminInventory = () => {
     },
   ]);
 
-  const [restockForm, setRestockForm] = useState({
-    supplierId: "SUP-01",
-    product: "Motul 7100 4T 10W-40 Synthetic Oil (1L)",
-    quantity: "24",
-    unitCost: "580",
-    referenceNo: "PO-SUP-2026-045",
-    notes: "Emergency replenishment for low-stock threshold",
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors, isSubmitting },
+  } = useForm({
+    resolver: yupResolver(restockSchema),
+    defaultValues: {
+      supplierId: "SUP-01",
+      product: "Motul 7100 4T 10W-40 Synthetic Oil (1L)",
+      quantity: 24,
+      unitCost: 580,
+      referenceNo: "PO-SUP-2026-045",
+      notes: "Emergency replenishment for low-stock threshold",
+    },
   });
 
-  const handleCreateRestock = (e) => {
-    e.preventDefault();
-    const qty = Number(restockForm.quantity);
+  const handleOpenRestock = () => {
+    reset({
+      supplierId: "SUP-01",
+      product: "Motul 7100 4T 10W-40 Synthetic Oil (1L)",
+      quantity: 24,
+      unitCost: 580,
+      referenceNo: `PO-SUP-2026-${Math.floor(100 + Math.random() * 900)}`,
+      notes: "Emergency replenishment for low-stock threshold",
+    });
+    setIsRestockModalOpen(true);
+  };
+
+  const onRestockSubmit = (data) => {
+    const qty = Number(data.quantity);
     const newTxn = {
       id: `TXN-${Math.floor(8900 + Math.random() * 900)}`,
       date: new Date().toISOString().slice(0, 16).replace("T", " "),
-      product: restockForm.product,
+      product: data.product.trim(),
       type: "restock",
       quantityChange: qty,
-      orderRef: restockForm.referenceNo,
+      orderRef: data.referenceNo.trim(),
       performedBy: "Kelly Laurence (Admin)",
-      note: restockForm.notes,
+      note: data.notes ? data.notes.trim() : "",
     };
 
-    setLedger([newTxn, ...ledger]);
+    setLedger((prev) => [newTxn, ...prev]);
     setIsRestockModalOpen(false);
   };
 
@@ -357,7 +399,7 @@ export const AdminInventory = () => {
 
         <button
           type="button"
-          onClick={() => setIsRestockModalOpen(true)}
+          onClick={handleOpenRestock}
           className="inline-flex items-center gap-2 h-9! px-4 rounded-md bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-xs font-semibold transition-colors cursor-pointer shadow-2xs self-start sm:self-auto"
         >
           <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -562,30 +604,41 @@ export const AdminInventory = () => {
               </button>
             </div>
 
-            <form onSubmit={handleCreateRestock} className="p-4 space-y-3.5 text-xs">
+            <form onSubmit={handleSubmit(onRestockSubmit)} noValidate className="p-4 space-y-3.5 text-xs">
               
               <div className="space-y-1">
                 <label className="font-semibold text-zinc-900">Select Supplier *</label>
                 <select
-                  value={restockForm.supplierId}
-                  onChange={(e) => setRestockForm({ ...restockForm, supplierId: e.target.value })}
-                  className="w-full !h-8 px-2 border border-zinc-300 rounded focus:border-emerald-600 focus:outline-none"
+                  {...register("supplierId")}
+                  className={`w-full !h-8 px-2 border ${
+                    errors.supplierId ? "border-red-500 focus:border-red-500" : "border-zinc-300 focus:border-emerald-600"
+                  } rounded focus:outline-none`}
                 >
                   {suppliers.map((s) => (
                     <option key={s.id} value={s.id}>{s.name}</option>
                   ))}
                 </select>
+                {errors.supplierId && (
+                  <span className="text-[11px] text-red-600 block">
+                    {errors.supplierId.message}
+                  </span>
+                )}
               </div>
 
               <div className="space-y-1">
                 <label className="font-semibold text-zinc-900">Product *</label>
                 <input
                   type="text"
-                  required
-                  value={restockForm.product}
-                  onChange={(e) => setRestockForm({ ...restockForm, product: e.target.value })}
-                  className="w-full !h-8 px-2.5 border border-zinc-300 rounded focus:border-emerald-600 focus:outline-none"
+                  {...register("product")}
+                  className={`w-full !h-8 px-2.5 border ${
+                    errors.product ? "border-red-500 focus:border-red-500" : "border-zinc-300 focus:border-emerald-600"
+                  } rounded focus:outline-none`}
                 />
+                {errors.product && (
+                  <span className="text-[11px] text-red-600 block">
+                    {errors.product.message}
+                  </span>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -593,24 +646,34 @@ export const AdminInventory = () => {
                   <label className="font-semibold text-zinc-900">Quantity Added *</label>
                   <input
                     type="number"
-                    required
                     min={1}
-                    value={restockForm.quantity}
-                    onChange={(e) => setRestockForm({ ...restockForm, quantity: e.target.value })}
-                    className="w-full !h-8 px-2.5 border border-zinc-300 rounded focus:border-emerald-600 focus:outline-none font-mono"
+                    {...register("quantity")}
+                    className={`w-full !h-8 px-2.5 border ${
+                      errors.quantity ? "border-red-500 focus:border-red-500" : "border-zinc-300 focus:border-emerald-600"
+                    } rounded focus:outline-none font-mono`}
                   />
+                  {errors.quantity && (
+                    <span className="text-[11px] text-red-600 block">
+                      {errors.quantity.message}
+                    </span>
+                  )}
                 </div>
 
                 <div className="space-y-1">
                   <label className="font-semibold text-zinc-900">Unit Cost (₱) *</label>
                   <input
                     type="number"
-                    required
                     min={1}
-                    value={restockForm.unitCost}
-                    onChange={(e) => setRestockForm({ ...restockForm, unitCost: e.target.value })}
-                    className="w-full !h-8 px-2.5 border border-zinc-300 rounded focus:border-emerald-600 focus:outline-none font-mono"
+                    {...register("unitCost")}
+                    className={`w-full !h-8 px-2.5 border ${
+                      errors.unitCost ? "border-red-500 focus:border-red-500" : "border-zinc-300 focus:border-emerald-600"
+                    } rounded focus:outline-none font-mono`}
                   />
+                  {errors.unitCost && (
+                    <span className="text-[11px] text-red-600 block">
+                      {errors.unitCost.message}
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -618,19 +681,23 @@ export const AdminInventory = () => {
                 <label className="font-semibold text-zinc-900">Purchase order or invoice reference *</label>
                 <input
                   type="text"
-                  required
-                  value={restockForm.referenceNo}
-                  onChange={(e) => setRestockForm({ ...restockForm, referenceNo: e.target.value })}
-                  className="w-full !h-8 px-2.5 border border-zinc-300 rounded focus:border-emerald-600 focus:outline-none font-mono"
+                  {...register("referenceNo")}
+                  className={`w-full !h-8 px-2.5 border ${
+                    errors.referenceNo ? "border-red-500 focus:border-red-500" : "border-zinc-300 focus:border-emerald-600"
+                  } rounded focus:outline-none font-mono`}
                 />
+                {errors.referenceNo && (
+                  <span className="text-[11px] text-red-600 block">
+                    {errors.referenceNo.message}
+                  </span>
+                )}
               </div>
 
               <div className="space-y-1">
                 <label className="font-semibold text-zinc-900">Note</label>
                 <input
                   type="text"
-                  value={restockForm.notes}
-                  onChange={(e) => setRestockForm({ ...restockForm, notes: e.target.value })}
+                  {...register("notes")}
                   className="w-full !h-8 px-2.5 border border-zinc-300 rounded focus:border-emerald-600 focus:outline-none"
                 />
               </div>
@@ -645,9 +712,10 @@ export const AdminInventory = () => {
                 </button>
                 <button
                   type="submit"
-                  className="!h-8 px-4 rounded bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-medium cursor-pointer shadow-2xs"
+                  disabled={isSubmitting}
+                  className="!h-8 px-4 rounded bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-medium cursor-pointer shadow-2xs disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  Save restock
+                  {isSubmitting ? "Saving..." : "Save restock"}
                 </button>
               </div>
 

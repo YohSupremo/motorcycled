@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useDispatch } from "react-redux";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { yupResolver } from "@hookform/resolvers/yup";
 import registerSchema from "../schema/registerSchema.js";
 import axios from "axios";
 import { LOGIN_SUCCESS } from "../../constants/userConstants";
@@ -31,7 +31,7 @@ export const Register = () => {
     setValue,
     formState: { errors },
   } = useForm({
-    resolver: zodResolver(registerSchema),
+    resolver: yupResolver(registerSchema),
     mode: "onChange",
     defaultValues: {
       email: googleEmail,
@@ -50,13 +50,16 @@ export const Register = () => {
     setSubmitError("");
     setIsSubmitting(true);
     try {
+      const getFile = (val) =>
+        typeof FileList !== "undefined" && val instanceof FileList ? val[0] : val;
+
       const formData = new FormData();
-      formData.append("profilePicture", data.profilePicture);
+      if (data.profilePicture) formData.append("profilePicture", getFile(data.profilePicture));
       formData.append("firstName", data.firstName);
       formData.append("lastName", data.lastName);
       formData.append("contactNumber", data.contactNumber);
-      formData.append("validId", data.validId);
-      formData.append("proofOfIncome", data.proofOfIncome);
+      if (data.validId) formData.append("validId", getFile(data.validId));
+      if (data.proofOfIncome) formData.append("proofOfIncome", getFile(data.proofOfIncome));
       formData.append("street", data.street);
       formData.append("barangay", data.barangay);
       formData.append("city", data.city);
@@ -295,9 +298,6 @@ export const Register = () => {
                         className="block w-full text-xs text-zinc-600 border border-zinc-300 rounded-md cursor-pointer bg-zinc-50/50 p-2 file:mr-3 file:py-1 file:px-2.5 file:rounded-md file:border file:border-zinc-300 file:text-xs file:font-medium file:bg-white file:text-zinc-700 hover:file:bg-zinc-100 hover:file:border-zinc-400 focus:outline-none focus:ring-1 focus:ring-emerald-600 focus:border-emerald-600"
                       />
                       <span className="block text-[11px] text-zinc-400 mt-1">
-                        {/* formData.profilePicName
-                          ? `Selected: ${formData.profilePicName}`
-                          : "JPG or PNG, up to 5MB" */}
                         JPG or PNG, up to 5MB
                       </span>
                     </div>
@@ -390,7 +390,7 @@ export const Register = () => {
                         htmlFor="valid_id"
                         className="block text-xs font-medium text-zinc-700 mb-1"
                       >
-                        Valid government ID
+                        Valid government ID <span className="text-zinc-400 font-normal">(Optional)</span>
                       </label>
                       <input
                         id="valid_id"
@@ -402,9 +402,6 @@ export const Register = () => {
                         className="block w-full text-xs text-zinc-600 border border-zinc-300 rounded-md cursor-pointer bg-zinc-50/50 p-2 file:mr-3 file:py-1 file:px-2.5 file:rounded-md file:border file:border-zinc-300 file:text-xs file:font-medium file:bg-white file:text-zinc-700 hover:file:bg-zinc-100 hover:file:border-zinc-400 focus:outline-none focus:ring-1 focus:ring-emerald-600 focus:border-emerald-600"
                       />
                       <span className="block text-[11px] text-zinc-400 mt-1">
-                        {/* formData.validIdName
-                          ? `Selected: ${formData.validIdName}`
-                          : "Driver’s license, Passport, UMID, or National ID" */}
                         Driver’s license, Passport, UMID, or National ID
                       </span>
                     </div>
@@ -419,7 +416,7 @@ export const Register = () => {
                         htmlFor="proof_income"
                         className="block text-xs font-medium text-zinc-700 mb-1"
                       >
-                        Proof of income
+                        Proof of income <span className="text-zinc-400 font-normal">(Optional)</span>
                       </label>
                       <input
                         id="proof_income"
@@ -431,11 +428,7 @@ export const Register = () => {
                         className="block w-full text-xs text-zinc-600 border border-zinc-300 rounded-md cursor-pointer bg-zinc-50/50 p-2 file:mr-3 file:py-1 file:px-2.5 file:rounded-md file:border file:border-zinc-300 file:text-xs file:font-medium file:bg-white file:text-zinc-700 hover:file:bg-zinc-100 hover:file:border-zinc-400 focus:outline-none focus:ring-1 focus:ring-emerald-600 focus:border-emerald-600"
                       />
                       <span className="block text-[11px] text-zinc-400 mt-1">
-                        {/* formData.proofIncomeName
-                          ? `Selected: ${formData.proofIncomeName}`
-                          : "Latest payslip, certificate of employment, or bank statement" */}
-                        Latest payslip, certificate of employment, or bank
-                        statement
+                        Latest payslip, certificate of employment, or bank statement
                       </span>
                     </div>
                     {errors.proofOfIncome && (
@@ -781,11 +774,11 @@ export const Register = () => {
                       <dl className="grid grid-cols-3 gap-y-1.5 text-zinc-600">
                         <dt className="text-zinc-500">Valid ID:</dt>
                         <dd className="col-span-2 truncate text-zinc-700">
-                          {getValues("validId")?.[0]?.name}
+                          {getValues("validId")?.[0]?.name || "Not provided"}
                         </dd>
                         <dt className="text-zinc-500">Income proof:</dt>
                         <dd className="col-span-2 truncate text-zinc-700">
-                          {getValues("proofOfIncome")?.[0]?.name}
+                          {getValues("proofOfIncome")?.[0]?.name || "Not provided"}
                         </dd>
                       </dl>
                     </div>

@@ -33,7 +33,9 @@
     "redux-thunk": "^3.1.0",
     "sweetalert2": "^11.26.25",
     "tailwindcss": "^4.3.3",
-    "zod": "^4.6.5"
+    "yup": "^1.4.0"
+
+
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

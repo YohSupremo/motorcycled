@@ -1,4 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
+import { useForm } from "react-hook-form";
+import { yupResolver } from "@hookform/resolvers/yup";
+import * as yup from "yup";
 import { useDispatch, useSelector } from "react-redux";
 import { Link } from "react-router-dom";
 import { toast } from "react-toastify";
@@ -19,6 +22,10 @@ import {
   DELETE_BRAND_RESET,
   RESTORE_BRAND_RESET,
 } from "../../../constants/productConstants.js";
+
+const brandSchema = yup.object({
+  name: yup.string().trim().required("Brand name is required"),
+});
 
 export const AdminBrands = () => {
   const dispatch = useDispatch();
@@ -41,8 +48,19 @@ export const AdminBrands = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingBrand, setEditingBrand] = useState(null);
 
-  // Form state
-  const [brandName, setBrandName] = useState("");
+  // Form state via React Hook Form + Yup
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors, isSubmitting },
+  } = useForm({
+    resolver: yupResolver(brandSchema),
+    defaultValues: {
+      name: "",
+    },
+  });
+
   const [logoPreview, setLogoPreview] = useState(""); // data URL or existing image URL
   const [logoData, setLogoData] = useState(undefined); // undefined = untouched, string = new data url, null = removed
   const [reassignState, setReassignState] = useState({
@@ -87,7 +105,7 @@ export const AdminBrands = () => {
 
   const handleOpenAdd = () => {
     setEditingBrand(null);
-    setBrandName("");
+    reset({ name: "" });
     setLogoPreview("");
     setLogoData(undefined);
     setIsModalOpen(true);
@@ -95,7 +113,7 @@ export const AdminBrands = () => {
 
   const handleOpenEdit = (brand) => {
     setEditingBrand(brand);
-    setBrandName(brand.name || "");
+    reset({ name: brand.name || "" });
     setLogoPreview(brand.logo?.url || "");
     setLogoData(undefined);
     setIsModalOpen(true);
@@ -104,7 +122,7 @@ export const AdminBrands = () => {
   const handleCloseModal = () => {
     setIsModalOpen(false);
     setEditingBrand(null);
-    setBrandName("");
+    reset({ name: "" });
     setLogoPreview("");
     setLogoData(undefined);
   };
@@ -136,14 +154,8 @@ export const AdminBrands = () => {
   };
 
   // Submit form
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (!brandName.trim()) {
-      toast.warn("Brand name is required");
-      return;
-    }
-
-    const payload = { name: brandName.trim() };
+  const onSubmitBrand = (data) => {
+    const payload = { name: data.name.trim() };
     if (logoData !== undefined) {
       payload.logo = logoData;
     }
@@ -725,19 +737,26 @@ export const AdminBrands = () => {
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-5 space-y-4 text-xs">
+            <form onSubmit={handleSubmit(onSubmitBrand)} noValidate className="p-5 space-y-4 text-xs">
               <div className="space-y-1.5">
                 <label className="font-semibold text-zinc-900 block">
                   Brand Name <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
-                  required
                   placeholder="e.g. Honda, Yamaha, Kawasaki, CFMOTO"
-                  value={brandName}
-                  onChange={(e) => setBrandName(e.target.value)}
-                  className="w-full h-9 px-3 border border-zinc-300 rounded-lg focus:border-emerald-600 focus:outline-none transition-colors"
+                  {...register("name")}
+                  className={`w-full h-9 px-3 border ${
+                    errors.name
+                      ? "border-red-500 focus:border-red-500 focus:ring-red-500"
+                      : "border-zinc-300 focus:border-emerald-600 focus:ring-emerald-600"
+                  } rounded-lg focus:outline-none transition-colors`}
                 />
+                {errors.name && (
+                  <span className="text-[11px] text-red-600 block">
+                    {errors.name.message}
+                  </span>
+                )}
                 <span className="text-[10px] text-zinc-400 block">
                   Must be unique across the catalog (FR1.3.3).
                 </span>
@@ -819,10 +838,10 @@ export const AdminBrands = () => {
                 </button>
                 <button
                   type="submit"
-                  disabled={actionLoading}
+                  disabled={actionLoading || isSubmitting}
                   className="h-8 px-4 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-xs disabled:opacity-60 transition-colors inline-flex items-center gap-1.5"
                 >
-                  {actionLoading ? (
+                  {actionLoading || isSubmitting ? (
                     <>
                       <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
                       <span>Saving...</span>
