@@ -1,0 +1,457 @@
+ITCP318 Integrative Programming and Technology
+1st Term 2026
+Progress checklist
+
+Legend:
+[x] Implemented in the codebase
+[~] Implemented, but requires manual demonstration/configuration verification
+[ ] Not confirmed or not implemented
+
+============================================================
+MP1 - Product/Service CRUD datatables (20 pts)
+============================================================
+
+[x] Product CRUD DataGrid
+    Evidence:
+    - frontend/src/assets/pages/admin/AdminProducts.jsx
+    - backend/controllers/productController.js
+    - backend/routes/productRoutes.js
+
+[x] Upload multiple product photos
+    Evidence:
+    - AdminProducts.jsx accepts multiple files and previews/reorders images.
+    - Product image upload uses the existing backend upload flow.
+
+[x] Bulk delete using checkboxes
+    Evidence:
+    - AdminProducts.jsx uses DataGrid checkbox selection.
+    - bulkDeleteProducts is implemented in frontend/src/actions/productActions.js.
+    - Soft-delete confirmation and bulk restore are also available.
+
+MP1 status: [x] 20/20 implementation points confirmed
+
+============================================================
+MP2 - Filter functions (20 pts)
+============================================================
+
+[x] Price filter (5 pts)
+    Evidence:
+    - frontend/src/assets/pages/customer/Shop.jsx
+    - backend/controllers/productController.js
+    - Supports price[gte], price[lte], minPrice, and maxPrice.
+
+[x] Category filter (5 pts)
+    Evidence:
+    - Shop.jsx category filter and URL state.
+    - productController.js supports category ObjectId and category name.
+
+[x] Ratings filter (5 pts)
+    Evidence:
+    - Shop.jsx sends ratings filter parameters.
+    - productController.js filters by minimum ratings.
+
+[x] Review filter (5 pts)
+    Evidence:
+    - ProductDetails.jsx includes review filters.
+    - Product listing supports reviewed products through the backend review filter.
+
+MP2 status: [x] 20/20 implementation points confirmed
+
+============================================================
+MP3 - Review ratings (20 pts)
+============================================================
+
+[x] Verified buyers can write a review and rating (10 pts)
+    Evidence:
+    - backend/controllers/reviewController.js checks completed/non-canceled orders.
+    - ProductDetails.jsx displays the review form only for eligible users.
+    - Rating validation and product rating recomputation are implemented.
+
+[x] Users can update their own review/rating (5 pts)
+    Evidence:
+    - reviewController.js implements updateReview with ownership checks.
+    - ProductDetails.jsx provides the user's edit/update flow.
+
+[x] Admin can delete a review (5 pts)
+    Evidence:
+    - reviewController.js implements admin review deletion.
+    - AdminReviews.jsx provides the admin delete action.
+
+MP3 status: [x] 20/20 implementation points confirmed
+
+============================================================
+Term test lab (30 pts)
+============================================================
+
+[x] Completed transaction (10 pts)
+    Evidence:
+    - Order checkout and order completion flows are implemented in:
+      backend/controllers/orderController.js
+      frontend/src/assets/pages/customer/ConfirmOrder.jsx
+      frontend/src/assets/pages/customer/Orders.jsx
+
+[x] Admin updates transaction status (5 pts)
+    Evidence:
+    - AdminOrders.jsx provides status management.
+    - orderController.js updates the admin order status.
+
+[x] Email customer updated transaction details (5 pts)
+    Evidence:
+    - backend/services/emailService.js sends status update emails.
+    - Email includes product list, subtotal, total, and delivery/order details.
+
+[x] Attach PDF receipt to the email (10 pts)
+    Evidence:
+    - backend/services/pdfService.js generates the receipt PDF.
+    - orderController.js attaches the generated PDF when status changes.
+
+Term test lab status: [x] 30/30 implementation points confirmed
+Manual verification:
+[~] Confirm SMTP credentials and demonstrate one real status-update email.
+[~] Confirm the received email contains the PDF attachment and correct totals.
+
+============================================================
+Unit 1 (20 pts)
+============================================================
+
+[x] Filter/mask bad words from reviews (10 pts)
+    Evidence:
+    - backend/controllers/reviewController.js uses the bad-words package.
+    - Review text is cleaned before saving.
+
+[x] Form validation on product and user forms (10 pts)
+    Evidence:
+    - AdminProducts.jsx uses Yup with React Hook Form.
+    - Login.jsx uses Yup with React Hook Form.
+    - Register.jsx uses Yup with React Hook Form.
+    - AdminCustomers.jsx implements user-management form validation and role management.
+    - Profile and other admin forms also use Yup/React Hook Form.
+
+Unit 1 status: [x] 20/20 implementation points confirmed
+
+============================================================
+Unit 2 - User interface design
+============================================================
+
+[x] User interface design with CSS (10 pts)
+    Evidence:
+    - Tailwind utility styling and shared frontend/src/App.css.
+    - Responsive customer and admin layouts.
+
+[~] User interface design with CSS and Bootstrap components (15 pts)
+    Evidence:
+    - The project has strong CSS/Tailwind-based UI implementation.
+    - No direct Bootstrap component usage was confirmed in the source scan.
+    - Do not claim this item unless Bootstrap components are demonstrated or
+      added explicitly.
+
+[x] User interface design with CSS and Material UI (MUI) or similar (20 pts)
+    Evidence:
+    - MUI X DataGrid is used throughout the admin DataGrid pages.
+    - MUI charts/components are used where applicable.
+
+Unit 2 status: [~] CSS and MUI are confirmed; Bootstrap usage is not confirmed.
+The instructor may treat the 10/15/20 entries as progressive alternatives,
+so verify which level applies instead of adding all three together.
+
+============================================================
+Quiz 2 (15 pts)
+============================================================
+
+[x] Sales charts with date-range filter (line/bar chart) (15 pts)
+    Evidence:
+    - frontend/src/assets/pages/admin/AdminDashboard.jsx provides start/end
+      date filters and BarChart/LineChart/AreaChart views.
+    - backend dashboard statistics support the selected date range.
+
+Quiz 2 status: [x] 15/15 implementation points confirmed
+
+============================================================
+Quiz 3
+============================================================
+
+[x] Pagination on products list on homepage (10 pts)
+    Evidence:
+    - Shop.jsx tracks page state and requests paginated products.
+    - productController.js supports page and limit.
+
+[x] Infinite scroll on products list on homepage (15 pts)
+    Evidence:
+    - Shop.jsx uses react-infinite-scroll-component.
+    - Additional pages load as the user scrolls.
+
+Quiz 3 status: [x] 25/25 implementation points confirmed
+
+============================================================
+Quiz 4
+============================================================
+
+[x] Facebook or Gmail login using a React social-login package (15 pts)
+    Evidence:
+    - Google login uses Firebase Auth and GoogleAuthProvider in:
+      frontend/src/firebase.js
+      frontend/src/assets/pages/Login.jsx
+
+[x] Facebook or Gmail login using Firebase/Supabase/Clerk (15 pts)
+    Evidence:
+    - Firebase Google popup authentication is implemented.
+    - Firebase ID tokens are now verified server-side through Firebase Admin:
+      backend/config/firebaseAdmin.js
+      backend/controllers/AuthController.js
+    - Server credentials are configured in backend/.env.
+    - Google sign-in was successfully tested after server-side verification.
+
+Quiz 4 status: [x] 30/30 implementation points confirmed
+
+============================================================
+Term test - Lecture
+============================================================
+
+[~] Functional requirements completeness (10 pts)
+    Current implementation covers the listed CRUD, filtering, reviews,
+    transactions, validation, charts, pagination, infinite scroll, and
+    Firebase login requirements.
+    Final score depends on the instructor's live demonstration and rubric.
+
+[~] Program execution / errors (10 pts)
+    Frontend production build passes.
+    Backend syntax checks pass.
+    Perform a final live smoke test for login, product CRUD, checkout,
+    review submission, admin status update, email, and PDF receipt.
+
+[~] Project contribution (10 pts)
+    Requires team contribution evidence, commits, task assignments, or
+    presentation documentation outside the application code.
+
+Term test lecture status: [~] 20/30 implementation/readiness points;
+10/30 requires contribution evidence.
+
+============================================================
+Overall implementation estimate
+============================================================
+
+Confirmed implementation points (not an official grade):
+    MP1             20/20
+    MP2             20/20
+    MP3             20/20
+    Term test lab   30/30
+    Unit 1          20/20
+    Unit 2          20/20 for CSS + MUI; Bootstrap item not confirmed
+    Quiz 2          15/15
+    Quiz 3          25/25
+    Quiz 4          30/30 confirmed after successful Firebase sign-in
+    Term test LEC   implementation is present, but live execution and
+                    contribution evidence remain
+
+Implementation/readiness total:
+    200 points from items confirmed in source and demonstrated
+
+The rubric's official maximum is ambiguous because Unit 2 lists 10/15/20
+levels and Quiz 4 lists two 15-point authentication entries. Confirm the
+instructor's intended total before reporting a final percentage.
+
+Remaining presentation/configuration actions:
+[x] Configure and verify Firebase Admin service-account credentials in backend/.env.
+[x] Perform a successful Google login after the server-side token verification fix.
+[ ] Demonstrate product multiple-photo upload and bulk delete.
+[ ] Demonstrate all four product filters.
+[ ] Demonstrate eligible-user review creation and review update.
+[ ] Demonstrate admin review deletion.
+[ ] Complete a transaction and update its status as admin.
+[ ] Verify the status email and PDF receipt attachment.
+[ ] Demonstrate the sales chart date-range filter.
+[ ] Demonstrate product pagination and infinite scroll.
+[ ] Record team contribution evidence for the lecture term test.
+[ ] Run a final end-to-end smoke test before submission.
+
+============================================================
+Code location index - frontend and backend
+============================================================
+
+MP1 - Product/Service CRUD, photos, and bulk delete
+Frontend:
+    - frontend/src/assets/pages/admin/AdminProducts.jsx
+      Product form, DataGrid, multiple image picker, image previews,
+      image ordering, primary image selection, row checkboxes,
+      bulk delete, restore, and action confirmations.
+    - frontend/src/actions/productActions.js
+      Product CRUD requests, image payload handling, bulk delete,
+      and bulk restore actions.
+Backend:
+    - backend/controllers/productController.js
+      Product creation, update, deletion/archive, restore, image upload,
+      validation, and product listing.
+    - backend/routes/productRoutes.js
+      Product and admin product API endpoints.
+    - backend/model/Product.js
+      Product fields, images, pricing, stock, ratings, and review counts.
+
+MP2 - Product filters
+Frontend:
+    - frontend/src/assets/pages/customer/Shop.jsx
+      Price range controls, category selection, ratings filter, review
+      filter state, URL query synchronization, pagination, and loading.
+    - frontend/src/actions/productActions.js
+      Product list request parameters and Redux product state.
+Backend:
+    - backend/controllers/productController.js
+      Product query filters for category, price range, ratings, reviews,
+      search, page, and limit.
+    - backend/routes/productRoutes.js
+      Public product-list endpoint.
+
+MP3 - Reviews and ratings
+Frontend:
+    - frontend/src/assets/pages/customer/ProductDetails.jsx
+      Review list, star rating form, eligibility messaging, review create,
+      edit, update, delete-own-review, and review filters.
+    - frontend/src/actions/reviewActions.js
+      Review fetch, create, update, and delete requests.
+    - frontend/src/reducers/reviewReducers.js
+      Review loading, success, and error state.
+    - frontend/src/assets/pages/admin/AdminReviews.jsx
+      Admin review DataGrid, moderation filters, rating display, and
+      admin delete action.
+Backend:
+    - backend/controllers/reviewController.js
+      Completed-order eligibility checks, review validation, bad-word
+      cleaning, ownership checks, rating aggregation, and admin deletion.
+    - backend/routes/reviewRoutes.js
+      Customer and admin review endpoints.
+    - backend/model/Review.js
+      Review, rating, product, user, and order relationships.
+
+Term test lab - Transactions, status, email, and receipt
+Frontend:
+    - frontend/src/assets/pages/customer/Shipping.jsx
+      Shipping information form and checkout step.
+    - frontend/src/assets/pages/customer/ConfirmOrder.jsx
+      Order confirmation and transaction submission.
+    - frontend/src/assets/pages/customer/Orders.jsx
+      Customer order history, status display, and receipt access.
+    - frontend/src/assets/pages/admin/AdminOrders.jsx
+      Admin order DataGrid and transaction-status update controls.
+    - frontend/src/actions/orderActions.js
+      Checkout, order retrieval, admin status update, and receipt requests.
+Backend:
+    - backend/controllers/orderController.js
+      Order creation, completed transactions, admin status updates,
+      order totals, status notification trigger, and receipt endpoint.
+    - backend/routes/orderRoutes.js
+      Customer order and admin order/status endpoints.
+    - backend/model/Order.js
+      Transaction, order items, subtotal, total, status, and customer data.
+    - backend/services/emailService.js
+      Status-update email content, product list, subtotal, grand total,
+      delivery details, and PDF attachment configuration.
+    - backend/services/pdfService.js
+      PDF receipt/invoice generation and receipt line-item totals.
+
+Unit 1 - Bad words and form validation
+Frontend:
+    - frontend/src/assets/pages/customer/ProductDetails.jsx
+      Review form and client-side review input behavior.
+    - frontend/src/assets/pages/Login.jsx
+      Login Yup schema and React Hook Form integration.
+    - frontend/src/assets/pages/Register.jsx
+      Registration form and React Hook Form integration.
+    - frontend/src/schema/registerSchema.js
+      Registration Yup rules.
+    - frontend/src/assets/pages/admin/AdminProducts.jsx
+      Product Yup schema and product form validation.
+    - frontend/src/assets/pages/admin/AdminCustomers.jsx
+      User-management form, role selection, and account fields.
+Backend:
+    - backend/controllers/reviewController.js
+      bad-words package setup and review text cleaning before persistence.
+    - backend/controllers/productController.js
+      Server-side product validation.
+    - backend/controllers/AuthController.js
+      Server-side registration and login validation.
+    - backend/controllers/adminCustomerController.js
+      Server-side user-management validation, role validation, and
+      password hashing.
+
+Unit 2 - UI design and component libraries
+Frontend:
+    - frontend/src/App.css
+      Shared application and DataGrid styling.
+    - frontend/src/assets/components/Layout.jsx
+      Customer application shell and responsive layout.
+    - frontend/src/assets/components/AdminLayout.jsx
+      Admin shell, grouped sidebar, header, and responsive admin layout.
+    - frontend/src/assets/pages/admin/*.jsx
+      Admin UI screens using MUI X DataGrid and shared styling.
+    - frontend/src/utils/adminDataGridTheme.js
+      Shared MUI DataGrid theme.
+    - frontend/package.json
+      React, Tailwind, MUI, and UI-library dependencies.
+Backend:
+    - No backend UI code applies to this requirement.
+
+Quiz 2 - Sales charts and date-range filter
+Frontend:
+    - frontend/src/assets/pages/admin/AdminDashboard.jsx
+      Date-range controls, sales metric selection, BarChart, LineChart,
+      AreaChart, summaries, and chart rendering.
+Backend:
+    - backend/controllers/orderController.js
+      Dashboard statistics, date-range query handling, sales timeline,
+      category sales, order counts, and unit metrics.
+    - backend/routes/orderRoutes.js
+      Admin dashboard statistics endpoint.
+
+Quiz 3 - Pagination and infinite scroll
+Frontend:
+    - frontend/src/assets/pages/customer/Shop.jsx
+      Page state, paginated requests, InfiniteScroll component, and
+      incremental product loading.
+    - frontend/src/actions/productActions.js
+      Product pagination request and response state.
+Backend:
+    - backend/controllers/productController.js
+      page, limit, total-count, and filtered product query handling.
+    - backend/routes/productRoutes.js
+      Public paginated product endpoint.
+
+Quiz 4 - Firebase Google login
+Frontend:
+    - frontend/src/firebase.js
+      Firebase client initialization and GoogleAuthProvider setup.
+    - frontend/src/assets/pages/Login.jsx
+      Google popup login, Firebase ID-token retrieval, backend request,
+      login state, and SweetAlert errors.
+Backend:
+    - backend/config/firebaseAdmin.js
+      Firebase Admin initialization and ID-token verification.
+    - backend/controllers/AuthController.js
+      Verified Firebase token handling, verified-email lookup,
+      inactive-account check, and application JWT creation.
+    - backend/routes/authRoutes.js
+      Public Firebase login endpoint.
+    - backend/.env
+      Server-only Firebase Admin credentials.
+    - backend/.env.example
+      Names of required Firebase Admin environment variables.
+
+User management and account lifecycle
+Frontend:
+    - frontend/src/assets/pages/admin/AdminCustomers.jsx
+      User list, create/edit form, role editing, active/inactive controls,
+      search, status filter, and self-access safeguards.
+    - frontend/src/App.jsx
+      Admin route and global deactivation SweetAlert/session handling.
+    - frontend/src/assets/components/AdminLayout.jsx
+      User Management sidebar entry.
+Backend:
+    - backend/controllers/adminCustomerController.js
+      User list, create, update, role changes, activation state, password
+      hashing, duplicate-email protection, and self-access safeguards.
+    - backend/routes/adminCustomerRoutes.js
+      Admin-only user-management endpoints.
+    - backend/model/User.js
+      User role and isActive fields.
+    - backend/middleware/authMiddleware.js
+      Active-account enforcement on every protected request.
+    - backend/controllers/AuthController.js
+      Active-account checks during manual and verified Google login.

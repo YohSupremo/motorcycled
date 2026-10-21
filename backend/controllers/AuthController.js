@@ -2,6 +2,7 @@ import bcrypt from "bcrypt";
 import User from "../model/User.js";
 import Address from "../model/Address.js";
 import { cloudConf } from "../config/cloudinary.js";
+import { verifyFirebaseIdToken } from "../config/firebaseAdmin.js";
 
 const uploadHandler = (fileBuffer, folder) => {
   return new Promise((res, rej) => {
@@ -19,6 +20,8 @@ const uploadHandler = (fileBuffer, folder) => {
 };
 
 const isProd = process.env.NODE_ENV === "production";
+const DUMMY_PASSWORD_HASH =
+  "$2b$10$7EqJtq98hPqEX7fNZaFWoOeYc4v5v5yQbO5B5H4a2B8h8Z9d9W6aK";
 
 // Sign a JWT and send it as an httpOnly cookie, together with the user.
 const sendToken = async (user, statusCode, res) => {
@@ -145,18 +148,20 @@ export const login = async (req, res) => {
       $or: [{ email }, { contactNumber: email }],
     });
 
-    if (!user) {
+    const passwordMatches = user
+      ? await user.comparePassword(password)
+      : await bcrypt.compare(password, DUMMY_PASSWORD_HASH);
+
+    if (!user || !passwordMatches) {
       return res.status(401).json({
         message: "Invalid email or password",
         success: false,
       });
     }
 
-    const isPasswordMatched = await user.comparePassword(password);
-
-    if (!isPasswordMatched) {
-      return res.status(401).json({
-        message: "Invalid email or password",
+    if (!user.isActive) {
+      return res.status(403).json({
+        message: "This account has been deactivated. Contact support for assistance.",
         success: false,
       });
     }
@@ -214,20 +219,42 @@ export const resetPassword = (req, res) => {};
  */
 export const firebaseLogin = async (req, res) => {
   try {
-    const { email, firstName, lastName, profilePicture, provider } = req.body;
+    const authorization = req.headers.authorization || "";
+    const idToken = authorization.startsWith("Bearer ")
+      ? authorization.slice(7).trim()
+      : "";
 
-    console.log("[firebaseLogin] provider:", provider, "| email received:", email);
-
-    if (!email) {
+    if (!idToken) {
       return res.status(400).json({
         success: false,
-        message: "Email is required for social authentication",
+        message: "Firebase identity token is required",
       });
     }
 
-    const user = await User.findOne({ email: email.toLowerCase() });
+    let decodedToken;
+    try {
+      decodedToken = await verifyFirebaseIdToken(idToken);
+    } catch (error) {
+      if (error.code === "FIREBASE_ADMIN_NOT_CONFIGURED") {
+        return res.status(503).json({
+          success: false,
+          message: "Google sign-in is temporarily unavailable",
+        });
+      }
+      return res.status(401).json({
+        success: false,
+        message: "Unable to verify Google sign-in",
+      });
+    }
 
+    if (!decodedToken.email || decodedToken.email_verified !== true) {
+      return res.status(401).json({
+        success: false,
+        message: "Unable to verify Google sign-in",
+      });
+    }
 
+    const user = await User.findOne({ email: decodedToken.email.toLowerCase() });
 
     if (!user) {
       return res.status(200).json({
@@ -235,6 +262,13 @@ export const firebaseLogin = async (req, res) => {
         isRegistered: false,
         message:
           "This Google account is not registered yet. Please complete registration.",
+      });
+    }
+
+    if (!user.isActive) {
+      return res.status(403).json({
+        success: false,
+        message: "This account has been deactivated. Contact support for assistance.",
       });
     }
 
@@ -248,4 +282,3 @@ export const firebaseLogin = async (req, res) => {
     });
   }
 };
-

@@ -20,8 +20,8 @@ import {
   CREATE_CATEGORY_RESET,
   UPDATE_CATEGORY_RESET,
   DELETE_CATEGORY_RESET,
-  RESTORE_CATEGORY_RESET,
 } from "../../../constants/productConstants.js";
+import { adminDataGridSx } from "../../../utils/adminDataGridTheme";
 
 const categorySchema = yup.object({
   name: yup.string().trim().required("Category name is required"),
@@ -75,6 +75,12 @@ export const AdminCategories = () => {
     dispatch(getCategories({ all: "true" }));
   }, [dispatch]);
 
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setEditingCategory(null);
+    reset({ name: "", description: "" });
+  };
+
   // Handle side-effects (toasts, modal close, refetch)
   useEffect(() => {
     if (error) {
@@ -83,14 +89,14 @@ export const AdminCategories = () => {
     }
 
     if (isCategoryCreated) {
-      toast.success("Category created successfully!", { position: "bottom-right" });
+      toast.success("Category created.", { position: "bottom-right" });
       dispatch({ type: CREATE_CATEGORY_RESET });
       handleCloseModal();
       dispatch(getCategories({ all: "true" }));
     }
 
     if (isCategoryUpdated) {
-      toast.success("Category updated successfully!", { position: "bottom-right" });
+      toast.success("Category updated.", { position: "bottom-right" });
       dispatch({ type: UPDATE_CATEGORY_RESET });
       handleCloseModal();
       dispatch(getCategories({ all: "true" }));
@@ -119,12 +125,6 @@ export const AdminCategories = () => {
     setIsModalOpen(true);
   };
 
-  const handleCloseModal = () => {
-    setIsModalOpen(false);
-    setEditingCategory(null);
-    reset({ name: "", description: "" });
-  };
-
   // Form submit
   const onSubmitCategory = (data) => {
     const payload = {
@@ -143,12 +143,12 @@ export const AdminCategories = () => {
   const handleDelete = async (category) => {
     const confirm = await Swal.fire({
       title: `Delete "${category.name}"?`,
-      text: `Are you sure you want to delete this category?`,
+      text: "The category will be archived and can be restored later.",
       icon: "warning",
       showCancelButton: true,
       confirmButtonColor: "#dc2626",
       cancelButtonColor: "#6b7280",
-      confirmButtonText: "Yes, delete",
+      confirmButtonText: "Delete category",
       cancelButtonText: "Cancel",
     });
 
@@ -170,7 +170,7 @@ export const AdminCategories = () => {
     }
 
     if (res?.success) {
-      toast.success(`Category "${category.name}" deleted successfully!`);
+      toast.success(`Category "${category.name}" deleted.`);
       dispatch(getCategories({ all: "true" }));
     }
   };
@@ -179,12 +179,12 @@ export const AdminCategories = () => {
   const handleRestore = async (category) => {
     const confirm = await Swal.fire({
       title: `Restore "${category.name}"?`,
-      text: `This category will be restored and made available in the shop catalog.`,
+      text: "This category will be restored and made available in the shop catalog.",
       icon: "question",
       showCancelButton: true,
       confirmButtonColor: "#059669",
       cancelButtonColor: "#6b7280",
-      confirmButtonText: "Yes, restore",
+      confirmButtonText: "Restore category",
       cancelButtonText: "Cancel",
     });
 
@@ -192,7 +192,7 @@ export const AdminCategories = () => {
 
     const res = await dispatch(restoreCategory(category._id));
     if (res?.success) {
-      toast.success(res.message || `Category "${category.name}" restored successfully!`);
+      toast.success(res.message || `Category "${category.name}" restored.`);
       dispatch(getCategories({ all: "true" }));
     } else {
       toast.error(res?.message || "Failed to restore category");
@@ -203,7 +203,7 @@ export const AdminCategories = () => {
   const handleReassignSubmit = async (e) => {
     e.preventDefault();
     if (!reassignState.targetCategoryId) {
-      toast.warn("Please select a target category to reassign products to.");
+      toast.warn("Select a category to move the products to.");
       return;
     }
 
@@ -215,10 +215,7 @@ export const AdminCategories = () => {
     );
 
     if (res?.success) {
-      toast.success(
-        res.data?.message ||
-          "Products reassigned and category deleted successfully!",
-      );
+      toast.success(res.data?.message || "Products moved and category archived.");
       setReassignState({
         isOpen: false,
         sourceCategory: null,
@@ -264,19 +261,19 @@ export const AdminCategories = () => {
     () => [
       {
         field: "name",
-        headerName: "Category Name",
+        headerName: "Category",
         flex: 1.2,
         minWidth: 200,
         renderCell: (params) => {
           const category = params.row;
           const isArchived = !!category.isArchived;
           return (
-            <div className="flex items-center gap-2.5 py-1.5 h-full">
+            <div className="flex items-center gap-2 py-1 h-full">
               <div
-                className={`w-7 h-7 rounded-lg flex items-center justify-center font-bold text-xs shrink-0 border ${
+                className={`w-7 h-7 rounded flex items-center justify-center font-bold text-xs shrink-0 border ${
                   isArchived
                     ? "bg-amber-100 text-amber-800 border-amber-300"
-                    : "bg-emerald-50 text-emerald-700 border-emerald-200/60"
+                    : "bg-emerald-50 text-emerald-700 border-emerald-200"
                 }`}
               >
                 {category.name.charAt(0).toUpperCase()}
@@ -299,9 +296,9 @@ export const AdminCategories = () => {
         minWidth: 260,
         renderCell: (params) => {
           return params.row.description ? (
-            <span className="text-zinc-500 line-clamp-2">{params.row.description}</span>
+            <span className="text-zinc-600 line-clamp-2">{params.row.description}</span>
           ) : (
-            <span className="text-zinc-400 italic">No description provided</span>
+            <span className="text-zinc-500">No description</span>
           );
         },
       },
@@ -315,7 +312,7 @@ export const AdminCategories = () => {
           return params.row.isArchived ? (
             <span className="admin-table-badge gap-1.5 text-[11px] font-medium bg-amber-50 text-amber-700 border border-amber-200">
               <span className="admin-table-badge__dot w-1.5 h-1.5 rounded-full bg-amber-500" />
-              Soft-Deleted
+              Archived
             </span>
           ) : (
             <span className="admin-table-badge gap-1.5 text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
@@ -327,8 +324,8 @@ export const AdminCategories = () => {
       },
       {
         field: "productsCount",
-        headerName: "Assigned Products",
-        width: 160,
+        headerName: "Products",
+        width: 130,
         type: "number",
         headerAlign: "center",
         align: "center",
@@ -342,7 +339,7 @@ export const AdminCategories = () => {
                   : "bg-zinc-100 text-zinc-600 border-zinc-200"
               }`}
             >
-              {pCount} {pCount === 1 ? "Product" : "Products"}
+              {pCount} {pCount === 1 ? "product" : "products"}
             </span>
           );
         },
@@ -360,16 +357,25 @@ export const AdminCategories = () => {
           const category = params.row;
           const isArchived = !!category.isArchived;
           return (
-            <div className="inline-flex items-center justify-end gap-1.5 w-full">
+            <div className="inline-flex items-center justify-end gap-1 w-full">
               {isArchived ? (
                 <button
                   type="button"
                   onClick={() => handleRestore(category)}
-                  className="p-1.5 rounded-md hover:bg-emerald-50 text-emerald-600 hover:text-emerald-700 transition-colors cursor-pointer"
-                  title="Restore Category"
-                  aria-label="Restore Category"
+                  className="p-2 rounded hover:bg-emerald-50 text-emerald-600 hover:text-emerald-700 transition-colors cursor-pointer"
+                  title="Restore category"
+                  aria-label="Restore category"
                 >
-                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <svg
+                    className="w-4 h-4"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
                     <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
                     <path d="M3 3v5h5" />
                   </svg>
@@ -379,10 +385,20 @@ export const AdminCategories = () => {
                   <button
                     type="button"
                     onClick={() => handleOpenEdit(category)}
-                    className="p-1.5 rounded-md hover:bg-zinc-100 text-zinc-600 hover:text-zinc-900 transition-colors cursor-pointer"
-                    title="Edit Category"
+                    className="p-2 rounded hover:bg-zinc-100 text-zinc-600 hover:text-zinc-900 transition-colors cursor-pointer"
+                    title="Edit category"
+                    aria-label="Edit category"
                   >
-                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <svg
+                      className="w-4 h-4"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
                       <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
                       <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
                     </svg>
@@ -390,10 +406,20 @@ export const AdminCategories = () => {
                   <button
                     type="button"
                     onClick={() => handleDelete(category)}
-                    className="p-1.5 rounded-md hover:bg-red-50 text-zinc-400 hover:text-red-600 transition-colors cursor-pointer"
-                    title="Delete Category"
+                    className="p-2 rounded hover:bg-rose-50 text-zinc-400 hover:text-rose-600 transition-colors cursor-pointer"
+                    title="Delete category"
+                    aria-label="Delete category"
                   >
-                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <svg
+                      className="w-4 h-4"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
                       <polyline points="3 6 5 6 21 6" />
                       <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
                     </svg>
@@ -410,103 +436,101 @@ export const AdminCategories = () => {
 
   return (
     <div className="space-y-6">
-      {/* Catalog Subnavigation Tabs */}
+      {/* Catalog subnavigation */}
       <div className="flex items-center gap-2 border-b border-zinc-200 pb-3">
         <Link
           to="/admin/products"
-          className="px-3.5 py-1.5 rounded-lg text-xs font-semibold text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 transition-colors"
+          className="px-4 py-2 rounded text-xs font-semibold text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 transition-colors"
         >
-          Products &amp; Units
+          Products
         </Link>
         <Link
           to="/admin/categories"
-          className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 text-white shadow-xs"
+          className="px-4 py-2 rounded text-xs font-semibold bg-emerald-600 text-white"
         >
           Categories ({categories.length})
         </Link>
         <Link
           to="/admin/brands"
-          className="px-3.5 py-1.5 rounded-lg text-xs font-semibold text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 transition-colors"
+          className="px-4 py-2 rounded text-xs font-semibold text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 transition-colors"
         >
           Brands
         </Link>
       </div>
 
-      {/* Header and Add Action */}
+      {/* Title and actions */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-zinc-200">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-zinc-900">
-            Category Management
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-zinc-900 text-balance">
+            Categories
           </h1>
-          <p className="text-xs text-zinc-500 mt-0.5">
-            Manage product categories per FR1.3 and Database Specification §4.3.
+          <p className="text-xs text-zinc-500 mt-1">
+            Add, rename, and archive the categories used across the catalog.
           </p>
         </div>
         <button
           type="button"
           onClick={handleOpenAdd}
-          className="inline-flex items-center gap-2 h-9 px-4 rounded-lg bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-xs font-semibold transition-colors cursor-pointer shadow-xs self-start sm:self-auto"
+          className="inline-flex items-center gap-2 h-9 px-4 rounded bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-xs font-semibold transition-colors cursor-pointer self-start sm:self-auto"
         >
-          <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+          <svg
+            className="w-3.5 h-3.5"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            aria-hidden="true"
+          >
             <line x1="12" y1="5" x2="12" y2="19" />
             <line x1="5" y1="12" x2="19" y2="12" />
           </svg>
-          Add New Category
+          Add category
         </button>
       </div>
 
-      {/* Stats Cards */}
+      {/* Counts */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="p-4 bg-white rounded-xl border border-zinc-200 shadow-2xs">
-          <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider block">
-            Active Categories
-          </span>
+        <div className="p-4 bg-white rounded border border-zinc-200">
+          <span className="text-[11px] font-semibold text-zinc-500 block">Active categories</span>
           <div className="mt-1 flex items-baseline gap-2">
             <span className="text-2xl font-extrabold text-zinc-900 font-mono">
               {activeCategories.length}
             </span>
-            <span className="text-xs text-zinc-400">
-              of {categories.length} total
-            </span>
+            <span className="text-xs text-zinc-500">of {categories.length} categories</span>
           </div>
         </div>
 
-        <div className="p-4 bg-white rounded-xl border border-zinc-200 shadow-2xs">
-          <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider block">
-            Soft-Deleted / Archived
-          </span>
+        <div className="p-4 bg-white rounded border border-zinc-200">
+          <span className="text-[11px] font-semibold text-zinc-500 block">Archived</span>
           <div className="mt-1 flex items-baseline gap-2">
             <span className="text-2xl font-extrabold text-amber-600 font-mono">
               {archivedCategories.length}
             </span>
-            <span className="text-xs text-zinc-400">recoverable</span>
+            <span className="text-xs text-zinc-500">can be restored</span>
           </div>
         </div>
 
-        <div className="p-4 bg-white rounded-xl border border-zinc-200 shadow-2xs">
-          <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider block">
-            Total Assigned Products
-          </span>
+        <div className="p-4 bg-white rounded border border-zinc-200">
+          <span className="text-[11px] font-semibold text-zinc-500 block">Assigned products</span>
           <div className="mt-1 flex items-baseline gap-2">
             <span className="text-2xl font-extrabold text-emerald-600 font-mono">
               {totalAssignedProducts}
             </span>
-            <span className="text-xs text-zinc-400">catalog units</span>
+            <span className="text-xs text-zinc-500">units in the catalog</span>
           </div>
         </div>
       </div>
 
-      {/* Search & Filter Toolbar */}
-      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 bg-white p-3 rounded-xl border border-zinc-200 shadow-2xs">
-        {/* Status Filter Tabs */}
-        <div className="flex items-center gap-1 bg-zinc-100 p-1 rounded-lg shrink-0">
+      {/* Search and filter toolbar */}
+      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 bg-white p-4 rounded border border-zinc-200">
+        <div className="flex items-center gap-1 bg-zinc-100 p-1 rounded shrink-0">
           <button
             type="button"
             onClick={() => setStatusFilter("all")}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors cursor-pointer ${
+            className={`px-3 py-2 text-xs font-semibold rounded transition-colors cursor-pointer ${
               statusFilter === "all"
-                ? "bg-white text-zinc-900 shadow-2xs"
-                : "text-zinc-600 hover:text-zinc-900"
+                ? "bg-white text-zinc-900 border border-zinc-300"
+                : "text-zinc-600 hover:text-zinc-900 border border-transparent"
             }`}
           >
             All ({categories.length})
@@ -514,10 +538,10 @@ export const AdminCategories = () => {
           <button
             type="button"
             onClick={() => setStatusFilter("active")}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors cursor-pointer ${
+            className={`px-3 py-2 text-xs font-semibold rounded transition-colors cursor-pointer ${
               statusFilter === "active"
-                ? "bg-white text-emerald-700 shadow-2xs"
-                : "text-zinc-600 hover:text-zinc-900"
+                ? "bg-white text-emerald-700 border border-emerald-300"
+                : "text-zinc-600 hover:text-zinc-900 border border-transparent"
             }`}
           >
             Active ({activeCategories.length})
@@ -525,17 +549,17 @@ export const AdminCategories = () => {
           <button
             type="button"
             onClick={() => setStatusFilter("archived")}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors cursor-pointer ${
+            className={`px-3 py-2 text-xs font-semibold rounded transition-colors cursor-pointer ${
               statusFilter === "archived"
-                ? "bg-white text-amber-700 shadow-2xs"
-                : "text-zinc-600 hover:text-zinc-900"
+                ? "bg-white text-amber-700 border border-amber-300"
+                : "text-zinc-600 hover:text-zinc-900 border border-transparent"
             }`}
           >
-            Soft-Deleted ({archivedCategories.length})
+            Archived ({archivedCategories.length})
           </button>
         </div>
 
-        <div className="flex flex-1 items-center gap-3">
+        <div className="flex flex-1 items-center gap-4">
           <div className="relative flex-1">
             <svg
               className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400"
@@ -543,45 +567,60 @@ export const AdminCategories = () => {
               fill="none"
               stroke="currentColor"
               strokeWidth="2"
+              aria-hidden="true"
             >
               <circle cx="11" cy="11" r="8" />
               <line x1="21" y1="21" x2="16.65" y2="16.65" />
             </svg>
+            <label htmlFor="category-search" className="sr-only">
+              Search categories
+            </label>
             <input
+              id="category-search"
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search categories by name or description..."
-              className="w-full h-9 pl-9 pr-3 text-xs bg-zinc-50 border border-zinc-200 rounded-lg focus:outline-none focus:border-emerald-600 focus:bg-white transition-colors"
+              placeholder="Search by name or description"
+              className="w-full h-9 pl-9 pr-3 text-xs bg-zinc-50 border border-zinc-300 rounded transition-colors focus:bg-white focus:border-emerald-700 focus:outline-2 focus:outline-offset-1 focus:outline-emerald-700"
             />
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
-            <span className="text-xs text-zinc-500 shrink-0 font-medium">Sort by:</span>
+            <label htmlFor="category-sort" className="text-xs text-zinc-600 shrink-0 font-medium">
+              Sort
+            </label>
             <select
+              id="category-sort"
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
-              className="h-9 px-3 text-xs bg-zinc-50 border border-zinc-200 rounded-lg focus:outline-none focus:border-emerald-600 cursor-pointer font-medium text-zinc-700"
+              className="h-9 px-3 text-xs bg-zinc-50 border border-zinc-300 rounded cursor-pointer font-medium text-zinc-700 transition-colors focus:bg-white focus:border-emerald-700 focus:outline-2 focus:outline-offset-1 focus:outline-emerald-700"
             >
-              <option value="name-asc">Name (A → Z)</option>
-              <option value="name-desc">Name (Z → A)</option>
-              <option value="products-desc">Most Products</option>
-              <option value="products-asc">Fewest Products</option>
+              <option value="name-asc">Name (A to Z)</option>
+              <option value="name-desc">Name (Z to A)</option>
+              <option value="products-desc">Most products</option>
+              <option value="products-asc">Fewest products</option>
             </select>
           </div>
         </div>
       </div>
 
-      {/* Categories Table / Card Grid */}
+      {/* Categories grid */}
       {loadingCategories ? (
-        <div className="py-16 text-center text-zinc-400 bg-white rounded-xl border border-zinc-200">
+        <div className="py-16 text-center text-zinc-500 bg-white rounded border border-zinc-200">
           <div className="w-6 h-6 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
-          <span className="text-xs font-medium">Loading categories...</span>
+          <span className="text-xs font-medium">Loading categories</span>
         </div>
       ) : filteredCategories.length === 0 ? (
-        <div className="py-16 text-center bg-white rounded-xl border border-dashed border-zinc-300">
-          <div className="w-10 h-10 rounded-full bg-zinc-100 flex items-center justify-center text-zinc-400 mx-auto mb-2">
-            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <div className="py-16 text-center bg-white rounded border border-dashed border-zinc-300">
+          <div className="w-10 h-10 rounded bg-zinc-100 flex items-center justify-center text-zinc-400 mx-auto mb-2">
+            <svg
+              className="w-5 h-5"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              aria-hidden="true"
+            >
               <path d="M4 6h16M4 12h16M4 18h7" />
             </svg>
           </div>
@@ -593,15 +632,16 @@ export const AdminCategories = () => {
           </p>
           {!searchQuery && (
             <button
+              type="button"
               onClick={handleOpenAdd}
-              className="mt-3 inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700"
+              className="mt-4 inline-flex items-center gap-2 h-8 px-4 rounded bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 transition-colors cursor-pointer"
             >
-              Add First Category
+              Add category
             </button>
           )}
         </div>
       ) : (
-        <div className="bg-white rounded-xl border border-zinc-200 overflow-hidden shadow-xs">
+        <div className="bg-white rounded border border-zinc-200 overflow-hidden">
           <DataGrid
             rows={filteredCategories}
             columns={columns}
@@ -613,124 +653,98 @@ export const AdminCategories = () => {
               pagination: { paginationModel: { pageSize: 10 } },
             }}
             autoHeight
-            sx={{
-              border: "none",
-              fontFamily: "inherit",
-              fontSize: "0.75rem",
-              "& .MuiDataGrid-columnHeaders": {
-                backgroundColor: "#fafafa",
-                borderBottom: "1px solid #e4e4e7",
-                color: "#52525b",
-                fontWeight: 600,
-                fontSize: "0.6875rem",
-                textTransform: "uppercase",
-                fontFamily: "ui-monospace, monospace",
-                letterSpacing: "0.05em",
-              },
-              "& .MuiDataGrid-columnSeparator": {
-                display: "none !important",
-              },
-              "& .MuiDataGrid-columnHeader": {
-                paddingLeft: "16px",
-                paddingRight: "16px",
-              },
-              "& .MuiDataGrid-columnHeader:focus, & .MuiDataGrid-columnHeader:focus-within, & .MuiDataGrid-cell:focus, & .MuiDataGrid-cell:focus-within": {
-                outline: "none !important",
-              },
-              "& .MuiDataGrid-row": {
-                borderBottom: "1px solid #f4f4f5",
-                transition: "background-color 0.15s ease",
-              },
-              "& .MuiDataGrid-row:hover": {
-                backgroundColor: "rgba(244, 244, 245, 0.7)",
-              },
-              "& .MuiDataGrid-cell": {
-                display: "flex",
-                alignItems: "center",
-                paddingLeft: "16px",
-                paddingRight: "16px",
-              },
-              "& .MuiDataGrid-footerContainer": {
-                borderTop: "1px solid #e4e4e7",
-                backgroundColor: "#fafafa",
-              },
-              "& .MuiTablePagination-root": {
-                fontSize: "0.75rem",
-              },
-            }}
+            sx={adminDataGridSx}
           />
         </div>
       )}
 
-      {/* Add / Edit Category Modal */}
+      {/* Add and edit modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-900/50 backdrop-blur-2xs animate-fadeIn">
-          <div className="bg-white rounded-xl shadow-xl border border-zinc-200 w-full max-w-md overflow-hidden">
-            <div className="px-5 py-4 border-b border-zinc-200 flex items-center justify-between bg-zinc-50/60">
-              <h2 className="text-sm font-bold text-zinc-900">
-                {editingCategory ? "Edit Category" : "Add New Category"}
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-900/50">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="category-modal-heading"
+            className="bg-white rounded border border-zinc-300 w-full max-w-md overflow-hidden"
+          >
+            <div className="px-4 py-4 border-b border-zinc-200 flex items-center justify-between gap-3 bg-zinc-50">
+              <h2 id="category-modal-heading" className="text-sm font-bold text-zinc-900">
+                {editingCategory ? "Edit category" : "Add category"}
               </h2>
               <button
                 type="button"
                 onClick={handleCloseModal}
-                className="text-zinc-400 hover:text-zinc-700 transition-colors"
+                aria-label="Close"
+                className="w-8 h-8 rounded flex items-center justify-center text-zinc-400 hover:text-zinc-700 hover:bg-zinc-200/60 transition-colors cursor-pointer"
               >
-                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <svg
+                  className="w-3.5 h-3.5"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  aria-hidden="true"
+                >
                   <line x1="18" y1="6" x2="6" y2="18" />
                   <line x1="6" y1="6" x2="18" y2="18" />
                 </svg>
               </button>
             </div>
 
-            <form onSubmit={handleSubmit(onSubmitCategory)} noValidate className="p-5 space-y-4 text-xs">
-              <div className="space-y-1.5">
-                <label className="font-semibold text-zinc-900 block">
-                  Category Name <span className="text-red-500">*</span>
+            <form
+              onSubmit={handleSubmit(onSubmitCategory)}
+              noValidate
+              className="p-4 space-y-4 text-xs"
+            >
+              <div className="space-y-1">
+                <label htmlFor="category-name" className="font-semibold text-zinc-900 block">
+                  Name *
                 </label>
                 <input
+                  id="category-name"
                   type="text"
-                  placeholder="e.g. Motorcycles, Engine Parts, Brakes"
+                  placeholder="Motorcycles, engine parts, brakes"
                   {...register("name")}
-                  className={`w-full h-9 px-3 border ${
+                  className={`w-full h-9 px-3 border rounded transition-colors focus:outline-2 focus:outline-offset-1 ${
                     errors.name
-                      ? "border-red-500 focus:border-red-500 focus:ring-red-500"
-                      : "border-zinc-300 focus:border-emerald-600 focus:ring-emerald-600"
-                  } rounded-lg focus:outline-none transition-colors`}
+                      ? "border-rose-500 focus:border-rose-500 focus:outline-rose-500"
+                      : "border-zinc-300 focus:border-emerald-700 focus:outline-emerald-700"
+                  }`}
                 />
                 {errors.name && (
-                  <span className="text-[11px] text-red-600 block">
-                    {errors.name.message}
-                  </span>
+                  <span className="text-[11px] text-rose-600 block">{errors.name.message}</span>
                 )}
-                <span className="text-[10px] text-zinc-400 block">
-                  Must be unique across the catalog (FR1.3.1).
+                <span className="text-[11px] text-zinc-500 block">
+                  Must be unique across the catalog.
                 </span>
               </div>
 
-              <div className="space-y-1.5">
-                <label className="font-semibold text-zinc-900 block">
+              <div className="space-y-1">
+                <label htmlFor="category-description" className="font-semibold text-zinc-900 block">
                   Description
                 </label>
                 <textarea
+                  id="category-description"
                   rows={3}
-                  placeholder="Brief summary of items classified under this category..."
+                  placeholder="Short summary of what belongs in this category"
                   {...register("description")}
-                  className="w-full p-2.5 border border-zinc-300 rounded-lg focus:border-emerald-600 focus:outline-none resize-none transition-colors"
+                  className="w-full p-3 border border-zinc-300 rounded resize-none transition-colors focus:border-emerald-700 focus:outline-2 focus:outline-offset-1 focus:outline-emerald-700"
                 />
               </div>
 
-              <div className="pt-3 border-t border-zinc-200 flex items-center justify-end gap-2">
+              <div className="pt-4 border-t border-zinc-200 flex items-center justify-end gap-2">
                 <button
                   type="button"
                   onClick={handleCloseModal}
-                  className="h-8 px-3 rounded-lg border border-zinc-200 text-zinc-700 hover:bg-zinc-50 font-medium transition-colors"
+                  className="h-8 px-3 rounded border border-zinc-200 text-zinc-700 hover:bg-zinc-50 font-medium transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={actionLoading || isSubmitting}
-                  className="h-8 px-4 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-xs disabled:opacity-60 transition-colors inline-flex items-center gap-1.5"
+                  className="h-8 px-4 rounded bg-emerald-600 hover:bg-emerald-700 text-white font-semibold disabled:opacity-60 transition-colors inline-flex items-center gap-2 cursor-pointer"
                 >
                   {actionLoading || isSubmitting ? (
                     <>
@@ -738,9 +752,9 @@ export const AdminCategories = () => {
                       <span>Saving...</span>
                     </>
                   ) : editingCategory ? (
-                    "Update Category"
+                    "Save changes"
                   ) : (
-                    "Create Category"
+                    "Add category"
                   )}
                 </button>
               </div>
@@ -749,21 +763,39 @@ export const AdminCategories = () => {
         </div>
       )}
 
-      {/* 409 Conflict Reassignment Dialog */}
+      {/* Category in use dialog */}
       {reassignState.isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-900/50 backdrop-blur-2xs animate-fadeIn">
-          <div className="bg-white rounded-xl shadow-xl border border-amber-300 w-full max-w-lg overflow-hidden">
-            <div className="px-5 py-4 border-b border-amber-200 flex items-center justify-between bg-amber-50">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-900/50">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="reassign-heading"
+            className="bg-white rounded border border-amber-300 w-full max-w-lg overflow-hidden"
+          >
+            <div className="px-4 py-4 border-b border-amber-200 flex items-center justify-between gap-3 bg-amber-50">
               <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-full bg-amber-200 text-amber-800 flex items-center justify-center text-xs font-bold">
-                  ⚠️
+                <div className="w-7 h-7 rounded bg-amber-200 text-amber-800 flex items-center justify-center shrink-0">
+                  <svg
+                    className="w-4 h-4"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" />
+                    <line x1="12" y1="9" x2="12" y2="13" />
+                    <line x1="12" y1="17" x2="12.01" y2="17" />
+                  </svg>
                 </div>
                 <div>
-                  <h2 className="text-sm font-bold text-amber-900">
-                    Category In Use ({reassignState.sourceCategory?.name})
+                  <h2 id="reassign-heading" className="text-sm font-bold text-amber-900">
+                    Category in use ({reassignState.sourceCategory?.name})
                   </h2>
                   <p className="text-[11px] text-amber-700">
-                    409 Conflict: Cannot delete category with active products
+                    This category still has active products.
                   </p>
                 </div>
               </div>
@@ -777,47 +809,56 @@ export const AdminCategories = () => {
                     productCount: 0,
                   })
                 }
-                className="text-zinc-400 hover:text-zinc-700 transition-colors"
+                aria-label="Close"
+                className="w-8 h-8 rounded flex items-center justify-center text-zinc-400 hover:text-zinc-700 hover:bg-zinc-200/60 transition-colors cursor-pointer shrink-0"
               >
-                ✕
+                <svg
+                  className="w-3.5 h-3.5"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  aria-hidden="true"
+                >
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
               </button>
             </div>
 
-            <form onSubmit={handleReassignSubmit} className="p-5 space-y-4 text-xs">
-              <div className="p-3.5 bg-amber-50/70 border border-amber-200 rounded-lg text-amber-900 space-y-1">
+            <form onSubmit={handleReassignSubmit} className="p-4 space-y-4 text-xs">
+              <div className="p-4 bg-amber-50 border border-amber-200 rounded text-amber-900 space-y-1">
                 <p className="font-semibold text-xs">
-                  This category currently has{" "}
-                  <span className="font-bold underline text-amber-950 font-mono">
-                    {reassignState.productCount} active product(s)
+                  This category has{" "}
+                  <span className="font-bold font-mono">
+                    {reassignState.productCount} active{" "}
+                    {reassignState.productCount === 1 ? "product" : "products"}
                   </span>{" "}
-                  anchored to it.
+                  assigned to it.
                 </p>
                 <p className="text-[11px] text-amber-800">
-                  Per system design, you must choose to reassign these products to another
-                  category before soft-deleting, or cancel the deletion.
+                  Move these products to another category, or cancel the deletion.
                 </p>
               </div>
 
-              {/* Anchored Products List */}
               {reassignState.products.length > 0 && (
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between text-[11px]">
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between gap-3 text-[11px]">
                     <span className="font-semibold text-zinc-800">
-                      Anchored Products ({reassignState.productCount})
+                      Products to move ({reassignState.productCount})
                     </span>
-                    <span className="text-zinc-400">
-                      Will be migrated to new category
-                    </span>
+                    <span className="text-zinc-500">Move them to the category you pick</span>
                   </div>
-                  <div className="max-h-40 overflow-y-auto divide-y divide-zinc-100 border border-zinc-200 rounded-lg bg-zinc-50 p-1 space-y-1">
+                  <div className="max-h-40 overflow-y-auto divide-y divide-zinc-200 border border-zinc-200 rounded bg-zinc-50">
                     {reassignState.products.map((p) => {
                       const thumb = p.images?.[0]?.url;
                       return (
                         <div
                           key={p._id}
-                          className="flex items-center gap-3 p-2 bg-white rounded-md border border-zinc-100 shadow-2xs"
+                          className="flex items-center gap-3 p-2 bg-white"
                         >
-                          <div className="w-10 h-10 rounded-md bg-zinc-100 border border-zinc-200 flex items-center justify-center overflow-hidden shrink-0">
+                          <div className="w-10 h-10 rounded bg-zinc-100 border border-zinc-200 flex items-center justify-center overflow-hidden shrink-0">
                             {thumb ? (
                               <img
                                 src={thumb}
@@ -831,6 +872,7 @@ export const AdminCategories = () => {
                                 fill="none"
                                 stroke="currentColor"
                                 strokeWidth="2"
+                                aria-hidden="true"
                               >
                                 <rect x="3" y="3" width="18" height="18" rx="2" />
                                 <circle cx="8.5" cy="8.5" r="1.5" />
@@ -839,15 +881,12 @@ export const AdminCategories = () => {
                             )}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="font-semibold text-zinc-900 text-xs truncate">
-                              {p.name}
-                            </p>
-                            <div className="flex items-center gap-2 text-[10px] text-zinc-500">
-                              <span className="font-mono text-emerald-700 font-bold">
+                            <p className="font-semibold text-zinc-900 text-xs truncate">{p.name}</p>
+                            <div className="flex items-center gap-3 text-[11px] text-zinc-500">
+                              <span className="font-mono text-zinc-700 font-bold">
                                 ₱{Number(p.price || 0).toLocaleString()}
                               </span>
-                              <span>•</span>
-                              <span>Stock: {p.stock}</span>
+                              <span>Stock {p.stock}</span>
                             </div>
                           </div>
                         </div>
@@ -857,12 +896,13 @@ export const AdminCategories = () => {
                 </div>
               )}
 
-              <div className="space-y-1.5">
-                <label className="font-semibold text-zinc-900 block">
-                  Reassign all {reassignState.productCount} product(s) to:{" "}
-                  <span className="text-red-500">*</span>
+              <div className="space-y-1">
+                <label htmlFor="reassign-target" className="font-semibold text-zinc-900 block">
+                  Move all {reassignState.productCount}{" "}
+                  {reassignState.productCount === 1 ? "product" : "products"} to *
                 </label>
                 <select
+                  id="reassign-target"
                   required
                   value={reassignState.targetCategoryId}
                   onChange={(e) =>
@@ -871,9 +911,9 @@ export const AdminCategories = () => {
                       targetCategoryId: e.target.value,
                     })
                   }
-                  className="w-full h-9 px-3 border border-zinc-300 rounded-lg focus:border-emerald-600 focus:outline-none transition-colors font-medium text-zinc-800 bg-white"
+                  className="w-full h-9 px-3 border border-zinc-300 rounded transition-colors font-medium text-zinc-800 bg-white focus:border-emerald-700 focus:outline-2 focus:outline-offset-1 focus:outline-emerald-700"
                 >
-                  <option value="">-- Choose destination category --</option>
+                  <option value="">Choose a category</option>
                   {categories
                     .filter(
                       (c) =>
@@ -888,7 +928,7 @@ export const AdminCategories = () => {
                 </select>
               </div>
 
-              <div className="pt-3 border-t border-zinc-200 flex items-center justify-end gap-2">
+              <div className="pt-4 border-t border-zinc-200 flex items-center justify-end gap-2">
                 <button
                   type="button"
                   onClick={() =>
@@ -899,22 +939,22 @@ export const AdminCategories = () => {
                       productCount: 0,
                     })
                   }
-                  className="h-8 px-3 rounded-lg border border-zinc-200 text-zinc-700 hover:bg-zinc-50 font-medium transition-colors"
+                  className="h-8 px-3 rounded border border-zinc-200 text-zinc-700 hover:bg-zinc-50 font-medium transition-colors cursor-pointer"
                 >
-                  Cancel Deletion
+                  Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={actionLoading || !reassignState.targetCategoryId}
-                  className="h-8 px-4 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-semibold shadow-xs disabled:opacity-50 transition-colors inline-flex items-center gap-1.5"
+                  className="h-8 px-4 rounded bg-amber-600 hover:bg-amber-700 text-white font-semibold disabled:opacity-50 transition-colors inline-flex items-center gap-2 cursor-pointer"
                 >
                   {actionLoading ? (
                     <>
                       <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      <span>Reassigning &amp; Deleting...</span>
+                      <span>Moving...</span>
                     </>
                   ) : (
-                    "Reassign & Soft-Delete"
+                    "Move and archive"
                   )}
                 </button>
               </div>

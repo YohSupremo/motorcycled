@@ -2,11 +2,13 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { DataGrid } from "@mui/x-data-grid";
 import { toast } from "react-toastify";
+import Swal from "sweetalert2";
 import {
   getAdminReviews,
   toggleReviewVisibility,
   deleteReview,
 } from "../../../actions/reviewActions";
+import { adminDataGridSx } from "../../../utils/adminDataGridTheme";
 
 const formatDate = (value) => {
   if (!value) return "";
@@ -23,7 +25,7 @@ const formatDate = (value) => {
 
 export const AdminReviews = () => {
   const dispatch = useDispatch();
-  const [filterMode, setFilterMode] = useState("all"); // 'all' | 'active' | 'hidden'
+  const [filterMode, setFilterMode] = useState("all"); // "all", "public", "hidden"
 
   const { loading, reviews: rawReviews } = useSelector(
     (state) => state.adminReviews || {}
@@ -36,7 +38,7 @@ export const AdminReviews = () => {
     dispatch(getAdminReviews());
   }, [dispatch]);
 
-  // Map backend shape → DataGrid row shape.
+  // Map backend shape to DataGrid row shape
   const reviews = useMemo(
     () =>
       (rawReviews || []).map((r) => {
@@ -59,6 +61,9 @@ export const AdminReviews = () => {
     [rawReviews]
   );
 
+  const publicCount = reviews.filter((r) => !r.isHidden).length;
+  const hiddenCount = reviews.filter((r) => r.isHidden).length;
+
   const handleToggleHide = useCallback(
     async (reviewId) => {
       const result = await dispatch(toggleReviewVisibility(reviewId));
@@ -72,7 +77,19 @@ export const AdminReviews = () => {
 
   const handleDelete = useCallback(
     async (reviewId) => {
-      if (!window.confirm("Delete this review permanently?")) return;
+      const confirm = await Swal.fire({
+        title: "Delete this review?",
+        text: "The review is removed for good and cannot be restored.",
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonColor: "#dc2626",
+        cancelButtonColor: "#6b7280",
+        confirmButtonText: "Delete review",
+        cancelButtonText: "Cancel",
+      });
+
+      if (!confirm.isConfirmed) return;
+
       const result = await dispatch(deleteReview(reviewId));
       if (result?.type?.endsWith?.("SUCCESS")) {
         toast.success("Review deleted.");
@@ -83,7 +100,7 @@ export const AdminReviews = () => {
   );
 
   const filteredReviews = reviews.filter((r) => {
-    if (filterMode === "active") return !r.isHidden;
+    if (filterMode === "public") return !r.isHidden;
     if (filterMode === "hidden") return r.isHidden;
     return true;
   });
@@ -92,7 +109,7 @@ export const AdminReviews = () => {
     () => [
       {
         field: "id",
-        headerName: "Review ID",
+        headerName: "ID",
         width: 110,
         renderCell: (params) => (
           <span className="font-mono font-bold text-zinc-900 text-xs">
@@ -102,37 +119,41 @@ export const AdminReviews = () => {
       },
       {
         field: "customer",
-        headerName: "Customer & Status",
+        headerName: "Customer",
         flex: 1.2,
         minWidth: 200,
         renderCell: (params) => {
           const r = params.row;
           return (
-            <div className="flex flex-col justify-center min-w-0 leading-tight">
-              <div className="flex items-center gap-1.5">
-                <span className="font-semibold text-zinc-900 text-xs truncate">
+            <div className="flex min-w-0 w-full flex-col justify-center leading-tight">
+              <div className="flex min-w-0 w-full items-center gap-1.5">
+                <span
+                  className="min-w-0 flex-1 truncate font-semibold text-zinc-900 text-xs"
+                  title={r.customer}
+                >
                   {r.customer}
                 </span>
                 {r.isVerifiedPurchase ? (
-                  <span className="admin-table-badge gap-0.5 text-[10px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0">
+                  <span className="admin-table-badge shrink-0 whitespace-nowrap gap-1 text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
                     <svg
-                      className="w-2.5 h-2.5 text-emerald-600"
+                      className="w-3 h-3 text-emerald-600"
                       viewBox="0 0 24 24"
                       fill="none"
                       stroke="currentColor"
                       strokeWidth="2.5"
+                      aria-hidden="true"
                     >
                       <polyline points="20 6 9 17 4 12" />
                     </svg>
                     Verified
                   </span>
                 ) : (
-                  <span className="admin-table-badge text-[10px] text-zinc-500 bg-zinc-100 shrink-0">
+                  <span className="admin-table-badge shrink-0 whitespace-nowrap text-[11px] text-zinc-500 bg-zinc-100">
                     Unverified
                   </span>
                 )}
               </div>
-              <span className="text-[11px] text-zinc-400 font-mono truncate mt-0.5">
+              <span className="min-w-0 max-w-full text-[11px] text-zinc-500 font-mono truncate mt-1" title={r.email}>
                 {r.email}
               </span>
             </div>
@@ -141,7 +162,7 @@ export const AdminReviews = () => {
       },
       {
         field: "product",
-        headerName: "Reviewed Product",
+        headerName: "Product",
         flex: 1.1,
         minWidth: 160,
         renderCell: (params) => (
@@ -153,14 +174,14 @@ export const AdminReviews = () => {
       {
         field: "rating",
         headerName: "Rating",
-        width: 110,
+        width: 120,
         type: "number",
         headerAlign: "left",
         align: "left",
         renderCell: (params) => {
           const rating = params.row.rating;
           return (
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1.5">
               <div className="flex items-center gap-0.5">
                 {[...Array(5)].map((_, i) => (
                   <svg
@@ -171,13 +192,15 @@ export const AdminReviews = () => {
                         : "text-zinc-200 fill-zinc-200"
                     }`}
                     viewBox="0 0 24 24"
+                    aria-hidden="true"
                   >
                     <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
                   </svg>
                 ))}
               </div>
-              <span className="font-mono text-xs font-semibold text-zinc-600 ml-0.5">
-                {rating}.0
+              <span className="font-mono text-xs font-semibold text-zinc-600">
+                {rating}
+                <span className="sr-only"> out of 5</span>
               </span>
             </div>
           );
@@ -185,7 +208,7 @@ export const AdminReviews = () => {
       },
       {
         field: "body",
-        headerName: "Review Content",
+        headerName: "Review",
         flex: 2.2,
         minWidth: 320,
         renderCell: (params) => {
@@ -195,11 +218,9 @@ export const AdminReviews = () => {
               <p className="font-semibold text-zinc-900 text-xs truncate">
                 {r.title}
               </p>
-              <p className="text-zinc-600 text-xs mt-0.5 line-clamp-1">
-                {r.body}
-              </p>
-              <span className="text-[10px] font-mono text-zinc-400 mt-0.5">
-                Submitted: {r.createdAt}
+              <p className="text-zinc-600 text-xs mt-1 line-clamp-1">{r.body}</p>
+              <span className="text-[11px] font-mono text-zinc-500 mt-1">
+                Submitted {r.createdAt}
               </span>
             </div>
           );
@@ -207,7 +228,7 @@ export const AdminReviews = () => {
       },
       {
         field: "isHidden",
-        headerName: "Moderation State",
+        headerName: "Status",
         width: 130,
         headerAlign: "center",
         align: "center",
@@ -241,16 +262,16 @@ export const AdminReviews = () => {
         renderCell: (params) => {
           const r = params.row;
           return (
-            <div className="flex items-center justify-end gap-1.5 w-full">
+            <div className="flex items-center justify-end gap-2 w-full">
               <button
                 type="button"
                 onClick={() => handleToggleHide(r.id)}
-                className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium border transition-all cursor-pointer shadow-2xs whitespace-nowrap ${
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs font-medium border transition-colors cursor-pointer whitespace-nowrap ${
                   r.isHidden
                     ? "bg-white border-zinc-300 text-zinc-700 hover:bg-zinc-50 hover:text-zinc-900"
                     : "bg-white border-rose-200 text-rose-700 hover:bg-rose-50 hover:border-rose-300"
                 }`}
-                title={r.isHidden ? "Make Review Public" : "Hide Review from Store"}
+                title={r.isHidden ? "Show this review" : "Hide this review"}
               >
                 {r.isHidden ? (
                   <>
@@ -262,6 +283,7 @@ export const AdminReviews = () => {
                       strokeWidth="2"
                       strokeLinecap="round"
                       strokeLinejoin="round"
+                      aria-hidden="true"
                     >
                       <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
                       <circle cx="12" cy="12" r="3" />
@@ -278,6 +300,7 @@ export const AdminReviews = () => {
                       strokeWidth="2"
                       strokeLinecap="round"
                       strokeLinejoin="round"
+                      aria-hidden="true"
                     >
                       <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
                       <line x1="1" y1="1" x2="23" y2="23" />
@@ -289,8 +312,8 @@ export const AdminReviews = () => {
               <button
                 type="button"
                 onClick={() => handleDelete(r.id)}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium border border-zinc-300 bg-white text-zinc-600 hover:bg-zinc-50 hover:text-rose-700 hover:border-rose-300 transition-all cursor-pointer shadow-2xs whitespace-nowrap"
-                title="Delete Review"
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs font-medium border border-zinc-300 bg-white text-zinc-600 hover:bg-zinc-50 hover:text-rose-700 hover:border-rose-300 transition-colors cursor-pointer whitespace-nowrap"
+                title="Delete review"
               >
                 <svg
                   className="w-3.5 h-3.5 shrink-0"
@@ -300,6 +323,7 @@ export const AdminReviews = () => {
                   strokeWidth="2"
                   strokeLinecap="round"
                   strokeLinejoin="round"
+                  aria-hidden="true"
                 >
                   <polyline points="3 6 5 6 21 6" />
                   <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
@@ -316,58 +340,57 @@ export const AdminReviews = () => {
 
   return (
     <div className="space-y-6">
-      {/* Title Row */}
+      {/* Title row */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-zinc-200">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-zinc-900">
-            Customer Ratings and Review Moderation
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-zinc-900 text-balance">
+            Reviews
           </h1>
-          <p className="text-xs text-zinc-500 mt-0.5">
-            Audit customer product reviews, verify delivery history, and manage content visibility (
-            <code className="font-mono text-zinc-600">reviews</code> collection).
+          <p className="text-xs text-zinc-500 mt-1">
+            Audit customer reviews and control what shoppers can see.
           </p>
         </div>
 
-        {/* Filter pills */}
-        <div className="flex items-center gap-1.5 text-xs bg-zinc-100 p-1 rounded-lg">
+        {/* Filter tabs */}
+        <div className="flex items-center gap-1 text-xs bg-zinc-100 p-1 rounded">
           <button
             type="button"
             onClick={() => setFilterMode("all")}
-            className={`px-3 py-1.5 rounded-md font-semibold transition-colors cursor-pointer ${
+            className={`px-3 py-2 rounded font-semibold transition-colors cursor-pointer ${
               filterMode === "all"
-                ? "bg-white text-zinc-900 shadow-2xs"
-                : "text-zinc-600 hover:text-zinc-900"
+                ? "bg-white text-zinc-900 border border-zinc-300"
+                : "text-zinc-600 hover:text-zinc-900 border border-transparent"
             }`}
           >
-            All Reviews ({reviews.length})
+            All ({reviews.length})
           </button>
           <button
             type="button"
-            onClick={() => setFilterMode("active")}
-            className={`px-3 py-1.5 rounded-md font-semibold transition-colors cursor-pointer ${
-              filterMode === "active"
-                ? "bg-white text-emerald-700 shadow-2xs"
-                : "text-zinc-600 hover:text-zinc-900"
+            onClick={() => setFilterMode("public")}
+            className={`px-3 py-2 rounded font-semibold transition-colors cursor-pointer ${
+              filterMode === "public"
+                ? "bg-white text-emerald-700 border border-emerald-300"
+                : "text-zinc-600 hover:text-zinc-900 border border-transparent"
             }`}
           >
-            Public ({reviews.filter((r) => !r.isHidden).length})
+            Public ({publicCount})
           </button>
           <button
             type="button"
             onClick={() => setFilterMode("hidden")}
-            className={`px-3 py-1.5 rounded-md font-semibold transition-colors cursor-pointer ${
+            className={`px-3 py-2 rounded font-semibold transition-colors cursor-pointer ${
               filterMode === "hidden"
-                ? "bg-white text-amber-700 shadow-2xs"
-                : "text-zinc-600 hover:text-zinc-900"
+                ? "bg-white text-amber-700 border border-amber-300"
+                : "text-zinc-600 hover:text-zinc-900 border border-transparent"
             }`}
           >
-            Hidden Moderated ({reviews.filter((r) => r.isHidden).length})
+            Hidden ({hiddenCount})
           </button>
         </div>
       </div>
 
-      {/* Reviews DataGrid */}
-      <div className="border border-zinc-200 bg-white rounded-xl shadow-xs overflow-hidden">
+      {/* Reviews grid */}
+      <div className="border border-zinc-200 bg-white rounded overflow-hidden">
         <DataGrid
           rows={filteredReviews}
           columns={columns}
@@ -379,49 +402,9 @@ export const AdminReviews = () => {
             pagination: { paginationModel: { pageSize: 10 } },
           }}
           autoHeight
-          sx={{
-            border: "none",
-            fontFamily: "inherit",
-            fontSize: "0.75rem",
-            "& .MuiDataGrid-columnHeaders": {
-              backgroundColor: "#fafafa",
-              borderBottom: "1px solid #e4e4e7",
-              color: "#52525b",
-              fontWeight: 600,
-              fontSize: "0.6875rem",
-              textTransform: "uppercase",
-              fontFamily: "ui-monospace, monospace",
-              letterSpacing: "0.05em",
-            },
-            "& .MuiDataGrid-columnSeparator": {
-              display: "none !important",
-            },
-            "& .MuiDataGrid-columnHeader:focus, & .MuiDataGrid-columnHeader:focus-within, & .MuiDataGrid-cell:focus, & .MuiDataGrid-cell:focus-within": {
-              outline: "none !important",
-            },
-            "& .MuiDataGrid-row": {
-              borderBottom: "1px solid #f4f4f5",
-              transition: "background-color 0.15s ease",
-            },
-            "& .MuiDataGrid-row:hover": {
-              backgroundColor: "rgba(244, 244, 245, 0.7)",
-            },
-            "& .MuiDataGrid-cell": {
-              display: "flex",
-              alignItems: "center",
-              paddingX: "16px",
-            },
-            "& .MuiDataGrid-footerContainer": {
-              borderTop: "1px solid #e4e4e7",
-              backgroundColor: "#fafafa",
-            },
-            "& .MuiTablePagination-root": {
-              fontSize: "0.75rem",
-            },
-          }}
+          sx={adminDataGridSx}
         />
       </div>
-
     </div>
   );
 };

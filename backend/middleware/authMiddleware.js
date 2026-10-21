@@ -24,6 +24,13 @@ export const auth = async (req, res, next) => {
       });
     }
 
+    if (!user.isActive) {
+      return res.status(403).json({
+        message: "This account has been deactivated. Contact support for assistance.",
+        success: false,
+      });
+    }
+
     req.user = user;
     next();
   } catch (error) {

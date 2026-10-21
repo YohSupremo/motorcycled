@@ -27,10 +27,26 @@ import {
   ARCHIVE_PRODUCT_RESET,
 } from "../../../constants/productConstants.js";
 import { ProductImagePlaceholder } from "../../components/ProductImagePlaceholder.jsx";
+import { adminDataGridSx } from "../../../utils/adminDataGridTheme";
 
-// ─── Product Image Manager ────────────────────────────────────────────────────
+const StarIcon = ({ className = "w-4 h-4" }) => (
+  <svg
+    className={className}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    <path d="M12 3l2.6 5.4 5.9.8-4.3 4.1 1 5.9-5.2-2.8-5.2 2.8 1-5.9L3.5 9.2l5.9-.8z" />
+  </svg>
+);
+
+// Product Image Manager
 // Allows multiple image uploads, preview gallery, reordering, and explicit primary image selection.
-// Primary image (index 0) is prominently badged and used across catalog thumbnails.
+// The primary image (index 0) is used across catalog thumbnails.
 const ProductImageManager = ({
   imageList,
   onFilesAdded,
@@ -38,23 +54,30 @@ const ProductImageManager = ({
   onMoveImage,
   onRemoveImage,
 }) => (
-  <div className="space-y-3">
-    <div className="flex items-center justify-between">
+  <div className="space-y-4">
+    <div className="flex items-center justify-between gap-3">
       <label className="font-semibold text-zinc-900 text-xs flex items-center gap-2">
-        <span>Product Images ({imageList.length})</span>
-        <span className="text-[10px] text-zinc-400 font-normal">
-          First image is primary showroom thumbnail
+        <span>Product images ({imageList.length})</span>
+        <span className="text-[11px] text-zinc-500 font-normal">
+          The first image is the main thumbnail.
         </span>
       </label>
       <label
         htmlFor="product-images-input"
-        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-zinc-100 hover:bg-zinc-200 text-zinc-800 text-[11px] font-medium cursor-pointer transition-colors"
+        className="inline-flex items-center gap-2 px-3 py-2 rounded bg-zinc-100 hover:bg-zinc-200 text-zinc-800 text-[11px] font-medium cursor-pointer transition-colors"
       >
-        <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <svg
+          className="w-3.5 h-3.5"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          aria-hidden="true"
+        >
           <line x1="12" y1="5" x2="12" y2="19" />
           <line x1="5" y1="12" x2="19" y2="12" />
         </svg>
-        <span>Add Images</span>
+        <span>Add images</span>
       </label>
       <input
         id="product-images-input"
@@ -70,113 +93,141 @@ const ProductImageManager = ({
     {imageList.length === 0 ? (
       <label
         htmlFor="product-images-input"
-        className="flex flex-col items-center justify-center gap-1.5 p-6 border-2 border-dashed border-zinc-200 rounded-lg hover:border-emerald-600 hover:bg-emerald-50/50 transition-colors cursor-pointer text-center"
+        className="flex flex-col items-center justify-center gap-2 p-6 border-2 border-dashed border-zinc-200 rounded hover:border-emerald-600 hover:bg-emerald-50/50 transition-colors cursor-pointer text-center"
       >
-        <div className="w-8 h-8 rounded-full bg-zinc-100 flex items-center justify-center text-zinc-500">
-          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <div className="w-8 h-8 rounded bg-zinc-100 flex items-center justify-center text-zinc-500">
+          <svg
+            className="w-4 h-4"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            aria-hidden="true"
+          >
             <rect x="3" y="3" width="18" height="18" rx="2" />
             <circle cx="8.5" cy="8.5" r="1.5" />
             <polyline points="21 15 16 10 5 21" />
           </svg>
         </div>
-        <span className="text-xs font-medium text-zinc-700">
-          Click to upload multiple images
-        </span>
-        <span className="text-[10px] text-zinc-400">
-          PNG, JPG, WEBP • Max 5MB per file • Select multiple files
+        <span className="text-xs font-medium text-zinc-700">Choose images to upload</span>
+        <span className="text-[11px] text-zinc-500">
+          PNG, JPG, or WEBP. Up to 5MB each. Multiple files allowed.
         </span>
       </label>
     ) : (
       <div className="space-y-2">
-        <p className="text-[11px] text-zinc-500 bg-zinc-50 border border-zinc-200 rounded px-2.5 py-1.5 flex items-center gap-1.5">
-          <svg className="w-3.5 h-3.5 text-emerald-600 shrink-0" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        <p className="text-[11px] text-zinc-600 bg-zinc-50 border border-zinc-200 rounded px-3 py-2 flex items-center gap-2">
+          <span className="text-emerald-700 shrink-0">
+            <StarIcon className="w-3.5 h-3.5" />
+          </span>
           <span>
-            The first photo is the <strong>Primary Showroom Thumbnail</strong>. Click <strong>"Set Primary"</strong> on any other photo to change it.
+            The first photo is the main thumbnail. Use Set primary on another photo to change it.
           </span>
         </p>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
           {imageList.map((img, idx) => {
             const isPrimary = idx === 0;
             return (
               <div
                 key={img.id}
-                className={`relative rounded-md border overflow-hidden flex flex-col justify-between bg-zinc-50 group transition-all ${
+                className={`relative rounded border overflow-hidden flex flex-col justify-between bg-zinc-50 group transition-colors ${
                   isPrimary
-                    ? "border-emerald-600 ring-2 ring-emerald-600/30 shadow-xs"
+                    ? "border-emerald-600 ring-2 ring-emerald-600/30"
                     : "border-zinc-200 hover:border-zinc-300"
                 }`}
               >
-                {/* Thumbnail Image */}
                 <div className="w-full aspect-square bg-zinc-100 relative overflow-hidden flex items-center justify-center">
                   <img
                     src={img.preview}
-                    alt={`product-img-${idx}`}
+                    alt={`Product image ${idx + 1}`}
                     className="w-full h-full object-cover"
                   />
 
-                  {/* Primary Badge or Position Tag */}
-                  <div className="absolute top-1.5 left-1.5 flex items-center gap-1">
+                  <div className="absolute top-2 left-2 flex items-center gap-1">
                     {isPrimary ? (
-                      <span className="bg-emerald-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded shadow-xs flex items-center gap-1">
-                        <svg className="w-2.5 h-2.5 fill-current" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                      <span className="bg-emerald-700 text-white text-[10px] font-semibold px-2 py-1 rounded flex items-center gap-1">
                         Primary
                       </span>
                     ) : (
-                      <span className="bg-black/60 backdrop-blur-xs text-white text-[9px] font-mono px-1.5 py-0.5 rounded">
-                        #{idx + 1}
+                      <span className="bg-zinc-900/70 text-white text-[10px] font-mono px-2 py-1 rounded">
+                        {idx + 1}
                       </span>
                     )}
                   </div>
 
-                  {/* Delete Button */}
                   <button
                     type="button"
                     onClick={() => onRemoveImage(idx)}
                     title="Remove this photo"
-                    className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-red-600 hover:bg-red-700 text-white text-[10px] flex items-center justify-center shadow-xs cursor-pointer transition-transform hover:scale-110"
+                    aria-label="Remove this photo"
+                    className="absolute top-2 right-2 w-6 h-6 rounded bg-rose-700 hover:bg-rose-800 text-white flex items-center justify-center cursor-pointer transition-colors"
                   >
-                    <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    <svg
+                      className="w-3 h-3"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                      aria-hidden="true"
+                    >
+                      <line x1="18" y1="6" x2="6" y2="18" />
+                      <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
                   </button>
                 </div>
 
-                {/* Bottom Control Bar */}
-                <div className="p-1.5 bg-white border-t border-zinc-200 flex items-center justify-between gap-1 text-[10px]">
-                  {/* Reorder Arrows */}
-                  <div className="flex items-center gap-0.5">
+                <div className="p-2 bg-white border-t border-zinc-200 flex items-center justify-between gap-1 text-[11px]">
+                  <div className="flex items-center gap-1">
                     <button
                       type="button"
                       disabled={idx === 0}
                       onClick={() => onMoveImage(idx, -1)}
                       title="Move left"
-                      className="w-5 h-5 rounded hover:bg-zinc-100 text-zinc-600 disabled:opacity-30 disabled:hover:bg-transparent flex items-center justify-center cursor-pointer font-bold"
+                      aria-label="Move image left"
+                      className="w-6 h-6 rounded hover:bg-zinc-100 text-zinc-600 disabled:opacity-30 disabled:hover:bg-transparent flex items-center justify-center cursor-pointer transition-colors"
                     >
-                      <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="15 18 9 12 15 6"/></svg>
+                      <svg
+                        className="w-3 h-3"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        aria-hidden="true"
+                      >
+                        <polyline points="15 18 9 12 15 6" />
+                      </svg>
                     </button>
                     <button
                       type="button"
                       disabled={idx === imageList.length - 1}
                       onClick={() => onMoveImage(idx, 1)}
                       title="Move right"
-                      className="w-5 h-5 rounded hover:bg-zinc-100 text-zinc-600 disabled:opacity-30 disabled:hover:bg-transparent flex items-center justify-center cursor-pointer font-bold"
+                      aria-label="Move image right"
+                      className="w-6 h-6 rounded hover:bg-zinc-100 text-zinc-600 disabled:opacity-30 disabled:hover:bg-transparent flex items-center justify-center cursor-pointer transition-colors"
                     >
-                      <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 18 15 12 9 6"/></svg>
+                      <svg
+                        className="w-3 h-3"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        aria-hidden="true"
+                      >
+                        <polyline points="9 18 15 12 9 6" />
+                      </svg>
                     </button>
                   </div>
 
-                  {/* Set Primary Button */}
                   {isPrimary ? (
-                    <span className="text-[10px] font-bold text-emerald-700">
-                      Primary
-                    </span>
+                    <span className="text-[11px] font-semibold text-emerald-700">Primary</span>
                   ) : (
                     <button
                       type="button"
                       onClick={() => onSetPrimary(idx)}
-                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-zinc-100 hover:bg-emerald-600 hover:text-white text-zinc-700 font-semibold text-[10px] transition-colors cursor-pointer"
+                      className="inline-flex items-center gap-1 px-2 py-1 rounded border border-zinc-200 bg-white hover:bg-emerald-600 hover:text-white hover:border-emerald-600 text-zinc-700 font-semibold text-[11px] transition-colors cursor-pointer"
                     >
-                      <svg className="w-2.5 h-2.5 fill-current" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                      Set Primary
+                      Set primary
                     </button>
                   )}
                 </div>
@@ -189,7 +240,6 @@ const ProductImageManager = ({
   </div>
 );
 
-// ─── Product Modal Form ────────────────────────────────────────────────────────
 const productSchema = yup.object({
   name: yup.string().trim().required("Product name is required"),
   category: yup.string().trim().required("Category is required"),
@@ -418,53 +468,78 @@ const ProductModal = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-zinc-900/50 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-white border border-zinc-200 rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden">
-        {/* Modal Header */}
-        <div className="p-4 border-b border-zinc-200 flex items-center justify-between bg-zinc-50">
-          <h2 className="text-sm font-bold text-zinc-900">
-            {isEdit ? `Edit Product` : "Add New Product"}
+    <div className="fixed inset-0 z-50 bg-zinc-900/50 flex items-center justify-center p-4">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="product-modal-heading"
+        className="bg-white border border-zinc-300 rounded max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden"
+      >
+        <div className="p-4 border-b border-zinc-200 flex items-center justify-between gap-3 bg-zinc-50">
+          <h2 id="product-modal-heading" className="text-sm font-bold text-zinc-900">
+            {isEdit ? "Edit product" : "Add product"}
           </h2>
           <button
             type="button"
             onClick={onClose}
-            className="w-7 h-7 rounded-md flex items-center justify-center text-zinc-400 hover:text-zinc-700 hover:bg-zinc-200 transition-colors text-sm"
+            aria-label="Close"
+            className="w-8 h-8 rounded flex items-center justify-center text-zinc-400 hover:text-zinc-700 hover:bg-zinc-200/60 cursor-pointer transition-colors"
           >
-            ✕
+            <svg
+              className="w-3.5 h-3.5"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              aria-hidden="true"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
           </button>
         </div>
 
-        {/* Modal Body */}
-        <form onSubmit={handleSubmit(onSubmitProduct)} noValidate className="p-5 space-y-4 overflow-y-auto text-xs flex-1">
-          {/* Name */}
+        <form
+          onSubmit={handleSubmit(onSubmitProduct)}
+          noValidate
+          className="p-4 space-y-4 overflow-y-auto text-xs flex-1"
+        >
           <div className="space-y-1">
-            <label className="font-semibold text-zinc-900">Product Name *</label>
+            <label htmlFor="product-name" className="font-semibold text-zinc-900">
+              Product name *
+            </label>
             <input
+              id="product-name"
               type="text"
               {...register("name")}
-              placeholder="e.g. Yamaha NMAX 155 ABS"
-              className={`w-full h-9 px-3 border ${
-                errors.name ? "border-red-500 focus:border-red-500" : "border-zinc-300 focus:border-emerald-600"
-              } rounded-md focus:outline-none focus:ring-1 focus:ring-emerald-600`}
+              placeholder="Yamaha NMAX 155 ABS"
+              className={`w-full h-9 px-3 border rounded transition-colors focus:outline-2 focus:outline-offset-1 ${
+                errors.name
+                  ? "border-rose-500 focus:border-rose-500 focus:outline-rose-500"
+                  : "border-zinc-300 focus:border-emerald-700 focus:outline-emerald-700"
+              }`}
             />
             {errors.name && (
-              <span className="text-[11px] text-red-600 block">
-                {errors.name.message}
-              </span>
+              <span className="text-[11px] text-rose-600 block">{errors.name.message}</span>
             )}
           </div>
 
-          {/* Category & Brand */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1">
-              <label className="font-semibold text-zinc-900">Category *</label>
+              <label htmlFor="product-category" className="font-semibold text-zinc-900">
+                Category *
+              </label>
               <select
+                id="product-category"
                 {...register("category")}
-                className={`w-full h-9 px-2 border ${
-                  errors.category ? "border-red-500 focus:border-red-500" : "border-zinc-300 focus:border-emerald-600"
-                } rounded-md focus:outline-none focus:ring-1 focus:ring-emerald-600`}
+                className={`w-full h-9 px-2 border rounded transition-colors focus:outline-2 focus:outline-offset-1 ${
+                  errors.category
+                    ? "border-rose-500 focus:border-rose-500 focus:outline-rose-500"
+                    : "border-zinc-300 focus:border-emerald-700 focus:outline-emerald-700"
+                }`}
               >
-                <option value="">Select category...</option>
+                <option value="">Select category</option>
                 {categories.map((c) => (
                   <option key={c._id} value={c._id}>
                     {c.name}
@@ -472,20 +547,23 @@ const ProductModal = ({
                 ))}
               </select>
               {errors.category && (
-                <span className="text-[11px] text-red-600 block">
-                  {errors.category.message}
-                </span>
+                <span className="text-[11px] text-rose-600 block">{errors.category.message}</span>
               )}
             </div>
             <div className="space-y-1">
-              <label className="font-semibold text-zinc-900">Brand *</label>
+              <label htmlFor="product-brand" className="font-semibold text-zinc-900">
+                Brand *
+              </label>
               <select
+                id="product-brand"
                 {...register("brand")}
-                className={`w-full h-9 px-2 border ${
-                  errors.brand ? "border-red-500 focus:border-red-500" : "border-zinc-300 focus:border-emerald-600"
-                } rounded-md focus:outline-none focus:ring-1 focus:ring-emerald-600`}
+                className={`w-full h-9 px-2 border rounded transition-colors focus:outline-2 focus:outline-offset-1 ${
+                  errors.brand
+                    ? "border-rose-500 focus:border-rose-500 focus:outline-rose-500"
+                    : "border-zinc-300 focus:border-emerald-700 focus:outline-emerald-700"
+                }`}
               >
-                <option value="">Select brand...</option>
+                <option value="">Select brand</option>
                 {brands.map((b) => (
                   <option key={b._id} value={b._id}>
                     {b.name}
@@ -493,113 +571,130 @@ const ProductModal = ({
                 ))}
               </select>
               {errors.brand && (
-                <span className="text-[11px] text-red-600 block">
-                  {errors.brand.message}
-                </span>
+                <span className="text-[11px] text-rose-600 block">{errors.brand.message}</span>
               )}
             </div>
           </div>
 
-          {/* Description */}
           <div className="space-y-1">
-            <label className="font-semibold text-zinc-900">Description</label>
+            <label htmlFor="product-description" className="font-semibold text-zinc-900">
+              Description
+            </label>
             <textarea
+              id="product-description"
               rows={3}
               {...register("description")}
-              placeholder="Technical specifications, features, displacement..."
-              className="w-full p-2.5 border border-zinc-300 rounded-md focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-600 resize-none"
+              placeholder="Technical specifications, features, displacement"
+              className="w-full p-3 border border-zinc-300 rounded resize-none transition-colors focus:border-emerald-700 focus:outline-2 focus:outline-offset-1 focus:outline-emerald-700"
             />
           </div>
 
-          {/* Compatible Models */}
           <div className="space-y-1">
-            <label className="font-semibold text-zinc-900">Compatible Models</label>
+            <label htmlFor="product-models" className="font-semibold text-zinc-900">
+              Compatible models
+            </label>
             <input
+              id="product-models"
               type="text"
               {...register("compatibleModels")}
-              placeholder="e.g. NMAX 155 V1, NMAX 155 V2, Aerox 155"
-              className="w-full h-9 px-3 border border-zinc-300 rounded-md focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-600 font-mono"
+              placeholder="NMAX 155 V1, NMAX 155 V2, Aerox 155"
+              className="w-full h-9 px-3 border border-zinc-300 rounded font-mono transition-colors focus:border-emerald-700 focus:outline-2 focus:outline-offset-1 focus:outline-emerald-700"
             />
-            <p className="text-[10px] text-zinc-400">Comma-separated list of models</p>
+            <p className="text-[11px] text-zinc-500">Comma-separated list of models</p>
           </div>
 
-          {/* Price / Stock / Low Stock Threshold */}
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-3 gap-4">
             <div className="space-y-1">
-              <label className="font-semibold text-zinc-900">Price (₱) *</label>
+              <label htmlFor="product-price" className="font-semibold text-zinc-900">
+                Price (₱) *
+              </label>
               <input
+                id="product-price"
                 type="number"
                 min={0}
                 {...register("price")}
-                className={`w-full h-9 px-3 border ${
-                  errors.price ? "border-red-500 focus:border-red-500" : "border-zinc-300 focus:border-emerald-600"
-                } rounded-md focus:outline-none font-mono`}
+                className={`w-full h-9 px-3 border rounded font-mono transition-colors focus:outline-2 focus:outline-offset-1 ${
+                  errors.price
+                    ? "border-rose-500 focus:border-rose-500 focus:outline-rose-500"
+                    : "border-zinc-300 focus:border-emerald-700 focus:outline-emerald-700"
+                }`}
               />
               {errors.price && (
-                <span className="text-[11px] text-red-600 block">
-                  {errors.price.message}
-                </span>
+                <span className="text-[11px] text-rose-600 block">{errors.price.message}</span>
               )}
             </div>
             <div className="space-y-1">
-              <label className="font-semibold text-zinc-900">Stock *</label>
+              <label htmlFor="product-stock" className="font-semibold text-zinc-900">
+                Stock *
+              </label>
               <input
+                id="product-stock"
                 type="number"
                 min={0}
                 {...register("stock")}
-                className={`w-full h-9 px-3 border ${
-                  errors.stock ? "border-red-500 focus:border-red-500" : "border-zinc-300 focus:border-emerald-600"
-                } rounded-md focus:outline-none font-mono`}
+                className={`w-full h-9 px-3 border rounded font-mono transition-colors focus:outline-2 focus:outline-offset-1 ${
+                  errors.stock
+                    ? "border-rose-500 focus:border-rose-500 focus:outline-rose-500"
+                    : "border-zinc-300 focus:border-emerald-700 focus:outline-emerald-700"
+                }`}
               />
               {errors.stock && (
-                <span className="text-[11px] text-red-600 block">
-                  {errors.stock.message}
-                </span>
+                <span className="text-[11px] text-rose-600 block">{errors.stock.message}</span>
               )}
             </div>
             <div className="space-y-1">
-              <label className="font-semibold text-zinc-900">Low Stock ≤</label>
+              <label htmlFor="product-threshold" className="font-semibold text-zinc-900">
+                Low stock threshold
+              </label>
               <input
+                id="product-threshold"
                 type="number"
                 min={1}
                 {...register("lowStockThreshold")}
-                className={`w-full h-9 px-3 border ${
-                  errors.lowStockThreshold ? "border-red-500 focus:border-red-500" : "border-zinc-300 focus:border-emerald-600"
-                } rounded-md focus:outline-none font-mono`}
+                className={`w-full h-9 px-3 border rounded font-mono transition-colors focus:outline-2 focus:outline-offset-1 ${
+                  errors.lowStockThreshold
+                    ? "border-rose-500 focus:border-rose-500 focus:outline-rose-500"
+                    : "border-zinc-300 focus:border-emerald-700 focus:outline-emerald-700"
+                }`}
               />
               {errors.lowStockThreshold && (
-                <span className="text-[11px] text-red-600 block">
+                <span className="text-[11px] text-rose-600 block">
                   {errors.lowStockThreshold.message}
                 </span>
               )}
             </div>
           </div>
 
-          {/* Installment */}
-          <div className="pt-2 border-t border-zinc-100 space-y-3">
+          <div className="pt-2 border-t border-zinc-200 space-y-4">
             <label className="flex items-center gap-2 cursor-pointer font-semibold text-zinc-900">
               <input
                 type="checkbox"
                 {...register("installmentEligible")}
-                className="rounded text-emerald-600 focus:ring-0 w-3.5 h-3.5"
+                className="rounded text-emerald-700 w-3.5 h-3.5"
               />
-              Enable In-House Installment Financing
+              Enable installment financing
             </label>
             {installmentEligible && (
               <div className="pl-5 space-y-1">
-                <label className="text-[11px] text-zinc-600 font-medium">
-                  Min Qualifying Price (₱)
+                <label
+                  htmlFor="product-min-installment"
+                  className="text-[11px] text-zinc-600 font-medium"
+                >
+                  Minimum qualifying price (₱)
                 </label>
                 <input
+                  id="product-min-installment"
                   type="number"
                   min={0}
                   {...register("minInstallmentPrice")}
-                  className={`w-48 h-8 px-2.5 border ${
-                    errors.minInstallmentPrice ? "border-red-500 focus:border-red-500" : "border-zinc-300 focus:border-emerald-600"
-                  } rounded-md focus:outline-none font-mono`}
+                  className={`w-48 h-8 px-2 border rounded font-mono transition-colors focus:outline-2 focus:outline-offset-1 ${
+                    errors.minInstallmentPrice
+                      ? "border-rose-500 focus:border-rose-500 focus:outline-rose-500"
+                      : "border-zinc-300 focus:border-emerald-700 focus:outline-emerald-700"
+                  }`}
                 />
                 {errors.minInstallmentPrice && (
-                  <span className="text-[11px] text-red-600 block">
+                  <span className="text-[11px] text-rose-600 block">
                     {errors.minInstallmentPrice.message}
                   </span>
                 )}
@@ -607,26 +702,26 @@ const ProductModal = ({
             )}
           </div>
 
-          {/* Featured on Homepage */}
-          <div className="pt-2 border-t border-zinc-100">
+          <div className="pt-2 border-t border-zinc-200">
             <label className="flex items-center gap-2 cursor-pointer font-semibold text-zinc-900">
               <input
                 type="checkbox"
                 {...register("isFeatured")}
-                className="rounded text-amber-500 focus:ring-0 w-3.5 h-3.5"
+                className="rounded text-emerald-700 w-3.5 h-3.5"
               />
-              <span className="flex items-center gap-1.5">
-                <span className="text-amber-500 font-bold">★</span>
-                <span>Feature on Homepage Showroom Carousel</span>
-                <span className="text-[11px] text-zinc-400 font-normal">
-                  (Spotlights this unit on the homepage showroom carousel)
+              <span className="flex items-center gap-2">
+                <span className="text-emerald-700">
+                  <StarIcon className="w-3.5 h-3.5" />
+                </span>
+                <span>Feature on the homepage</span>
+                <span className="text-[11px] text-zinc-500 font-normal">
+                  Shows this unit in the homepage showroom.
                 </span>
               </span>
             </label>
           </div>
 
-          {/* Images */}
-          <div className="pt-2 border-t border-zinc-100 space-y-2">
+          <div className="pt-2 border-t border-zinc-200 space-y-2">
             <ProductImageManager
               imageList={imageList}
               onFilesAdded={handleFilesAdded}
@@ -636,30 +731,29 @@ const ProductModal = ({
             />
           </div>
 
-          {/* Form Actions */}
           <div className="pt-4 border-t border-zinc-200 flex items-center justify-end gap-2">
             <button
               type="button"
               onClick={onClose}
               disabled={isLoading || isSubmitting}
-              className="h-9 px-4 rounded-lg border border-zinc-200 text-zinc-700 hover:bg-zinc-50 transition-colors font-medium disabled:opacity-50"
+              className="h-9 px-4 rounded border border-zinc-200 text-zinc-700 hover:bg-zinc-50 transition-colors font-medium disabled:opacity-50 cursor-pointer"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isLoading || isSubmitting}
-              className="h-9 px-5 rounded-lg bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-semibold transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              className="h-9 px-5 rounded bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
               {isLoading || isSubmitting ? (
                 <>
                   <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  <span>{isEdit ? "Updating..." : "Creating..."}</span>
+                  <span>{isEdit ? "Updating..." : "Adding..."}</span>
                 </>
               ) : isEdit ? (
-                "Update Product"
+                "Save changes"
               ) : (
-                "Create Product"
+                "Add product"
               )}
             </button>
           </div>
@@ -669,7 +763,7 @@ const ProductModal = ({
   );
 };
 
-// ─── Admin Products Page ───────────────────────────────────────────────────────
+// Admin Products Page
 // Reference: itcp318-s3a-2026/frontend/src/Components/Admin/ProductsList.jsx
 export const AdminProducts = () => {
   const dispatch = useDispatch();
@@ -726,21 +820,21 @@ export const AdminProducts = () => {
       dispatch(clearErrors());
     }
     if (success) {
-      toast.success("Product created successfully!", { position: "bottom-right" });
+      toast.success("Product created.", { position: "bottom-right" });
       setIsModalOpen(false);
       setEditingProduct(null);
       dispatch({ type: NEW_PRODUCT_RESET });
       dispatch(getAdminProducts());
     }
     if (isUpdated) {
-      toast.success("Product updated successfully!", { position: "bottom-right" });
+      toast.success("Product updated.", { position: "bottom-right" });
       setIsModalOpen(false);
       setEditingProduct(null);
       dispatch({ type: UPDATE_PRODUCT_RESET });
       dispatch(getAdminProducts());
     }
     if (isDeleted) {
-      toast.success(actionMessage || "Product soft-deleted successfully!", { position: "bottom-right" });
+      toast.success(actionMessage || "Product moved to the archive.", { position: "bottom-right" });
       dispatch({ type: DELETE_PRODUCT_RESET });
       dispatch(getAdminProducts());
       setSelectedProductIds([]);
@@ -765,7 +859,7 @@ export const AdminProducts = () => {
       showCancelButton: true,
       confirmButtonColor: "#dc2626",
       cancelButtonColor: "#6b7280",
-      confirmButtonText: "Yes, delete",
+      confirmButtonText: "Delete product",
       cancelButtonText: "Cancel",
     });
     if (result.isConfirmed) {
@@ -782,7 +876,7 @@ export const AdminProducts = () => {
       showCancelButton: true,
       confirmButtonColor: "#059669",
       cancelButtonColor: "#6b7280",
-      confirmButtonText: "Yes, restore",
+      confirmButtonText: "Restore product",
       cancelButtonText: "Cancel",
     });
     if (confirm.isConfirmed) {
@@ -889,10 +983,10 @@ export const AdminProducts = () => {
         minWidth: 260,
         renderCell: (params) => {
           const p = params.row;
-          const catName = p.category?.name || "—";
+          const catName = p.category?.name || "Unassigned";
           return (
             <div className="flex items-center gap-3 min-w-0 py-1">
-              <div className="w-10 h-10 rounded-md border border-zinc-200 overflow-hidden shrink-0 bg-zinc-50 relative">
+              <div className="w-10 h-10 rounded border border-zinc-200 overflow-hidden shrink-0 bg-zinc-50 relative">
                 {p.images && p.images.length > 0 ? (
                   <>
                     <img
@@ -901,7 +995,7 @@ export const AdminProducts = () => {
                       className="w-full h-full object-cover"
                     />
                     {p.images.length > 1 && (
-                      <span className="absolute bottom-0 right-0 bg-black/75 text-white text-[8px] font-mono px-1 rounded-tl">
+                      <span className="absolute bottom-0 right-0 bg-zinc-900/70 text-white text-[10px] font-mono px-1 rounded-tl">
                         {p.images.length}
                       </span>
                     )}
@@ -917,7 +1011,7 @@ export const AdminProducts = () => {
               <div className="flex flex-col justify-center min-w-0 leading-tight">
                 <p className="font-semibold text-zinc-900 leading-snug truncate">{p.name}</p>
                 {p.isArchived && (
-                  <span className="w-fit h-4 mt-1 px-1 text-[9px] leading-4 font-mono uppercase rounded bg-zinc-200 text-zinc-700">
+                  <span className="w-fit mt-1 px-2 py-0.5 text-[11px] leading-4 rounded border border-zinc-200 bg-zinc-50 text-zinc-700">
                     Archived
                   </span>
                 )}
@@ -928,17 +1022,21 @@ export const AdminProducts = () => {
       },
       {
         field: "categoryBrand",
-        headerName: "Category / Brand",
+        headerName: "Category and brand",
         flex: 1,
         minWidth: 150,
-        valueGetter: (value, row) => `${row.category?.name || "—"} ${row.brand?.name || "—"}`,
+        valueGetter: (value, row) => `${row.category?.name || "Unassigned"} ${row.brand?.name || "Unassigned"}`,
         renderCell: (params) => {
-          const catName = params.row.category?.name || "—";
-          const brandName = params.row.brand?.name || "—";
+          const catName = params.row.category?.name || "Unassigned";
+          const brandName = params.row.brand?.name || "Unassigned";
           return (
             <div className="flex flex-col justify-center min-w-0 w-full leading-tight">
-              <span className="font-medium text-zinc-900 block truncate" title={catName}>{catName}</span>
-              <span className="text-[11px] text-zinc-500 block truncate" title={brandName}>{brandName}</span>
+              <span className="font-medium text-zinc-900 block truncate" title={catName}>
+                {catName}
+              </span>
+              <span className="text-[11px] text-zinc-500 block truncate" title={brandName}>
+                {brandName}
+              </span>
             </div>
           );
         },
@@ -953,7 +1051,7 @@ export const AdminProducts = () => {
           return params.row.isArchived ? (
             <span className="admin-table-badge gap-1.5 text-[11px] font-medium bg-amber-50 text-amber-700 border border-amber-200">
               <span className="admin-table-badge__dot w-1.5 h-1.5 rounded-full bg-amber-500" />
-              Soft-Deleted
+              Archived
             </span>
           ) : (
             <span className="admin-table-badge gap-1.5 text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
@@ -965,7 +1063,7 @@ export const AdminProducts = () => {
       },
       {
         field: "compatibleModels",
-        headerName: "Compatible Models",
+        headerName: "Compatible models",
         flex: 1.1,
         minWidth: 170,
         valueGetter: (value, row) => (row.compatibleModels || []).join(", ") || "Universal",
@@ -999,13 +1097,13 @@ export const AdminProducts = () => {
           const p = params.row;
           const isLow = p.stock <= p.lowStockThreshold;
           return (
-            <div className="flex items-center gap-1.5">
-              <span className={`font-mono font-bold ${isLow ? "text-red-700" : "text-zinc-900"}`}>
+            <div className="flex items-center gap-2">
+              <span className={`font-mono font-bold ${isLow ? "text-rose-700" : "text-zinc-900"}`}>
                 {p.stock} units
               </span>
               {isLow && (
-                <span className="admin-table-badge text-[10px] font-mono font-semibold bg-red-100 text-red-800 border border-red-200">
-                  Low ≤{p.lowStockThreshold}
+                <span className="admin-table-badge text-[11px] font-medium bg-rose-50 text-rose-700 border border-rose-200">
+                  Low stock
                 </span>
               )}
             </div>
@@ -1019,14 +1117,18 @@ export const AdminProducts = () => {
         renderCell: (params) => {
           const p = params.row;
           return p.installmentEligible ? (
-            <span className="admin-table-badge text-[10px] font-medium text-emerald-800 bg-emerald-50 border border-emerald-200">
-              Eligible
-              {p.minInstallmentPrice > 0
-                ? ` (Min ₱${Number(p.minInstallmentPrice).toLocaleString()})`
-                : ""}
-            </span>
+            <div className="flex flex-col justify-center leading-tight">
+              <span className="admin-table-badge text-[11px] font-medium text-emerald-800 bg-emerald-50 border border-emerald-200">
+                Eligible
+              </span>
+              {p.minInstallmentPrice > 0 && (
+                <span className="text-[11px] text-zinc-500 mt-1">
+                  Min ₱{Number(p.minInstallmentPrice).toLocaleString()}
+                </span>
+              )}
+            </div>
           ) : (
-            <span className="text-[11px] text-zinc-400">Cash / COD</span>
+            <span className="text-[11px] text-zinc-500">Cash or COD</span>
           );
         },
       },
@@ -1051,20 +1153,20 @@ export const AdminProducts = () => {
                   toast.error(res?.message || "Failed to update featured status");
                 }
               }}
-              className={`p-1.5 rounded-md flex items-center justify-center transition-all cursor-pointer ${
+              className={`p-2 rounded flex items-center justify-center transition-colors cursor-pointer ${
                 isFeatured
-                  ? "text-amber-500 hover:text-amber-600 bg-amber-50 hover:bg-amber-100 ring-1 ring-amber-300"
+                  ? "text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100"
                   : "text-zinc-300 hover:text-zinc-500 hover:bg-zinc-100"
               }`}
               title={
                 isFeatured
-                  ? "Featured in Homepage Showroom (click to remove)"
-                  : "Not featured (click to feature on homepage)"
+                  ? "Featured in the homepage showroom. Click to remove"
+                  : "Not featured. Click to feature on the homepage"
               }
+              aria-label={isFeatured ? "Remove from homepage" : "Feature on homepage"}
+              aria-pressed={isFeatured}
             >
-              <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
-                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-              </svg>
+              <StarIcon />
             </button>
           );
         },
@@ -1089,11 +1191,20 @@ export const AdminProducts = () => {
                 <button
                   type="button"
                   onClick={() => handleRestore(p)}
-                  className="p-1.5 rounded-md hover:bg-emerald-50 text-emerald-600 hover:text-emerald-700 transition-colors cursor-pointer"
-                  title="Restore Product"
-                  aria-label="Restore Product"
+                  className="p-2 rounded hover:bg-emerald-50 text-emerald-600 hover:text-emerald-700 transition-colors cursor-pointer"
+                  title="Restore product"
+                  aria-label="Restore product"
                 >
-                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <svg
+                    className="w-4 h-4"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
                     <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
                     <path d="M3 3v5h5" />
                   </svg>
@@ -1103,11 +1214,20 @@ export const AdminProducts = () => {
                   <button
                     type="button"
                     onClick={() => handleOpenEdit(p)}
-                    className="p-1.5 rounded-md hover:bg-zinc-100 text-zinc-600 hover:text-zinc-900 transition-colors cursor-pointer"
-                    title="Edit Product"
-                    aria-label="Edit Product"
+                    className="p-2 rounded hover:bg-zinc-100 text-zinc-600 hover:text-zinc-900 transition-colors cursor-pointer"
+                    title="Edit product"
+                    aria-label="Edit product"
                   >
-                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <svg
+                      className="w-4 h-4"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
                       <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
                       <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
                     </svg>
@@ -1115,11 +1235,20 @@ export const AdminProducts = () => {
                   <button
                     type="button"
                     onClick={() => handleSoftDelete(p)}
-                    className="p-1.5 rounded-md hover:bg-red-50 text-zinc-400 hover:text-red-600 transition-colors cursor-pointer"
-                    title="Delete Product"
-                    aria-label="Delete Product"
+                    className="p-2 rounded hover:bg-rose-50 text-zinc-400 hover:text-rose-600 transition-colors cursor-pointer"
+                    title="Archive product"
+                    aria-label="Archive product"
                   >
-                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <svg
+                      className="w-4 h-4"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
                       <polyline points="3 6 5 6 21 6" />
                       <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
                     </svg>
@@ -1141,13 +1270,13 @@ export const AdminProducts = () => {
 
     const count = targetIds.length;
     const result = await Swal.fire({
-      title: `Delete ${count} selected product(s)?`,
-      text: `These ${count} product(s) will be soft-deleted from the catalog. You can view them in the Soft-Deleted filter or restore them at any time.`,
+      title: `Delete ${count} selected ${count === 1 ? "product" : "products"}?`,
+      text: `These ${count} ${count === 1 ? "product" : "products"} will be soft-deleted from the catalog. You can view them in the Archived filter or restore them at any time.`,
       icon: "warning",
       showCancelButton: true,
       confirmButtonColor: "#dc2626",
       cancelButtonColor: "#6b7280",
-      confirmButtonText: `Yes, delete (${count})`,
+      confirmButtonText: `Delete ${count}`,
       cancelButtonText: "Cancel",
     });
 
@@ -1165,13 +1294,13 @@ export const AdminProducts = () => {
 
     const count = targetIds.length;
     const result = await Swal.fire({
-      title: `Restore ${count} selected product(s)?`,
-      text: `These ${count} product(s) will be restored to active status and made available in the shop catalog.`,
+      title: `Restore ${count} selected ${count === 1 ? "product" : "products"}?`,
+      text: `These ${count} ${count === 1 ? "product" : "products"} will be restored to active status and made available in the shop catalog.`,
       icon: "question",
       showCancelButton: true,
       confirmButtonColor: "#059669",
       cancelButtonColor: "#6b7280",
-      confirmButtonText: `Yes, restore (${count})`,
+      confirmButtonText: `Restore ${count}`,
       cancelButtonText: "Cancel",
     });
 
@@ -1184,104 +1313,102 @@ export const AdminProducts = () => {
 
   return (
     <div className="space-y-6">
-      {/* Catalog Subnavigation Tabs */}
+      {/* Catalog subnavigation */}
       <div className="flex items-center gap-2 border-b border-zinc-200 pb-3">
         <Link
           to="/admin/products"
-          className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 text-white shadow-xs"
+          className="px-4 py-2 rounded text-xs font-semibold bg-emerald-600 text-white"
         >
-          Products &amp; Units ({products.length})
+          Products ({products.length})
         </Link>
         <Link
           to="/admin/categories"
-          className="px-3.5 py-1.5 rounded-lg text-xs font-semibold text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 transition-colors"
+          className="px-4 py-2 rounded text-xs font-semibold text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 transition-colors"
         >
           Categories ({categories.length})
         </Link>
         <Link
           to="/admin/brands"
-          className="px-3.5 py-1.5 rounded-lg text-xs font-semibold text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 transition-colors"
+          className="px-4 py-2 rounded text-xs font-semibold text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 transition-colors"
         >
           Brands ({brands.length})
         </Link>
       </div>
 
-      {/* Title & Actions */}
+      {/* Title and actions */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-zinc-200">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-zinc-900">
-            Catalog &amp; Inventory
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-zinc-900 text-balance">
+            Products and stock
           </h1>
-          <p className="text-xs text-zinc-500 mt-0.5">
-            Manage motorcycles, OEM parts, accessories and stock levels.
+          <p className="text-xs text-zinc-500 mt-1">
+            Manage motorcycles, OEM parts, accessories, and stock levels.
           </p>
         </div>
         <button
           type="button"
           onClick={handleOpenAdd}
-          className="inline-flex items-center gap-2 h-9 px-4 rounded-lg bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-xs font-semibold transition-colors cursor-pointer shadow-sm self-start sm:self-auto"
+          className="inline-flex items-center gap-2 h-9 px-4 rounded bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-xs font-semibold transition-colors cursor-pointer self-start sm:self-auto"
         >
-          <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+          <svg
+            className="w-3.5 h-3.5"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            aria-hidden="true"
+          >
             <line x1="12" y1="5" x2="12" y2="19" />
             <line x1="5" y1="12" x2="19" y2="12" />
           </svg>
-          Add New Product
+          Add product
         </button>
       </div>
 
-      {/* Stats Cards */}
+      {/* Counts */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="p-4 bg-white rounded-xl border border-zinc-200 shadow-2xs">
-          <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider block">
-            Active Products
-          </span>
+        <div className="p-4 bg-white rounded border border-zinc-200">
+          <span className="text-[11px] font-semibold text-zinc-500 block">Active products</span>
           <div className="mt-1 flex items-baseline gap-2">
             <span className="text-2xl font-extrabold text-zinc-900 font-mono">
               {activeProducts.length}
             </span>
-            <span className="text-xs text-zinc-400">
-              of {products.length} total units
-            </span>
+            <span className="text-xs text-zinc-500">of {products.length} units</span>
           </div>
         </div>
 
-        <div className="p-4 bg-white rounded-xl border border-zinc-200 shadow-2xs">
-          <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider block">
-            Soft-Deleted / Archived
-          </span>
+        <div className="p-4 bg-white rounded border border-zinc-200">
+          <span className="text-[11px] font-semibold text-zinc-500 block">Archived</span>
           <div className="mt-1 flex items-baseline gap-2">
             <span className="text-2xl font-extrabold text-amber-600 font-mono">
               {archivedProducts.length}
             </span>
-            <span className="text-xs text-zinc-400">recoverable</span>
+            <span className="text-xs text-zinc-500">can be restored</span>
           </div>
         </div>
 
-        <div className="p-4 bg-white rounded-xl border border-zinc-200 shadow-2xs">
-          <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider block">
-            Low Stock Alerts
-          </span>
+        <div className="p-4 bg-white rounded border border-zinc-200">
+          <span className="text-[11px] font-semibold text-zinc-500 block">Low stock</span>
           <div className="mt-1 flex items-baseline gap-2">
-            <span className="text-2xl font-extrabold text-red-600 font-mono">
+            <span className="text-2xl font-extrabold text-rose-600 font-mono">
               {products.filter((p) => p.stock <= p.lowStockThreshold && !p.isArchived).length}
             </span>
-            <span className="text-xs text-zinc-400">need replenishment</span>
+            <span className="text-xs text-zinc-500">below threshold</span>
           </div>
         </div>
       </div>
 
-      {/* Filter Toolbar */}
-      <div className="py-3 border-y border-zinc-200 bg-white px-3 space-y-3">
-        {/* Status Filter Tabs */}
+      {/* Filter toolbar */}
+      <div className="py-4 border-y border-zinc-200 bg-white px-4 space-y-4">
         <div className="flex items-center justify-between flex-wrap gap-2">
-          <div className="flex items-center gap-1 bg-zinc-100 p-1 rounded-lg shrink-0">
+          <div className="flex items-center gap-1 bg-zinc-100 p-1 rounded shrink-0">
             <button
               type="button"
               onClick={() => setStatusFilter("all")}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors cursor-pointer ${
+              className={`px-3 py-2 text-xs font-semibold rounded transition-colors cursor-pointer ${
                 statusFilter === "all"
-                  ? "bg-white text-zinc-900 shadow-2xs"
-                  : "text-zinc-600 hover:text-zinc-900"
+                  ? "bg-white text-zinc-900 border border-zinc-300"
+                  : "text-zinc-600 hover:text-zinc-900 border border-transparent"
               }`}
             >
               All ({products.length})
@@ -1289,10 +1416,10 @@ export const AdminProducts = () => {
             <button
               type="button"
               onClick={() => setStatusFilter("active")}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors cursor-pointer ${
+              className={`px-3 py-2 text-xs font-semibold rounded transition-colors cursor-pointer ${
                 statusFilter === "active"
-                  ? "bg-white text-emerald-700 shadow-2xs"
-                  : "text-zinc-600 hover:text-zinc-900"
+                  ? "bg-white text-emerald-700 border border-emerald-300"
+                  : "text-zinc-600 hover:text-zinc-900 border border-transparent"
               }`}
             >
               Active ({activeProducts.length})
@@ -1300,55 +1427,57 @@ export const AdminProducts = () => {
             <button
               type="button"
               onClick={() => setStatusFilter("archived")}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors cursor-pointer ${
+              className={`px-3 py-2 text-xs font-semibold rounded transition-colors cursor-pointer ${
                 statusFilter === "archived"
-                  ? "bg-white text-amber-700 shadow-2xs"
-                  : "text-zinc-600 hover:text-zinc-900"
+                  ? "bg-white text-amber-700 border border-amber-300"
+                  : "text-zinc-600 hover:text-zinc-900 border border-transparent"
               }`}
             >
-              Soft-Deleted ({archivedProducts.length})
+              Archived ({archivedProducts.length})
             </button>
             <button
               type="button"
               onClick={() => setStatusFilter("featured")}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors cursor-pointer flex items-center gap-1 ${
+              className={`px-3 py-2 text-xs font-semibold rounded transition-colors cursor-pointer flex items-center gap-2 ${
                 statusFilter === "featured"
-                  ? "bg-white text-amber-700 shadow-2xs"
-                  : "text-zinc-600 hover:text-zinc-900"
+                  ? "bg-white text-emerald-700 border border-emerald-300"
+                  : "text-zinc-600 hover:text-zinc-900 border border-transparent"
               }`}
             >
-              <span className="text-amber-500">★</span>
+              <span className="text-emerald-700">
+                <StarIcon className="w-3.5 h-3.5" />
+              </span>
               <span>Featured ({featuredProducts.length})</span>
             </button>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          {/* Search */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="space-y-1">
-            <label className="text-[10px] font-mono uppercase text-zinc-400 font-semibold block">
+            <label htmlFor="product-search" className="text-[11px] font-semibold text-zinc-600 block">
               Search
             </label>
             <input
+              id="product-search"
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Name, model, description..."
-              className="w-full h-8 px-2.5 text-xs bg-zinc-50 border border-zinc-300 rounded focus:outline-none focus:border-emerald-600 focus:bg-white"
+              placeholder="Name, model, or description"
+              className="w-full h-8 px-3 text-xs bg-zinc-50 border border-zinc-300 rounded transition-colors focus:bg-white focus:border-emerald-700 focus:outline-2 focus:outline-offset-1 focus:outline-emerald-700"
             />
           </div>
 
-          {/* Category */}
           <div className="space-y-1">
-            <label className="text-[10px] font-mono uppercase text-zinc-400 font-semibold block">
+            <label htmlFor="product-filter-category" className="text-[11px] font-semibold text-zinc-600 block">
               Category
             </label>
             <select
+              id="product-filter-category"
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
-              className="w-full h-8 px-2 text-xs bg-zinc-50 border border-zinc-300 rounded focus:outline-none focus:border-emerald-600 focus:bg-white"
+              className="w-full h-8 px-2 text-xs bg-zinc-50 border border-zinc-300 rounded transition-colors focus:bg-white focus:border-emerald-700 focus:outline-2 focus:outline-offset-1 focus:outline-emerald-700"
             >
-              <option value="all">All Categories</option>
+              <option value="all">All categories</option>
               {categories.map((c) => (
                 <option key={c._id} value={c._id}>
                   {c.name}
@@ -1357,17 +1486,17 @@ export const AdminProducts = () => {
             </select>
           </div>
 
-          {/* Brand */}
           <div className="space-y-1">
-            <label className="text-[10px] font-mono uppercase text-zinc-400 font-semibold block">
+            <label htmlFor="product-filter-brand" className="text-[11px] font-semibold text-zinc-600 block">
               Brand
             </label>
             <select
+              id="product-filter-brand"
               value={selectedBrand}
               onChange={(e) => setSelectedBrand(e.target.value)}
-              className="w-full h-8 px-2 text-xs bg-zinc-50 border border-zinc-300 rounded focus:outline-none focus:border-emerald-600 focus:bg-white"
+              className="w-full h-8 px-2 text-xs bg-zinc-50 border border-zinc-300 rounded transition-colors focus:bg-white focus:border-emerald-700 focus:outline-2 focus:outline-offset-1 focus:outline-emerald-700"
             >
-              <option value="all">All Brands</option>
+              <option value="all">All brands</option>
               {brands.map((b) => (
                 <option key={b._id} value={b._id}>
                   {b.name}
@@ -1376,28 +1505,31 @@ export const AdminProducts = () => {
             </select>
           </div>
 
-          {/* Low Stock Toggle */}
           <div className="space-y-1 flex flex-col justify-end">
-            <label className="flex items-center gap-2 cursor-pointer text-xs font-medium text-zinc-700 h-8 px-2.5 border border-zinc-200 bg-zinc-50 hover:bg-zinc-100 rounded">
+            <label
+              htmlFor="product-filter-low-stock"
+              className="flex items-center gap-2 cursor-pointer text-xs font-medium text-zinc-700 h-8 px-3 border border-zinc-200 bg-zinc-50 hover:bg-zinc-100 rounded transition-colors"
+            >
               <input
+                id="product-filter-low-stock"
                 type="checkbox"
                 checked={onlyLowStock}
                 onChange={(e) => setOnlyLowStock(e.target.checked)}
-                className="rounded text-emerald-600 focus:ring-0 w-3.5 h-3.5"
+                className="rounded text-emerald-700 w-3.5 h-3.5"
               />
-              <span className="text-[11px]">Low Stock Only</span>
+              <span className="text-[11px]">Low stock only</span>
             </label>
           </div>
         </div>
       </div>
 
-      {/* Bulk Actions Bar */}
+      {/* Bulk actions */}
       {selectedProductIds.length > 0 && (
-        <div className="bg-zinc-900 text-white rounded-lg p-3 sm:px-4 sm:py-2.5 flex items-center justify-between gap-3 shadow-md flex-wrap animate-fade-in">
-          <div className="flex items-center gap-2.5">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+        <div className="bg-zinc-900 text-white rounded p-4 sm:px-4 sm:py-3 flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-2">
             <span className="text-xs font-semibold">
-              {selectedProductIds.length} product{selectedProductIds.length > 1 ? "s" : ""} selected
+              {selectedProductIds.length}{" "}
+              {selectedProductIds.length === 1 ? "product" : "products"} selected
             </span>
             <button
               type="button"
@@ -1414,14 +1546,21 @@ export const AdminProducts = () => {
                 type="button"
                 onClick={handleBulkSoftDelete}
                 disabled={bulkLoading}
-                className="h-8 px-3 rounded-md bg-red-600 hover:bg-red-700 active:bg-red-800 text-white text-xs font-semibold transition-colors cursor-pointer flex items-center gap-1.5 shadow-2xs disabled:opacity-50"
-                title="Soft-delete selected active products"
+                className="h-8 px-3 rounded bg-rose-700 hover:bg-rose-800 active:bg-rose-900 text-white text-xs font-semibold transition-colors cursor-pointer flex items-center gap-2 disabled:opacity-50"
+                title="Archive the selected products"
               >
-                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <svg
+                  className="w-3.5 h-3.5"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  aria-hidden="true"
+                >
                   <polyline points="3 6 5 6 21 6" />
                   <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
                 </svg>
-                <span>Delete Selected ({selectedActiveProducts.length})</span>
+                <span>Archive selected ({selectedActiveProducts.length})</span>
               </button>
             )}
 
@@ -1430,22 +1569,29 @@ export const AdminProducts = () => {
                 type="button"
                 onClick={handleBulkRestore}
                 disabled={bulkLoading}
-                className="h-8 px-3 rounded-md bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-xs font-semibold transition-colors cursor-pointer flex items-center gap-1.5 shadow-2xs disabled:opacity-50"
-                title="Restore selected soft-deleted products"
+                className="h-8 px-3 rounded bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-xs font-semibold transition-colors cursor-pointer flex items-center gap-2 disabled:opacity-50"
+                title="Restore the selected archived products"
               >
-                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <svg
+                  className="w-3.5 h-3.5"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  aria-hidden="true"
+                >
                   <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
                   <path d="M3 3v5h5" />
                 </svg>
-                <span>Restore Selected ({selectedArchivedProducts.length})</span>
+                <span>Restore selected ({selectedArchivedProducts.length})</span>
               </button>
             )}
           </div>
         </div>
       )}
 
-      {/* Products DataGrid */}
-      <div className="border border-zinc-200 bg-white rounded-xl shadow-xs overflow-hidden">
+      {/* Products grid */}
+      <div className="border border-zinc-200 bg-white rounded overflow-hidden">
         <DataGrid
           className="admin-products-grid"
           rows={filtered}
@@ -1463,26 +1609,7 @@ export const AdminProducts = () => {
           }}
           autoHeight
           sx={{
-            border: "none",
-            fontFamily: "inherit",
-            fontSize: "0.75rem",
-            "& .MuiDataGrid-columnHeaders": {
-              backgroundColor: "#fafafa",
-              borderBottom: "1px solid #e4e4e7",
-              color: "#52525b",
-              fontWeight: 600,
-              fontSize: "0.6875rem",
-              textTransform: "uppercase",
-              fontFamily: "ui-monospace, monospace",
-              letterSpacing: "0.05em",
-            },
-            "& .MuiDataGrid-columnSeparator": {
-              display: "none !important",
-            },
-            "& .MuiDataGrid-columnHeader": {
-              paddingLeft: "16px",
-              paddingRight: "16px",
-            },
+            ...adminDataGridSx,
             "& .MuiDataGrid-columnHeaderCheckbox": {
               width: "52px !important",
               minWidth: "52px !important",
@@ -1490,28 +1617,6 @@ export const AdminProducts = () => {
               paddingLeft: "0 !important",
               paddingRight: "0 !important",
               justifyContent: "center",
-            },
-            "& .MuiDataGrid-columnHeader:focus, & .MuiDataGrid-columnHeader:focus-within, & .MuiDataGrid-cell:focus, & .MuiDataGrid-cell:focus-within": {
-              outline: "none !important",
-            },
-            "& .MuiDataGrid-row": {
-              borderBottom: "1px solid #f4f4f5",
-              transition: "background-color 0.15s ease",
-            },
-            "& .MuiDataGrid-row:hover": {
-              backgroundColor: "rgba(244, 244, 245, 0.7)",
-            },
-            "& .MuiDataGrid-row.Mui-selected": {
-              backgroundColor: "rgba(236, 253, 245, 0.6) !important",
-              "&:hover": {
-                backgroundColor: "rgba(209, 250, 229, 0.8) !important",
-              },
-            },
-            "& .MuiDataGrid-cell": {
-              display: "flex",
-              alignItems: "center",
-              paddingLeft: "16px",
-              paddingRight: "16px",
             },
             "& .MuiDataGrid-cellCheckbox": {
               width: "52px !important",
@@ -1521,27 +1626,11 @@ export const AdminProducts = () => {
               paddingRight: "0 !important",
               justifyContent: "center",
             },
-            "& .MuiCheckbox-root": {
-              color: "#d4d4d8",
-              "&.Mui-checked": {
-                color: "#059669",
-              },
-              "&.MuiCheckbox-indeterminate": {
-                color: "#059669",
-              },
-            },
-            "& .MuiDataGrid-footerContainer": {
-              borderTop: "1px solid #e4e4e7",
-              backgroundColor: "#fafafa",
-            },
-            "& .MuiTablePagination-root": {
-              fontSize: "0.75rem",
-            },
           }}
         />
       </div>
 
-      {/* Add / Edit Modal */}
+      {/* Add / edit modal */}
       <ProductModal
         isOpen={isModalOpen}
         onClose={handleCloseModal}

@@ -1,8 +1,10 @@
 import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import axios from "axios";
+import Swal from "sweetalert2";
 import { Register } from "./assets/pages/Register";
 import { Login } from "./assets/pages/Login";
-import { loadUser } from "./actions/userActions";
+import { isDeactivationError, loadUser } from "./actions/userActions";
 import { Homepage } from "./assets/pages/customer/Homepage";
 import { Shop } from "./assets/pages/customer/Shop";
 import { ProductDetails } from "./assets/pages/customer/ProductDetails";
@@ -28,7 +30,11 @@ import { AdminCategories } from "./assets/pages/admin/AdminCategories";
 import { AdminBrands } from "./assets/pages/admin/AdminBrands";
 import { AdminReviews } from "./assets/pages/admin/AdminReviews";
 import { AdminSettings } from "./assets/pages/admin/AdminSettings";
+import { AdminCustomers } from "./assets/pages/admin/AdminCustomers";
 import ProtectedRoute from "./assets/components/ProtectedRoute";
+import { LOGOUT_SUCCESS } from "./constants/userConstants";
+
+let deactivationHandlingPromise = null;
 
 const DashboardRedirect = () => {
   const { user } = useSelector((state) => state.auth);
@@ -38,9 +44,49 @@ const DashboardRedirect = () => {
 function App() {
   const dispatch = useDispatch();
 
+  useEffect(() => {
+    const interceptorId = axios.interceptors.response.use(
+      (response) => response,
+      async (error) => {
+        if (isDeactivationError(error) && !error?.config?.skipDeactivationRedirect) {
+          if (!deactivationHandlingPromise) {
+            const message = error.response.data.message;
+            deactivationHandlingPromise = Swal.fire({
+              icon: "warning",
+              title: "Account deactivated",
+              text: message,
+              confirmButtonText: "Go to login",
+              allowOutsideClick: false,
+              allowEscapeKey: false,
+              buttonsStyling: false,
+              customClass: {
+                popup: "rounded-xl border border-zinc-200 shadow-xl",
+                title: "text-base font-bold text-zinc-900",
+                htmlContainer: "text-sm text-zinc-600",
+                confirmButton:
+                  "rounded-md bg-emerald-700 px-3.5 py-2 text-xs font-semibold text-white hover:bg-emerald-800",
+              },
+            }).then(() => {
+              try {
+                localStorage.removeItem("isLoggedIn");
+              } catch {
+                // Redux still clears the session if storage is unavailable.
+              }
+              dispatch({ type: LOGOUT_SUCCESS });
+              window.location.assign("/login");
+            });
+          }
+          await deactivationHandlingPromise;
+        }
+        return Promise.reject(error);
+      },
+    );
+
+    return () => axios.interceptors.response.eject(interceptorId);
+  }, [dispatch]);
+
   // Restore the authenticated session (if any) from the JWT cookie on load.
-  // Skipped when there's no session marker, avoiding a useless 401 call
-  // (the cookie itself is httpOnly and invisible to JavaScript).
+  // This effect runs after the interceptor setup above.
   useEffect(() => {
     let shouldLoad;
     try {
@@ -125,6 +171,7 @@ function App() {
             <Route path="/admin/categories" element={<AdminCategories />} />
             <Route path="/admin/brands" element={<AdminBrands />} />
             <Route path="/admin/reviews" element={<AdminReviews />} />
+            <Route path="/admin/customers" element={<AdminCustomers />} />
             <Route path="/admin/settings" element={<AdminSettings />} />
           </Route>
 

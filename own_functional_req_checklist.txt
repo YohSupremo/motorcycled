@@ -1,0 +1,485 @@
+Motorcycle Shop E-Commerce System
+Functional Requirements Progress Checklist
+Source: own_functional_req.pdf
+Assessment date: 2026-10-22
+
+Legend:
+[x] Confirmed in the current source
+[~] Partially implemented or requires live/configuration verification
+[ ] Not confirmed in the current source
+
+============================================================
+Overall progress
+============================================================
+
+Functional requirements in the PDF: 71
+Confirmed: 48
+Partial / needs verification: 23
+Not confirmed: 0
+
+Estimated implementation coverage:
+    48 / 71 confirmed = 68%
+    71 / 71 confirmed or partially implemented = 100%
+
+This is an implementation estimate, not an official grade. Requirements
+marked [~] need a live demonstration, configuration check, or additional
+business-rule verification before they should be claimed as complete.
+
+============================================================
+FR1.1 User Account Management
+============================================================
+
+[x] FR1.1.1 User Registration
+    Frontend: frontend/src/assets/pages/Register.jsx,
+    frontend/src/schema/registerSchema.js
+    Backend: backend/controllers/AuthController.js,
+    backend/routes/authRoutes.js, backend/model/User.js,
+    backend/model/Address.js
+
+[x] FR1.1.2 Login Validation
+    Frontend: frontend/src/assets/pages/Login.jsx,
+    frontend/src/actions/userActions.js
+    Backend: backend/controllers/AuthController.js,
+    backend/routes/authRoutes.js
+    Includes password validation and verified Firebase Google login.
+
+[x] FR1.1.3 Profile Update
+    Frontend: frontend/src/assets/pages/customer/Profile.jsx,
+    frontend/src/actions/profileActions.js
+    Backend: backend/controllers/UserController.js,
+    backend/routes/userRoutes.js, backend/middleware/multer.js
+    Includes profile information, address, profile picture, valid ID,
+    and proof-of-income upload flows.
+
+[~] FR1.1.4 Password Management
+    Password login and password hashing are implemented.
+    Forgot-password and reset-password flow is not confirmed end-to-end.
+    Review: backend/controllers/AuthController.js has password-reset
+    placeholders that require completion or demonstration.
+
+[~] FR1.1.5 Account Deactivation
+    Admin deactivation/reactivation and protected-request enforcement are
+    implemented.
+    Frontend: frontend/src/assets/pages/admin/AdminCustomers.jsx,
+    frontend/src/App.jsx
+    Backend: backend/controllers/adminCustomerController.js,
+    backend/middleware/authMiddleware.js
+    Customer self-service deactivation is not confirmed.
+
+[~] FR1.1.6 Admin User Control
+    Frontend: frontend/src/assets/pages/admin/AdminCustomers.jsx
+    Backend: backend/controllers/adminCustomerController.js,
+    backend/routes/adminCustomerRoutes.js
+    View, update, role change, deactivate, and reactivate are implemented.
+    Permanent delete is not confirmed; current behavior is account
+    deactivation rather than destructive deletion.
+
+[~] FR1.1.7 Role Assignment
+    Customer and Admin roles can be created and edited.
+    Frontend: AdminCustomers.jsx
+    Backend: adminCustomerController.js, model/User.js
+    Inventory Manager is not present in the User schema or role controls.
+
+FR1.1 status: 3 confirmed, 4 partial
+
+============================================================
+FR1.2 Product Management
+============================================================
+
+[x] FR1.2.1 Add Product
+    Frontend: frontend/src/assets/pages/admin/AdminProducts.jsx
+    Backend: backend/controllers/productController.js,
+    backend/routes/productRoutes.js, backend/model/Product.js
+
+[x] FR1.2.2 Display Products
+    Frontend: frontend/src/assets/pages/customer/Homepage.jsx,
+    frontend/src/assets/pages/customer/Shop.jsx
+    Backend: backend/controllers/productController.js,
+    backend/routes/productRoutes.js
+
+[x] FR1.2.3 Update Product
+    Frontend: AdminProducts.jsx
+    Backend: productController.js
+    Includes installment eligibility and minimum installment price.
+
+[x] FR1.2.4 Archive/Delete Product
+    Frontend: AdminProducts.jsx
+    Backend: productController.js
+    Uses archive/soft-delete and restore behavior.
+
+[x] FR1.2.5 Product Search
+    Frontend: Shop.jsx
+    Backend: productController.js
+    Supports product search and catalog query filters.
+
+[x] FR1.2.6 Product Images
+    Frontend: AdminProducts.jsx
+    Backend: productController.js, backend/config/cloudinary.js,
+    backend/middleware/multer.js
+    Multiple images, previews, ordering, and primary-image selection are
+    implemented.
+
+[x] FR1.2.7 Product Details
+    Frontend: frontend/src/assets/pages/customer/ProductDetails.jsx
+    Backend: productController.js, reviewController.js
+
+[x] FR1.2.8 Price Range Filter
+    Frontend: Shop.jsx
+    Backend: productController.js
+
+[x] FR1.2.9 Pagination
+    Frontend: Shop.jsx
+    Backend: productController.js
+
+[x] FR1.2.10 Admin Product List
+    Frontend: AdminProducts.jsx
+    Backend: productController.js, productRoutes.js
+
+FR1.2 status: 10 confirmed
+
+============================================================
+FR1.3 Category and Brand Management
+============================================================
+
+[x] FR1.3.1 Manage Categories
+    Frontend: frontend/src/assets/pages/admin/AdminCategories.jsx
+    Backend: backend/controllers/categoryController.js,
+    backend/routes/categoryRoutes.js, backend/model/Category.js
+
+[x] FR1.3.2 Assign Category
+    Frontend: AdminProducts.jsx
+    Backend: productController.js, Product.js
+
+[x] FR1.3.3 Manage Brands
+    Frontend: frontend/src/assets/pages/admin/AdminBrands.jsx
+    Backend: backend/controllers/brandController.js,
+    backend/routes/brandRoutes.js, backend/model/Brand.js
+
+[x] FR1.3.4 Filter by Brand
+    Frontend: Shop.jsx
+    Backend: productController.js
+
+[x] FR1.3.5 Filter by Category
+    Frontend: Shop.jsx
+    Backend: productController.js
+
+FR1.3 status: 5 confirmed
+
+============================================================
+FR1.4 Shopping Cart Management
+============================================================
+
+[x] FR1.4.1 Add to Cart
+    Frontend: frontend/src/assets/pages/customer/Shop.jsx,
+    ProductDetails.jsx, Cart.jsx, frontend/src/actions/cartActions.js
+
+[x] FR1.4.2 Update Quantity
+    Frontend: frontend/src/assets/pages/customer/Cart.jsx,
+    frontend/src/reducers/cartReducers.js
+
+[x] FR1.4.3 Remove from Cart
+    Frontend: Cart.jsx, cartActions.js, cartReducers.js
+
+[x] FR1.4.4 Cart Summary
+    Frontend: Cart.jsx, ConfirmOrder.jsx
+    Includes totals and installment starting-payment display where eligible.
+
+[x] FR1.4.5 Save Cart
+    Frontend: cartActions.js, cartReducers.js, store.js
+    Cart persistence is implemented on the client for logged-in sessions.
+    Demonstrate persistence after refresh/logout-login.
+
+FR1.4 status: 5 confirmed
+
+============================================================
+FR1.5 Order and Checkout Management
+============================================================
+
+[x] FR1.5.1 Place Order
+    Frontend: ConfirmOrder.jsx, Shipping.jsx
+    Backend: backend/controllers/orderController.js,
+    backend/routes/orderRoutes.js, backend/model/Order.js
+
+[x] FR1.5.2 Shipping Information
+    Frontend: Shipping.jsx
+    Backend: orderController.js and order validation
+
+[x] FR1.5.3 Order Confirmation
+    Frontend: ConfirmOrder.jsx
+    Includes standard and installment order breakdowns.
+
+[x] FR1.5.4 Record Order Details
+    Frontend: orderActions.js
+    Backend: orderController.js, Order.js
+
+[x] FR1.5.5 Payment Methods
+    Frontend: ConfirmOrder.jsx
+    Backend: orderController.js, Order.js
+    Cash, online payment, and installment paths are represented.
+
+[x] FR1.5.6 Order Status
+    Frontend: AdminOrders.jsx, Orders.jsx
+    Backend: orderController.js, orderRoutes.js
+    Includes standard statuses and installment approval/downpayment states.
+
+[x] FR1.5.7 Order History
+    Frontend: Orders.jsx
+    Backend: orderController.js and order routes
+    Includes installment payment information where available.
+
+[~] FR1.5.8 Admin Order Control
+    Frontend: AdminOrders.jsx
+    Backend: orderController.js
+    View and status update are implemented. Destructive admin order delete
+    is not confirmed.
+
+[~] FR1.5.9 Order Cancellation
+    Frontend: Orders.jsx
+    Backend: orderController.js
+    Verify the pending-only cancellation rule and installment downpayment
+    refund/forfeiture policy during a live test.
+
+[x] FR1.5.10 Mailing / Messaging
+    Frontend: Orders.jsx and admin order screens
+    Backend: backend/services/emailService.js,
+    backend/services/notificationService.js, orderController.js
+    Standard order/status email and PDF attachment are implemented.
+    Installment-specific approval, due-date, missed-payment, and receipt
+    notifications require a complete live verification.
+
+[x] FR1.5.11 Installment Plan Selection
+    Frontend: ConfirmOrder.jsx
+    Backend: orderController.js, backend/model/InstallmentApplication.js
+
+FR1.5 status: 8 confirmed, 3 partial
+
+============================================================
+FR1.6 Inventory and Restocking Management
+============================================================
+
+[~] FR1.6.1 Record Restocking
+    Frontend: frontend/src/assets/pages/admin/AdminInventory.jsx
+    The current implementation is a frontend ledger prototype in
+    AdminInventory.jsx; no backend inventory controller/route was found.
+
+[~] FR1.6.2 Supplier Details
+    Frontend: AdminInventory.jsx
+    Supplier records are currently local component state; no supplier model
+    or backend persistence was found.
+
+[~] FR1.6.3 Expense Tracking
+    Frontend: AdminInventory.jsx, AdminPayments.jsx
+    Expense inputs/display are frontend-only; backend persistence was not
+    confirmed.
+
+[~] FR1.6.4 Update Stock
+    Frontend: AdminInventory.jsx
+    Product/order stock behavior exists in backend controllers, but the
+    inventory ledger/restock update is not persisted through an inventory API.
+
+[~] FR1.6.5 Inventory History
+    Frontend: AdminInventory.jsx
+    Ledger history exists in AdminInventory.jsx local state; no backend
+    inventory transaction model was found.
+
+[~] FR1.6.6 Low Stock Alert
+    Frontend: AdminInventory.jsx, AdminDashboard.jsx
+    Product/dashboard values are present, but inventory-manager notification
+    persistence and delivery were not confirmed.
+
+FR1.6 status: 0 confirmed, 6 partial
+
+Important implementation note:
+    AdminInventory.jsx currently stores ledger and supplier records in React
+    component state. Treat the inventory module as a UI prototype until
+    server-side restocking, suppliers, expenses, and history are added.
+
+============================================================
+FR1.7 Review and Rating System
+============================================================
+
+[x] FR1.7.1 Star Rating
+    Frontend: ProductDetails.jsx
+    Backend: reviewController.js, Review.js
+
+[x] FR1.7.2 Write Review
+    Frontend: ProductDetails.jsx
+    Backend: reviewController.js
+
+[x] FR1.7.3 Display Reviews
+    Frontend: ProductDetails.jsx
+    Backend: reviewController.js and product rating aggregation
+
+[~] FR1.7.4 Verified Purchase Badge
+    Frontend: ProductDetails.jsx, AdminReviews.jsx
+    Backend: reviewController.js
+    Verified-purchase behavior exists; verify the specific installment rule
+    that the badge appears only after Delivered.
+
+[x] FR1.7.5 Admin Moderation
+    Frontend: AdminReviews.jsx
+    Backend: reviewController.js, reviewRoutes.js
+    Includes viewing, hiding, and deleting review records where supported.
+
+[x] FR1.7.6 Edit Own Review
+    Frontend: ProductDetails.jsx, reviewActions.js
+    Backend: reviewController.js ownership/update logic
+
+FR1.7 status: 5 confirmed, 1 partial
+
+============================================================
+FR1.8 Role and Access Control
+============================================================
+
+[~] FR1.8.1 Role Support
+    Admin and Customer are implemented.
+    Inventory Manager is not confirmed in User.js or role controls.
+    Files: backend/model/User.js, AdminCustomers.jsx
+
+[x] FR1.8.2 Feature Restriction
+    Frontend: frontend/src/assets/components/ProtectedRoute.jsx,
+    AdminLayout.jsx
+    Backend: backend/middleware/authMiddleware.js and admin routes
+    Admin-only features are protected.
+
+[x] FR1.8.3 Secure Login/Logout
+    Frontend: Login.jsx, userActions.js
+    Backend: AuthController.js, authMiddleware.js
+    Uses httpOnly JWT cookies and Firebase ID-token verification for Google.
+
+[x] FR1.8.4 Unauthorized Access Prevention
+    Frontend: ProtectedRoute.jsx, App.jsx
+    Backend: authMiddleware.js, authorizeRoles(), protected route files
+
+[x] FR1.8.5 Payment Data Security
+    Frontend: ConfirmOrder.jsx
+    Backend: orderController.js and payment routes
+    Card details are not stored in the application models.
+
+FR1.8 status: 4 confirmed, 1 partial
+
+============================================================
+FR1.9 Reporting
+============================================================
+
+[x] FR1.9.1 Sales Report
+    Frontend: frontend/src/assets/pages/admin/AdminDashboard.jsx
+    Backend: orderController.js dashboard statistics
+
+[~] FR1.9.2 Inventory Report
+    Frontend: AdminInventory.jsx, AdminDashboard.jsx
+    Frontend inventory data is available, but a persistent backend inventory
+    report endpoint was not confirmed.
+
+[~] FR1.9.3 Expense Report
+    Frontend: AdminInventory.jsx, AdminPayments.jsx
+    Expense presentation is not backed by a confirmed inventory expense API.
+
+[x] FR1.9.4 Order Summary
+    Frontend: AdminOrders.jsx, AdminDashboard.jsx, Orders.jsx
+    Backend: orderController.js
+
+[x] FR1.9.5 Top Products Report
+    Frontend: AdminDashboard.jsx
+    Backend: orderController.js dashboard aggregation
+
+[~] FR1.9.6 Admin Dashboard
+    Frontend: AdminDashboard.jsx
+    Backend: orderController.js dashboard statistics
+    Sales, orders, products, charts, and installment metrics are present.
+    Verify the exact overdue/defaulted-account dashboard display.
+
+[~] FR1.9.7 Installment Reports
+    Frontend: AdminDashboard.jsx, AdminPayments.jsx
+    Backend: orderController.js and payment/application controllers
+    Payment collections and balances are present; verify complete
+    receivable and overdue-account reporting coverage.
+
+FR1.9 status: 3 confirmed, 4 partial
+
+============================================================
+FR1.10 Installment Management
+============================================================
+
+[~] FR1.10.1 Manage Installment Plans
+    Frontend: frontend/src/assets/pages/admin/AdminSettings.jsx
+    Plans, terms, interest, minimum downpayment, fees, and archive controls
+    are currently local state in AdminSettings.jsx; backend persistence was
+    not confirmed.
+
+[x] FR1.10.2 Amortization Computation
+    Frontend: ConfirmOrder.jsx, AdminSettings.jsx
+    Backend: orderController.js installment calculations
+
+[x] FR1.10.3 Application and Approval
+    Frontend: AdminOrders.jsx, ConfirmOrder.jsx
+    Backend: orderController.js, InstallmentApplication.js
+    Includes supporting document references and approval/rejection flow.
+
+[x] FR1.10.4 Payment Schedule
+    Frontend: Orders.jsx, AdminPayments.jsx
+    Backend: orderController.js and installment models
+
+[x] FR1.10.5 Record Payments
+    Frontend: AdminPayments.jsx, Orders.jsx
+    Backend: orderController.js and payment routes
+    Includes payment details and receipt/email support.
+
+[x] FR1.10.6 Payment Status
+    Frontend: Orders.jsx, AdminPayments.jsx, AdminDashboard.jsx
+    Backend: orderController.js and installment status logic
+
+[~] FR1.10.7 Late Payment Penalty
+    Frontend: AdminSettings.jsx exposes late-penalty settings.
+    Backend: verify actual penalty calculation and application to overdue
+    payments, including grace-period behavior.
+
+[~] FR1.10.8 Early Payoff
+    Frontend: frontend/src/assets/pages/customer/Orders.jsx
+    Backend: backend/controllers/orderController.js
+    A pay-installment endpoint exists; demonstrate complete early-settlement
+    calculation and remaining-balance behavior.
+
+[~] FR1.10.9 Default Handling
+    Frontend: AdminDashboard.jsx, AdminPayments.jsx
+    Backend: verify automatic missed-payment threshold, default marking,
+    and dashboard flagging.
+
+FR1.10 status: 5 confirmed, 4 partial
+
+============================================================
+Summary by module
+============================================================
+
+FR1.1 User accounts:              3/7 confirmed, 4 partial
+FR1.2 Products:                  10/10 confirmed
+FR1.3 Categories and brands:      5/5 confirmed
+FR1.4 Cart:                       5/5 confirmed
+FR1.5 Orders and checkout:        8/11 confirmed, 3 partial
+FR1.6 Inventory/restocking:       0/6 confirmed, 6 partial
+FR1.7 Reviews/ratings:             5/6 confirmed, 1 partial
+FR1.8 Access control:              4/5 confirmed, 1 partial
+FR1.9 Reporting:                  3/7 confirmed, 4 partial
+FR1.10 Installments:               5/9 confirmed, 4 partial
+
+Confirmed: 48/71
+Partial: 23/71
+Not confirmed: 0/71
+Confirmed or partial: 71/71
+
+============================================================
+Priority actions to reach full coverage
+============================================================
+
+[ ] Complete and test forgot-password/reset-password email flow.
+[ ] Move inventory ledger, suppliers, restocking, expenses, and low-stock
+    behavior from AdminInventory.jsx local state into backend persistence.
+[ ] Decide whether admin user deletion is destructive or deactivation-only,
+    then implement and document the required behavior.
+[ ] Add the Inventory Manager role if it is required by the final system.
+[ ] Verify pending-only cancellation and installment refund/forfeiture rules.
+[ ] Verify all installment-specific email notifications.
+[ ] Verify installment verified-purchase badge timing after Delivered.
+[ ] Verify overdue/defaulted-account dashboard and installment reports.
+[ ] Verify late penalties, grace periods, early payoff, and default handling.
+[ ] Run a live end-to-end test for every [~] requirement.

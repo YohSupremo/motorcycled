@@ -17,6 +17,7 @@ export const AdminLayout = ({ activeTab: propActiveTab }) => {
   const navItems = [
     {
       id: "dashboard",
+      group: "Operations",
       label: "Dashboard",
       icon: (
         <svg
@@ -35,6 +36,7 @@ export const AdminLayout = ({ activeTab: propActiveTab }) => {
     },
     {
       id: "orders",
+      group: "Operations",
       label: "Orders & Financing",
       badge: "3",
       badgeColor: "bg-amber-100 text-amber-800 border-amber-200",
@@ -56,6 +58,7 @@ export const AdminLayout = ({ activeTab: propActiveTab }) => {
     },
     {
       id: "products",
+      group: "Catalog",
       label: "Catalog & Units",
       icon: (
         <svg
@@ -73,6 +76,7 @@ export const AdminLayout = ({ activeTab: propActiveTab }) => {
     },
     {
       id: "categories",
+      group: "Catalog",
       label: "Categories",
       icon: (
         <svg
@@ -88,6 +92,7 @@ export const AdminLayout = ({ activeTab: propActiveTab }) => {
     },
     {
       id: "brands",
+      group: "Catalog",
       label: "Brands",
       icon: (
         <svg
@@ -104,6 +109,7 @@ export const AdminLayout = ({ activeTab: propActiveTab }) => {
     },
     {
       id: "payments",
+      group: "Operations",
       label: "Payments & Ledger",
       icon: (
         <svg
@@ -120,6 +126,7 @@ export const AdminLayout = ({ activeTab: propActiveTab }) => {
     },
     {
       id: "inventory",
+      group: "Operations",
       label: "Inventory & Restock",
       badge: "2 low",
       badgeColor: "bg-red-50 text-red-800 border-red-200",
@@ -138,6 +145,7 @@ export const AdminLayout = ({ activeTab: propActiveTab }) => {
     },
     {
       id: "reviews",
+      group: "Customer & System",
       label: "Review Moderation",
       icon: (
         <svg
@@ -152,7 +160,27 @@ export const AdminLayout = ({ activeTab: propActiveTab }) => {
       ),
     },
     {
+      id: "customers",
+      group: "Customer & System",
+      label: "User Management",
+      icon: (
+        <svg
+          className="w-4 h-4 shrink-0"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+        >
+          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+          <circle cx="9" cy="7" r="4" />
+          <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+          <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+        </svg>
+      ),
+    },
+    {
       id: "settings",
+      group: "Customer & System",
       label: "Dealership Settings",
       icon: (
         <svg
@@ -168,6 +196,15 @@ export const AdminLayout = ({ activeTab: propActiveTab }) => {
       ),
     },
   ];
+
+  const navGroupOrder = {
+    Operations: 0,
+    Catalog: 1,
+    "Customer & System": 2,
+  };
+  const orderedNavItems = [...navItems].sort(
+    (a, b) => navGroupOrder[a.group] - navGroupOrder[b.group]
+  );
 
   const adminNotifications = [
     {
@@ -262,54 +299,56 @@ export const AdminLayout = ({ activeTab: propActiveTab }) => {
 
           {/* Navigation Links */}
           <div className="p-2 space-y-1 overflow-y-auto max-h-[calc(100vh-10rem)]">
-            {!isCollapsed && (
-              <div className="px-3 pt-2 pb-1 text-[10px] font-mono uppercase tracking-wider text-zinc-400">
-                Operations
-              </div>
-            )}
-
-            {navItems.map((item) => {
+            {orderedNavItems.map((item, index) => {
               const isActive = activeTab === item.id;
+              const isNewGroup =
+                index === 0 || orderedNavItems[index - 1].group !== item.group;
               return (
-                <Link
-                  key={item.id}
-                  to={`/admin/${item.id}`}
-                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-md text-xs font-medium transition-colors cursor-pointer relative group ${
-                    isActive
-                      ? "bg-emerald-50 text-emerald-900 border border-emerald-300/80 font-semibold shadow-2xs"
-                      : "text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50 border border-transparent"
-                  } ${isCollapsed ? "justify-center px-0" : ""}`}
-                  title={isCollapsed ? item.label : undefined}
-                >
-                  <span
-                    className={
+                <div key={item.id} className={isNewGroup && index > 0 ? "mt-3" : ""}>
+                  {!isCollapsed && isNewGroup && (
+                    <div className="px-3 pt-2 pb-1 text-[10px] font-mono uppercase tracking-wider text-zinc-400">
+                      {item.group}
+                    </div>
+                  )}
+                  <Link
+                    to={`/admin/${item.id}`}
+                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-md text-xs font-medium transition-colors cursor-pointer relative group ${
                       isActive
-                        ? "text-emerald-700"
-                        : "text-zinc-500 group-hover:text-zinc-800"
-                    }
+                        ? "bg-emerald-50 text-emerald-900 border border-emerald-300/80 font-semibold shadow-2xs"
+                        : "text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50 border border-transparent"
+                    } ${isCollapsed ? "justify-center px-0" : ""}`}
+                    title={isCollapsed ? item.label : undefined}
                   >
-                    {item.icon}
-                  </span>
-
-                  {!isCollapsed && (
-                    <span className="flex-1 text-left truncate">
-                      {item.label}
-                    </span>
-                  )}
-
-                  {!isCollapsed && item.badge && (
                     <span
-                      className={`text-[10px] font-bold px-1.5 py-0.2 rounded-full border ${item.badgeColor || "bg-zinc-100 text-zinc-700 border-zinc-200"}`}
+                      className={
+                        isActive
+                          ? "text-emerald-700"
+                          : "text-zinc-500 group-hover:text-zinc-800"
+                      }
                     >
-                      {item.badge}
+                      {item.icon}
                     </span>
-                  )}
 
-                  {/* Indicator Pip when active */}
-                  {isActive && (
-                    <span className="absolute left-0 top-1.5 bottom-1.5 w-1 bg-emerald-600 rounded-r-full" />
-                  )}
-                </Link>
+                    {!isCollapsed && (
+                      <span className="flex-1 text-left truncate">
+                        {item.label}
+                      </span>
+                    )}
+
+                    {!isCollapsed && item.badge && (
+                      <span
+                        className={`text-[10px] font-bold px-1.5 py-0.2 rounded-full border ${item.badgeColor || "bg-zinc-100 text-zinc-700 border-zinc-200"}`}
+                      >
+                        {item.badge}
+                      </span>
+                    )}
+
+                    {/* Indicator Pip when active */}
+                    {isActive && (
+                      <span className="absolute left-0 top-1.5 bottom-1.5 w-1 bg-emerald-600 rounded-r-full" />
+                    )}
+                  </Link>
+                </div>
               );
             })}
           </div>
@@ -375,7 +414,7 @@ export const AdminLayout = ({ activeTab: propActiveTab }) => {
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Top Operational Header */}
-        <header className="h-14 bg-white border-b border-zinc-200 sticky top-0 z-30 px-4 sm:px-6 flex items-center justify-between gap-4">
+        <header className="admin-header h-14 bg-white border-b border-zinc-200 sticky top-0 z-30 px-4 sm:px-6 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             {/* Mobile Drawer Trigger (Mobile Only) */}
             <button

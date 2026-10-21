@@ -36,6 +36,12 @@ const clearSessionMarker = () => {
 const getErrorMessage = (error) =>
   error?.response?.data?.message || error?.message || "Something went wrong";
 
+export const isDeactivationError = (error) =>
+  error?.response?.status === 403 &&
+  error?.response?.data?.message
+    ?.toLowerCase()
+    .includes("account has been deactivated");
+
 export const login = (email, password) => async (dispatch) => {
   try {
     dispatch({ type: LOGIN_REQUEST });
@@ -45,6 +51,7 @@ export const login = (email, password) => async (dispatch) => {
         "Content-Type": "application/json",
       },
       withCredentials: true,
+      skipDeactivationRedirect: true,
     };
 
     const { data } = await axios.post(
@@ -90,6 +97,7 @@ export const loadUser = () => async (dispatch) => {
     });
   } catch (error) {
     clearSessionMarker();
+    if (isDeactivationError(error)) return;
     dispatch({
       type: LOAD_USER_FAIL,
       payload: getErrorMessage(error),
@@ -181,4 +189,3 @@ export const firebaseLoginAction = (socialUserData) => async (dispatch) => {
     return { success: false, message };
   }
 };
-

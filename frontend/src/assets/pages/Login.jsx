@@ -7,6 +7,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { login, clearErrors } from "../../actions/userActions";
 import { LOGIN_SUCCESS, LOGIN_FAIL } from "../../constants/userConstants";
 import axios from "axios";
+import Swal from "sweetalert2";
 import {
   auth,
   googleProvider,
@@ -49,6 +50,7 @@ export const Login = () => {
   // are visible immediately in the same render cycle (no batching delay).
   // This blocks the isAuthenticated redirect while the Google popup is open.
   const googleAuthInProgress = useRef(false);
+  const lastAlertMessage = useRef("");
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -74,6 +76,45 @@ export const Login = () => {
     }
   }, [isAuthenticated, redirect, navigate, user]);
 
+  useEffect(() => {
+    const message = error || socialError;
+    let pendingDeactivationNotice = "";
+    try {
+      pendingDeactivationNotice = sessionStorage.getItem("deactivationNotice") || "";
+      if (pendingDeactivationNotice) sessionStorage.removeItem("deactivationNotice");
+    } catch {
+      // Storage may be unavailable.
+    }
+
+    const alertMessage = pendingDeactivationNotice || message;
+    if (!alertMessage) {
+      lastAlertMessage.current = "";
+      return;
+    }
+    if (lastAlertMessage.current === alertMessage) return;
+    lastAlertMessage.current = alertMessage;
+
+    Swal.fire({
+      icon: alertMessage.toLowerCase().includes("deactivated") ? "warning" : "error",
+      title: alertMessage.toLowerCase().includes("deactivated")
+        ? "Account deactivated"
+        : "Unable to sign in",
+      text: alertMessage,
+      confirmButtonText: "Close",
+      buttonsStyling: false,
+      customClass: {
+        popup: "rounded-xl border border-zinc-200 shadow-xl",
+        title: "text-base font-bold text-zinc-900",
+        htmlContainer: "text-sm text-zinc-600",
+        confirmButton:
+          "rounded-md bg-emerald-700 px-3.5 py-2 text-xs font-semibold text-white hover:bg-emerald-800",
+      },
+    }).then(() => {
+      if (error) dispatch(clearErrors());
+      if (socialError) setSocialError("");
+    });
+  }, [dispatch, error, socialError]);
+
   const handleGoogleSignIn = async () => {
     setSocialError("");
     if (!isFirebaseConfigured || !auth || !googleProvider) {
@@ -92,6 +133,7 @@ export const Login = () => {
       // 1. Authenticate with Firebase (opens Google account picker popup).
       const result = await signInWithPopup(auth, googleProvider);
       const socialUser = result.user;
+      const idToken = await socialUser.getIdToken();
       const email = socialUser.email;
       const fullName = (socialUser.displayName || "").trim();
       const [firstName = "", ...lastNameParts] = fullName.split(" ");
@@ -105,8 +147,12 @@ export const Login = () => {
       try {
         const response = await axios.post(
           `${API}/firebase-login`,
-          { email, provider: "google" },
-          { withCredentials: true },
+          { provider: "google" },
+          {
+            withCredentials: true,
+            skipDeactivationRedirect: true,
+            headers: { Authorization: `Bearer ${idToken}` },
+          },
         );
         data = response.data;
       } catch (apiErr) {
@@ -186,13 +232,6 @@ export const Login = () => {
           </div>
 
           <form onSubmit={handleSubmit(onLoginSubmit)} noValidate className="space-y-4">
-            {/* Error message from the server / network */}
-            {error && (
-              <p className="text-[11px] text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2 leading-relaxed">
-                {error}
-              </p>
-            )}
-
             {/* Identifier input */}
             <div>
               <label
@@ -331,13 +370,6 @@ export const Login = () => {
               </span>
             </div>
           </div>
-
-          {/* Social error notification */}
-          {socialError && (
-            <div className="mb-3 p-2.5 rounded-md bg-amber-50 border border-amber-200 text-[11px] text-amber-800 leading-snug">
-              {socialError}
-            </div>
-          )}
 
           {/* Social Auth Providers */}
           <div className="space-y-2">

@@ -3,6 +3,7 @@ import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
 import { DataGrid } from "@mui/x-data-grid";
+import { adminDataGridSx } from "../../../utils/adminDataGridTheme";
 
 const planSchema = yup.object({
   name: yup.string().trim().required("Plan title is required"),
@@ -56,7 +57,7 @@ const settingsSchema = yup.object({
 export const AdminSettings = () => {
   const [saveFeedback, setSaveFeedback] = useState(false);
 
-  // Installment plans matching schema 4.7
+  // Installment plans
   const [plans, setPlans] = useState([
     {
       id: "PLAN-3M",
@@ -184,7 +185,7 @@ export const AdminSettings = () => {
     () => [
       {
         field: "name",
-        headerName: "Plan Name",
+        headerName: "Plan",
         flex: 1.2,
         minWidth: 180,
         renderCell: (params) => {
@@ -199,7 +200,7 @@ export const AdminSettings = () => {
                 {plan.name}
               </span>
               {plan.isArchived && (
-                <span className="text-[9px] font-mono uppercase px-1.5 py-0.5 rounded bg-zinc-200 text-zinc-700 font-bold">
+                <span className="admin-table-badge text-[11px] font-medium bg-zinc-100 text-zinc-600 border border-zinc-200">
                   Archived
                 </span>
               )}
@@ -209,17 +210,17 @@ export const AdminSettings = () => {
       },
       {
         field: "termMonths",
-        headerName: "Tenure",
+        headerName: "Term",
         width: 120,
         renderCell: (params) => (
           <span className="font-mono text-zinc-700">
-            {params.row.termMonths} Months
+            {params.row.termMonths} months
           </span>
         ),
       },
       {
         field: "interestRate",
-        headerName: "Interest Rate",
+        headerName: "Interest",
         width: 130,
         renderCell: (params) => (
           <span className="font-mono font-bold text-zinc-900">
@@ -229,7 +230,7 @@ export const AdminSettings = () => {
       },
       {
         field: "minDownpaymentPercent",
-        headerName: "Min Downpayment",
+        headerName: "Downpayment",
         width: 140,
         renderCell: (params) => (
           <span className="font-mono text-zinc-700">
@@ -239,7 +240,7 @@ export const AdminSettings = () => {
       },
       {
         field: "processingFee",
-        headerName: "Doc Fee",
+        headerName: "Doc fee",
         width: 120,
         renderCell: (params) => (
           <span className="font-mono text-zinc-700">
@@ -264,9 +265,9 @@ export const AdminSettings = () => {
                 <button
                   type="button"
                   onClick={() => handleTogglePlanArchive(plan.id)}
-                  className="p-1.5 rounded-md hover:bg-emerald-50 text-emerald-600 hover:text-emerald-700 transition-colors cursor-pointer"
-                  title="Restore Plan"
-                  aria-label="Restore Plan"
+                  className="p-2 rounded hover:bg-emerald-50 text-emerald-600 hover:text-emerald-700 transition-colors cursor-pointer"
+                  title="Restore plan"
+                  aria-label="Restore plan"
                 >
                   <svg
                     className="w-4 h-4"
@@ -276,6 +277,7 @@ export const AdminSettings = () => {
                     strokeWidth="2"
                     strokeLinecap="round"
                     strokeLinejoin="round"
+                    aria-hidden="true"
                   >
                     <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
                     <path d="M3 3v5h5" />
@@ -285,9 +287,9 @@ export const AdminSettings = () => {
                 <button
                   type="button"
                   onClick={() => handleTogglePlanArchive(plan.id)}
-                  className="p-1.5 rounded-md hover:bg-amber-50 text-zinc-400 hover:text-amber-600 transition-colors cursor-pointer"
-                  title="Archive Plan"
-                  aria-label="Archive Plan"
+                  className="p-2 rounded hover:bg-amber-50 text-zinc-400 hover:text-amber-600 transition-colors cursor-pointer"
+                  title="Archive plan"
+                  aria-label="Archive plan"
                 >
                   <svg
                     className="w-4 h-4"
@@ -297,6 +299,7 @@ export const AdminSettings = () => {
                     strokeWidth="2"
                     strokeLinecap="round"
                     strokeLinejoin="round"
+                    aria-hidden="true"
                   >
                     <polyline points="21 8 21 21 3 21 3 8" />
                     <rect x="1" y="3" width="22" height="5" />
@@ -314,117 +317,138 @@ export const AdminSettings = () => {
 
   return (
     <div className="space-y-8 max-w-4xl">
-      {/* Title Row */}
+      {/* Title row */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-zinc-200">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-zinc-900">
-            Dealership & Financing Rule Settings
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-zinc-900 text-balance">
+            Settings
           </h1>
-          <p className="text-xs text-zinc-500 mt-0.5">
-            Configure system-wide taxation, stock thresholds, late penalty
-            parameters, and active installment plans (
-            <code className="font-mono text-zinc-600">settings</code> &{" "}
-            <code className="font-mono text-zinc-600">installment_plans</code>{" "}
-            schema).
+          <p className="text-xs text-zinc-500 mt-1">
+            Set taxation, stock alerts, payment penalties, and installment plans.
           </p>
         </div>
 
         {saveFeedback && (
-          <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-800 bg-emerald-50 border border-emerald-300 px-3 py-1.5 rounded animate-fadeIn">
-            <svg className="w-3.5 h-3.5 text-emerald-600 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-            Settings Saved Successfully
+          <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded">
+            <svg
+              className="w-3.5 h-3.5 text-emerald-600 shrink-0"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              aria-hidden="true"
+            >
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+            Settings saved
           </span>
         )}
       </div>
 
-      <form onSubmit={handleSubmitSettings(handleSaveSettings)} noValidate className="space-y-8">
-        {/* Section 1: Tax, Logistics & Inventory Rules (Flat Section, NO CARDS) */}
+      <form
+        onSubmit={handleSubmitSettings(handleSaveSettings)}
+        noValidate
+        className="space-y-8"
+      >
+        {/* Tax, inventory and cancellation rules */}
         <section className="space-y-4">
           <div className="border-b border-zinc-900 pb-2">
-            <span className="font-mono text-[10px] uppercase tracking-wider text-emerald-700 font-bold block">
-              Baseline Dealership Parameters
+            <span className="text-[11px] font-medium text-emerald-700 block">
+              Baseline parameters
             </span>
-            <h2 className="text-base font-bold text-zinc-900 tracking-tight">
-              Taxation, Inventory & Order Cancellation Rules
+            <h2 className="text-base font-bold text-zinc-900 tracking-tight text-balance">
+              Taxation, inventory, and cancellation rules
             </h2>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 text-xs bg-white p-4 border border-zinc-200">
             <div className="space-y-1">
-              <label className="font-semibold text-zinc-800 block">
-                Statutory Tax Rate (%)
+              <label
+                htmlFor="setting-tax-rate"
+                className="font-semibold text-zinc-800 block"
+              >
+                Tax rate (%)
               </label>
               <input
+                id="setting-tax-rate"
                 type="number"
                 step="0.1"
                 min={0}
                 {...registerSettings("taxRate")}
-                className={`w-full !h-8 px-2.5 border ${
-                  settingsErrors.taxRate ? "border-red-500 focus:border-red-500" : "border-zinc-300 focus:border-emerald-600"
-                } font-mono focus:outline-none`}
+                className={`w-full h-8 px-2.5 border rounded font-mono transition-colors focus:outline-2 focus:outline-offset-1 ${
+                  settingsErrors.taxRate
+                    ? "border-rose-500 focus:border-rose-500 focus:outline-rose-500"
+                    : "border-zinc-300 focus:border-emerald-700 focus:outline-emerald-700"
+                }`}
               />
               {settingsErrors.taxRate && (
-                <span className="text-[11px] text-red-600 block">
+                <span className="text-[11px] text-rose-600 block">
                   {settingsErrors.taxRate.message}
                 </span>
               )}
-              <span className="text-[10px] text-zinc-400 block mt-0.5">
-                Copied to order snapshot at checkout
+              <span className="text-[11px] text-zinc-500 block">
+                Copied to the order when it is placed
               </span>
             </div>
 
             <div className="space-y-1">
-              <label className="font-semibold text-zinc-800 block">
-                Default Low-Stock Alert &le;
+              <label
+                htmlFor="setting-low-stock"
+                className="font-semibold text-zinc-800 block"
+              >
+                Low-stock alert level
               </label>
               <input
+                id="setting-low-stock"
                 type="number"
                 min={1}
                 {...registerSettings("defaultLowStockThreshold")}
-                className={`w-full !h-8 px-2.5 border ${
-                  settingsErrors.defaultLowStockThreshold ? "border-red-500 focus:border-red-500" : "border-zinc-300 focus:border-emerald-600"
-                } font-mono focus:outline-none`}
+                className={`w-full h-8 px-2.5 border rounded font-mono transition-colors focus:outline-2 focus:outline-offset-1 ${
+                  settingsErrors.defaultLowStockThreshold
+                    ? "border-rose-500 focus:border-rose-500 focus:outline-rose-500"
+                    : "border-zinc-300 focus:border-emerald-700 focus:outline-emerald-700"
+                }`}
               />
               {settingsErrors.defaultLowStockThreshold && (
-                <span className="text-[11px] text-red-600 block">
+                <span className="text-[11px] text-rose-600 block">
                   {settingsErrors.defaultLowStockThreshold.message}
                 </span>
               )}
-              <span className="text-[10px] text-zinc-400 block mt-0.5">
-                Trigger threshold when product is absent
+              <span className="text-[11px] text-zinc-500 block">
+                Stock at or below this number is flagged
               </span>
             </div>
 
             <div className="space-y-1">
-              <label className="font-semibold text-zinc-800 block">
-                Downpayment Policy on Cancel
+              <label
+                htmlFor="setting-downpayment-policy"
+                className="font-semibold text-zinc-800 block"
+              >
+                Downpayment on cancellation
               </label>
               <select
+                id="setting-downpayment-policy"
                 {...registerSettings("downpaymentRefundable")}
-                className="w-full !h-8 px-2 border border-zinc-300 focus:border-emerald-600 focus:outline-none"
+                className="w-full h-8 px-2 border border-zinc-300 rounded transition-colors focus:border-emerald-700 focus:outline-2 focus:outline-offset-1 focus:outline-emerald-700"
               >
-                <option value="forfeited">
-                  Forfeited (Standard Dealership)
-                </option>
-                <option value="refundable">
-                  Refundable (Subject to Review)
-                </option>
+                <option value="forfeited">Forfeited</option>
+                <option value="refundable">Refundable after review</option>
               </select>
-              <span className="text-[10px] text-zinc-400 block mt-0.5">
-                Standard order cancellation policy outcome
+              <span className="text-[11px] text-zinc-500 block">
+                What happens to the downpayment when an order is cancelled
               </span>
             </div>
           </div>
         </section>
 
-        {/* Section 2: Late Penalties & Delinquency Rules */}
+        {/* Late payment rules */}
         <section className="space-y-4">
           <div className="border-b border-zinc-900 pb-2">
-            <span className="font-mono text-[10px] uppercase tracking-wider text-emerald-700 font-bold block">
-              Contractual Schedule Enforcement
+            <span className="text-[11px] font-medium text-emerald-700 block">
+              Contractual enforcement
             </span>
-            <h2 className="text-base font-bold text-zinc-900 tracking-tight">
-              Late Payment Penalties & Delinquency Rules
+            <h2 className="text-base font-bold text-zinc-900 tracking-tight text-balance">
+              Late payment penalties and delinquency rules
             </h2>
           </div>
 
@@ -433,71 +457,83 @@ export const AdminSettings = () => {
               <input
                 type="checkbox"
                 {...registerSettings("latePenaltyEnabled")}
-                className="text-emerald-600 focus:ring-0"
+                className="text-emerald-600 focus:outline-2 focus:outline-offset-2 focus:outline-emerald-700"
               />
-              <span>
-                Enforce Automated Delinquency Penalties on Payment Schedules
-              </span>
+              <span>Apply late payment penalties to payment schedules</span>
             </label>
 
             {latePenaltyEnabled && (
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 pt-2 border-t border-zinc-100">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 pt-4 border-t border-zinc-200">
                 <div className="space-y-1">
-                  <label className="text-zinc-700 font-medium block">
-                    Penalty Assessment Method
+                  <label
+                    htmlFor="setting-penalty-type"
+                    className="text-zinc-700 font-medium block"
+                  >
+                    Penalty type
                   </label>
                   <select
+                    id="setting-penalty-type"
                     {...registerSettings("latePenaltyType")}
-                    className="w-full !h-8 px-2 border border-zinc-300 focus:border-emerald-600 focus:outline-none"
+                    className="w-full h-8 px-2 border border-zinc-300 rounded transition-colors focus:border-emerald-700 focus:outline-2 focus:outline-offset-1 focus:outline-emerald-700"
                   >
-                    <option value="fixed">Fixed Penalty Fee (₱250)</option>
-                    <option value="percentage">
-                      Percentage Rate (e.g. 2%)
-                    </option>
+                    <option value="fixed">Fixed fee (₱250)</option>
+                    <option value="percentage">Percentage of balance</option>
                   </select>
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-zinc-700 font-medium block">
-                    Grace Period (Days)
+                  <label
+                    htmlFor="setting-grace-period"
+                    className="text-zinc-700 font-medium block"
+                  >
+                    Grace period (days)
                   </label>
                   <input
+                    id="setting-grace-period"
                     type="number"
                     min={0}
                     {...registerSettings("gracePeriodDays")}
-                    className={`w-full !h-8 px-2.5 border ${
-                      settingsErrors.gracePeriodDays ? "border-red-500 focus:border-red-500" : "border-zinc-300 focus:border-emerald-600"
-                    } font-mono focus:outline-none`}
+                    className={`w-full h-8 px-2.5 border rounded font-mono transition-colors focus:outline-2 focus:outline-offset-1 ${
+                      settingsErrors.gracePeriodDays
+                        ? "border-rose-500 focus:border-rose-500 focus:outline-rose-500"
+                        : "border-zinc-300 focus:border-emerald-700 focus:outline-emerald-700"
+                    }`}
                   />
                   {settingsErrors.gracePeriodDays && (
-                    <span className="text-[11px] text-red-600 block">
+                    <span className="text-[11px] text-rose-600 block">
                       {settingsErrors.gracePeriodDays.message}
                     </span>
                   )}
-                  <span className="text-[10px] text-zinc-400 block mt-0.5">
-                    Calendar days before penalty attaches
+                  <span className="text-[11px] text-zinc-500 block">
+                    Days before the penalty applies
                   </span>
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-zinc-700 font-medium block">
-                    Default Delinquency Trigger
+                  <label
+                    htmlFor="setting-default-after-missed"
+                    className="text-zinc-700 font-medium block"
+                  >
+                    Default after missed payments
                   </label>
                   <input
+                    id="setting-default-after-missed"
                     type="number"
                     min={1}
                     {...registerSettings("defaultAfterMissedPayments")}
-                    className={`w-full !h-8 px-2.5 border ${
-                      settingsErrors.defaultAfterMissedPayments ? "border-red-500 focus:border-red-500" : "border-zinc-300 focus:border-emerald-600"
-                    } font-mono focus:outline-none`}
+                    className={`w-full h-8 px-2.5 border rounded font-mono transition-colors focus:outline-2 focus:outline-offset-1 ${
+                      settingsErrors.defaultAfterMissedPayments
+                        ? "border-rose-500 focus:border-rose-500 focus:outline-rose-500"
+                        : "border-zinc-300 focus:border-emerald-700 focus:outline-emerald-700"
+                    }`}
                   />
                   {settingsErrors.defaultAfterMissedPayments && (
-                    <span className="text-[11px] text-red-600 block">
+                    <span className="text-[11px] text-rose-600 block">
                       {settingsErrors.defaultAfterMissedPayments.message}
                     </span>
                   )}
-                  <span className="text-[10px] text-zinc-400 block mt-0.5">
-                    Missed payments before legal default
+                  <span className="text-[11px] text-zinc-500 block">
+                    Missed payments before the account is marked as default
                   </span>
                 </div>
               </div>
@@ -505,27 +541,38 @@ export const AdminSettings = () => {
           </div>
         </section>
 
-        {/* Section 3: In-House Installment Plans Directory (Flat Section, NO CARDS) */}
+        {/* Installment plans */}
         <section className="space-y-4">
           <div className="flex items-end justify-between border-b border-zinc-900 pb-2">
             <div>
-              <span className="font-mono text-[10px] uppercase tracking-wider text-emerald-700 font-bold block">
-                Active Financing Tenures
+              <span className="text-[11px] font-medium text-emerald-700 block">
+                Active financing tenures
               </span>
-              <h2 className="text-base font-bold text-zinc-900 tracking-tight">
-                In-House Installment Plans Directory
+              <h2 className="text-base font-bold text-zinc-900 tracking-tight text-balance">
+                Installment plans
               </h2>
             </div>
             <button
               type="button"
               onClick={handleOpenPlanModal}
-              className="!h-7 px-3 bg-zinc-900 text-white font-medium text-xs hover:bg-zinc-800 cursor-pointer shadow-2xs"
+              className="inline-flex items-center gap-2 h-7 px-3 rounded bg-zinc-900 text-white font-medium text-xs hover:bg-zinc-800 transition-colors cursor-pointer"
             >
-              + Add Plan
+              <svg
+                className="w-3.5 h-3.5"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                aria-hidden="true"
+              >
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+              Add plan
             </button>
           </div>
 
-          <div className="border border-zinc-200 bg-white rounded-xl shadow-xs overflow-hidden">
+          <div className="border border-zinc-200 bg-white rounded overflow-hidden">
             <DataGrid
               rows={plans}
               columns={planColumns}
@@ -536,198 +583,195 @@ export const AdminSettings = () => {
                 pagination: { paginationModel: { pageSize: 5 } },
               }}
               autoHeight
-              sx={{
-                border: "none",
-                fontFamily: "inherit",
-                fontSize: "0.75rem",
-                "& .MuiDataGrid-columnHeaders": {
-                  backgroundColor: "#fafafa",
-                  borderBottom: "1px solid #e4e4e7",
-                  color: "#52525b",
-                  fontWeight: 600,
-                  fontSize: "0.6875rem",
-                  textTransform: "uppercase",
-                  fontFamily: "ui-monospace, monospace",
-                  letterSpacing: "0.05em",
-                },
-                "& .MuiDataGrid-columnSeparator": {
-                  display: "none !important",
-                },
-                "& .MuiDataGrid-columnHeader": {
-                  paddingLeft: "16px",
-                  paddingRight: "16px",
-                },
-                "& .MuiDataGrid-columnHeader:focus, & .MuiDataGrid-columnHeader:focus-within, & .MuiDataGrid-cell:focus, & .MuiDataGrid-cell:focus-within": {
-                  outline: "none !important",
-                },
-                "& .MuiDataGrid-row": {
-                  borderBottom: "1px solid #f4f4f5",
-                  transition: "background-color 0.15s ease",
-                },
-                "& .MuiDataGrid-row:hover": {
-                  backgroundColor: "rgba(244, 244, 245, 0.7)",
-                },
-                "& .MuiDataGrid-cell": {
-                  display: "flex",
-                  alignItems: "center",
-                  paddingLeft: "16px",
-                  paddingRight: "16px",
-                },
-                "& .MuiDataGrid-footerContainer": {
-                  borderTop: "1px solid #e4e4e7",
-                  backgroundColor: "#fafafa",
-                  fontSize: "0.75rem",
-                },
-              }}
+              sx={adminDataGridSx}
             />
           </div>
         </section>
 
-        {/* Save Bar */}
+        {/* Save bar */}
         <div className="pt-2 flex items-center justify-end">
           <button
             type="submit"
             disabled={isSettingsSubmitting}
-            className="h-9! px-6 rounded-md bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-xs font-semibold transition-colors cursor-pointer shadow-2xs disabled:opacity-60 disabled:cursor-not-allowed"
+            className="h-9 px-6 rounded bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-xs font-semibold transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            {isSettingsSubmitting ? "Saving..." : "Save Dealership Settings"}
+            {isSettingsSubmitting ? "Saving..." : "Save settings"}
           </button>
         </div>
       </form>
 
-      {/* Add Plan Modal */}
+      {/* Add plan modal */}
       {isPlanModalOpen && (
-        <div className="fixed inset-0 z-50 bg-zinc-900/40 backdrop-blur-2xs flex items-center justify-center p-4">
-          <div className="bg-white border border-zinc-200 rounded-lg shadow-xl max-w-sm w-full overflow-hidden animate-fadeIn">
-            <div className="p-4 border-b border-zinc-200 flex items-center justify-between bg-zinc-50">
-              <h2 className="text-sm font-bold text-zinc-900">
-                Add Installment Plan
+        <div className="fixed inset-0 z-50 bg-zinc-900/50 flex items-center justify-center p-4">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="plan-modal-heading"
+            className="bg-white border border-zinc-300 rounded max-w-sm w-full overflow-hidden"
+          >
+            <div className="p-4 border-b border-zinc-200 flex items-center justify-between gap-3 bg-zinc-50">
+              <h2
+                id="plan-modal-heading"
+                className="text-sm font-bold text-zinc-900"
+              >
+                Add installment plan
               </h2>
               <button
                 type="button"
                 onClick={() => setIsPlanModalOpen(false)}
-                className="w-6 h-6 rounded flex items-center justify-center text-zinc-400 hover:text-zinc-700 hover:bg-zinc-200/60 text-xs"
+                aria-label="Close"
+                className="w-7 h-7 rounded flex items-center justify-center text-zinc-400 hover:text-zinc-700 hover:bg-zinc-200/60 transition-colors cursor-pointer"
               >
-                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                <svg
+                  className="w-3.5 h-3.5"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  aria-hidden="true"
+                >
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
               </button>
             </div>
 
-            <form onSubmit={handleSubmitPlan(handleAddPlan)} noValidate className="p-4 space-y-3 text-xs">
+            <form
+              onSubmit={handleSubmitPlan(handleAddPlan)}
+              noValidate
+              className="p-4 space-y-4 text-xs"
+            >
               <div className="space-y-1">
-                <label className="font-semibold text-zinc-900">
-                  Plan Title *
+                <label htmlFor="plan-name" className="font-semibold text-zinc-900">
+                  Plan title *
                 </label>
                 <input
+                  id="plan-name"
                   type="text"
-                  placeholder="e.g. 18 Months Promotional"
+                  placeholder="18 months promotional"
                   {...registerPlan("name")}
-                  className={`w-full !h-8 px-2.5 border ${
-                    planErrors.name ? "border-red-500 focus:border-red-500" : "border-zinc-300 focus:border-emerald-600"
-                  } focus:outline-none`}
+                  className={`w-full h-8 px-2.5 border rounded transition-colors focus:outline-2 focus:outline-offset-1 ${
+                    planErrors.name
+                      ? "border-rose-500 focus:border-rose-500 focus:outline-rose-500"
+                      : "border-zinc-300 focus:border-emerald-700 focus:outline-emerald-700"
+                  }`}
                 />
                 {planErrors.name && (
-                  <span className="text-[11px] text-red-600 block">
+                  <span className="text-[11px] text-rose-600 block">
                     {planErrors.name.message}
                   </span>
                 )}
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <label className="font-semibold text-zinc-900">
-                    Tenure (Months) *
+                  <label htmlFor="plan-term" className="font-semibold text-zinc-900">
+                    Term (months) *
                   </label>
                   <input
+                    id="plan-term"
                     type="number"
                     min={1}
                     {...registerPlan("termMonths")}
-                    className={`w-full !h-8 px-2.5 border ${
-                      planErrors.termMonths ? "border-red-500 focus:border-red-500" : "border-zinc-300 focus:border-emerald-600"
-                    } font-mono focus:outline-none`}
+                    className={`w-full h-8 px-2.5 border rounded font-mono transition-colors focus:outline-2 focus:outline-offset-1 ${
+                      planErrors.termMonths
+                        ? "border-rose-500 focus:border-rose-500 focus:outline-rose-500"
+                        : "border-zinc-300 focus:border-emerald-700 focus:outline-emerald-700"
+                    }`}
                   />
                   {planErrors.termMonths && (
-                    <span className="text-[11px] text-red-600 block">
+                    <span className="text-[11px] text-rose-600 block">
                       {planErrors.termMonths.message}
                     </span>
                   )}
                 </div>
 
                 <div className="space-y-1">
-                  <label className="font-semibold text-zinc-900">
-                    Interest Rate (%) *
+                  <label htmlFor="plan-interest" className="font-semibold text-zinc-900">
+                    Interest rate (%) *
                   </label>
                   <input
+                    id="plan-interest"
                     type="number"
                     step="0.1"
                     min={0}
                     {...registerPlan("interestRate")}
-                    className={`w-full !h-8 px-2.5 border ${
-                      planErrors.interestRate ? "border-red-500 focus:border-red-500" : "border-zinc-300 focus:border-emerald-600"
-                    } font-mono focus:outline-none`}
+                    className={`w-full h-8 px-2.5 border rounded font-mono transition-colors focus:outline-2 focus:outline-offset-1 ${
+                      planErrors.interestRate
+                        ? "border-rose-500 focus:border-rose-500 focus:outline-rose-500"
+                        : "border-zinc-300 focus:border-emerald-700 focus:outline-emerald-700"
+                    }`}
                   />
                   {planErrors.interestRate && (
-                    <span className="text-[11px] text-red-600 block">
+                    <span className="text-[11px] text-rose-600 block">
                       {planErrors.interestRate.message}
                     </span>
                   )}
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <label className="font-semibold text-zinc-900">
-                    Min Downpayment % *
+                  <label htmlFor="plan-downpayment" className="font-semibold text-zinc-900">
+                    Downpayment (%) *
                   </label>
                   <input
+                    id="plan-downpayment"
                     type="number"
                     min={10}
                     max={100}
                     {...registerPlan("minDownpaymentPercent")}
-                    className={`w-full !h-8 px-2.5 border ${
-                      planErrors.minDownpaymentPercent ? "border-red-500 focus:border-red-500" : "border-zinc-300 focus:border-emerald-600"
-                    } font-mono focus:outline-none`}
+                    className={`w-full h-8 px-2.5 border rounded font-mono transition-colors focus:outline-2 focus:outline-offset-1 ${
+                      planErrors.minDownpaymentPercent
+                        ? "border-rose-500 focus:border-rose-500 focus:outline-rose-500"
+                        : "border-zinc-300 focus:border-emerald-700 focus:outline-emerald-700"
+                    }`}
                   />
                   {planErrors.minDownpaymentPercent && (
-                    <span className="text-[11px] text-red-600 block">
+                    <span className="text-[11px] text-rose-600 block">
                       {planErrors.minDownpaymentPercent.message}
                     </span>
                   )}
                 </div>
 
                 <div className="space-y-1">
-                  <label className="font-semibold text-zinc-900">
-                    Doc / Proc Fee (₱)
+                  <label htmlFor="plan-fee" className="font-semibold text-zinc-900">
+                    Processing fee (₱)
                   </label>
                   <input
+                    id="plan-fee"
                     type="number"
                     min={0}
                     {...registerPlan("processingFee")}
-                    className={`w-full !h-8 px-2.5 border ${
-                      planErrors.processingFee ? "border-red-500 focus:border-red-500" : "border-zinc-300 focus:border-emerald-600"
-                    } font-mono focus:outline-none`}
+                    className={`w-full h-8 px-2.5 border rounded font-mono transition-colors focus:outline-2 focus:outline-offset-1 ${
+                      planErrors.processingFee
+                        ? "border-rose-500 focus:border-rose-500 focus:outline-rose-500"
+                        : "border-zinc-300 focus:border-emerald-700 focus:outline-emerald-700"
+                    }`}
                   />
                   {planErrors.processingFee && (
-                    <span className="text-[11px] text-red-600 block">
+                    <span className="text-[11px] text-rose-600 block">
                       {planErrors.processingFee.message}
                     </span>
                   )}
                 </div>
               </div>
 
-              <div className="pt-3 border-t border-zinc-200 flex items-center justify-end gap-2">
+              <div className="pt-4 border-t border-zinc-200 flex items-center justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => setIsPlanModalOpen(false)}
-                  className="!h-8 px-3 rounded border border-zinc-200 text-zinc-700 hover:bg-zinc-50 cursor-pointer"
+                  className="h-8 px-3 rounded border border-zinc-200 text-zinc-700 hover:bg-zinc-50 cursor-pointer transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isPlanSubmitting}
-                  className="!h-8 px-4 rounded bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-medium cursor-pointer shadow-2xs disabled:opacity-60 disabled:cursor-not-allowed"
+                  className="h-8 px-4 rounded bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-medium cursor-pointer transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  {isPlanSubmitting ? "Saving..." : "Save Plan"}
+                  {isPlanSubmitting ? "Saving..." : "Save plan"}
                 </button>
               </div>
             </form>

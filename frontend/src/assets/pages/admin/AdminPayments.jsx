@@ -3,10 +3,11 @@ import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
 import { DataGrid } from "@mui/x-data-grid";
+import { adminDataGridSx } from "../../../utils/adminDataGridTheme";
 
 const paymentSchema = yup.object({
-  orderId: yup.string().trim().required("Target order reference is required"),
-  customer: yup.string().trim().required("Paying customer name is required"),
+  orderId: yup.string().trim().required("Order reference is required"),
+  customer: yup.string().trim().required("Customer name is required"),
   type: yup.string().required("Payment type is required"),
   amount: yup
     .number()
@@ -14,11 +15,18 @@ const paymentSchema = yup.object({
     .required("Amount paid is required")
     .min(1, "Amount must be at least ₱1"),
   method: yup.string().required("Payment method is required"),
-  referenceNo: yup.string().trim().required("Bank / reference number is required"),
+  referenceNo: yup.string().trim().required("Reference number is required"),
 });
 
+const PAYMENT_TYPE_LABELS = {
+  installment: "Installment",
+  downpayment: "Downpayment",
+  payoff: "Payoff",
+  full: "Full payment",
+};
+
 export const AdminPayments = () => {
-  const [activeSubTab, setActiveSubTab] = useState("schedules"); // 'schedules' | 'payments'
+  const [activeSubTab, setActiveSubTab] = useState("schedules"); // "schedules" or "payments"
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -218,11 +226,13 @@ export const AdminPayments = () => {
     return true;
   });
 
+  const handleSearchChange = (event) => setSearchQuery(event.target.value);
+
   const scheduleColumns = useMemo(
     () => [
       {
         field: "id",
-        headerName: "Schedule ID",
+        headerName: "Schedule",
         width: 120,
         renderCell: (params) => (
           <span className="font-mono font-semibold text-zinc-900">{params.row.id}</span>
@@ -230,7 +240,7 @@ export const AdminPayments = () => {
       },
       {
         field: "orderCustomer",
-        headerName: "Order / Customer",
+        headerName: "Customer",
         flex: 1.2,
         minWidth: 180,
         valueGetter: (value, row) => `${row.orderId} ${row.customer}`,
@@ -250,7 +260,7 @@ export const AdminPayments = () => {
       },
       {
         field: "term",
-        headerName: "Installment Term",
+        headerName: "Term",
         flex: 1,
         minWidth: 150,
         renderCell: (params) => (
@@ -261,7 +271,7 @@ export const AdminPayments = () => {
       },
       {
         field: "dueDate",
-        headerName: "Due Date",
+        headerName: "Due date",
         width: 120,
         renderCell: (params) => (
           <span className="font-mono text-zinc-700 text-xs">
@@ -271,7 +281,7 @@ export const AdminPayments = () => {
       },
       {
         field: "amountDue",
-        headerName: "Contractual Due",
+        headerName: "Amount due",
         width: 150,
         type: "number",
         headerAlign: "left",
@@ -294,7 +304,7 @@ export const AdminPayments = () => {
       },
       {
         field: "status",
-        headerName: "Status / Decision",
+        headerName: "Status",
         width: 205,
         headerAlign: "center",
         align: "center",
@@ -302,32 +312,24 @@ export const AdminPayments = () => {
           const s = params.row;
           let badgeCls = "bg-zinc-100 text-zinc-700 border-zinc-200";
           let dotCls = "bg-zinc-400";
-          let label = s.status;
           if (s.status === "Paid") {
             badgeCls = "bg-emerald-50 text-emerald-700 border-emerald-200";
             dotCls = "bg-emerald-500";
-            label = "Settled";
-          } else if (s.status === "Unpaid") {
-            badgeCls = "bg-zinc-100 text-zinc-700 border-zinc-200";
-            dotCls = "bg-zinc-400";
-            label = "Upcoming";
           } else if (s.status === "Overdue") {
             badgeCls = "bg-amber-50 text-amber-700 border-amber-200";
             dotCls = "bg-amber-500";
-            label = "Overdue";
           } else if (s.status === "Defaulted") {
             badgeCls = "bg-rose-50 text-rose-700 border-rose-200";
             dotCls = "bg-rose-500";
-            label = s.defaultedAt ? `Defaulted (${s.defaultedAt})` : "Defaulted";
           }
           return (
             <div className="admin-table-cell-center justify-center">
               <span
-                className={`admin-table-badge gap-1.5 text-[11px] font-medium border ${badgeCls}`}
-                title={label}
+                className={`admin-table-badge gap-2 text-[11px] font-medium border ${badgeCls}`}
+                title={s.status}
               >
                 <span className={`admin-table-badge__dot w-1.5 h-1.5 rounded-full ${dotCls}`} />
-                {label}
+                {s.status}
               </span>
             </div>
           );
@@ -345,13 +347,13 @@ export const AdminPayments = () => {
         renderCell: (params) => {
           const s = params.row;
           return (
-            <div className="flex items-center justify-end gap-1.5 w-full">
+            <div className="flex items-center justify-end gap-2 w-full">
               {s.status === "Overdue" && (
                 <button
                   type="button"
                   onClick={() => handleMarkDefaulted(s.id)}
-                  className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium border border-rose-200 text-rose-700 bg-white hover:bg-rose-50 rounded transition-colors cursor-pointer shadow-2xs whitespace-nowrap"
-                  title="Mark Account as Defaulted"
+                  className="inline-flex items-center gap-1 px-3 py-1 text-xs font-medium border border-rose-200 text-rose-700 bg-white hover:bg-rose-50 rounded transition-colors cursor-pointer whitespace-nowrap"
+                  title="Mark account as defaulted"
                 >
                   <svg
                     className="w-3.5 h-3.5 text-rose-500 shrink-0"
@@ -359,6 +361,9 @@ export const AdminPayments = () => {
                     fill="none"
                     stroke="currentColor"
                     strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
                   >
                     <circle cx="12" cy="12" r="10" />
                     <line x1="12" y1="8" x2="12" y2="12" />
@@ -378,14 +383,17 @@ export const AdminPayments = () => {
                       "cash"
                     )
                   }
-                  className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium border border-emerald-300 text-emerald-800 bg-emerald-50 hover:bg-emerald-100 rounded transition-colors cursor-pointer shadow-2xs whitespace-nowrap"
+                  className="inline-flex items-center gap-1 px-3 py-1 text-xs font-medium border border-zinc-200 text-zinc-700 bg-white hover:bg-zinc-50 rounded transition-colors cursor-pointer whitespace-nowrap"
                 >
                   <svg
-                    className="w-3.5 h-3.5 text-emerald-600 shrink-0"
+                    className="w-3.5 h-3.5 text-zinc-400 shrink-0"
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"
                     strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
                   >
                     <polyline points="20 6 9 17 4 12" />
                   </svg>
@@ -393,9 +401,7 @@ export const AdminPayments = () => {
                 </button>
               )}
               {s.status === "Paid" && (
-                <span className="text-[11px] text-zinc-400 font-mono">
-                  Settled
-                </span>
+                <span className="text-[11px] text-zinc-400 font-mono">-</span>
               )}
             </div>
           );
@@ -409,7 +415,7 @@ export const AdminPayments = () => {
     () => [
       {
         field: "receiptNo",
-        headerName: "Receipt No",
+        headerName: "Receipt",
         width: 140,
         renderCell: (params) => (
           <span className="font-mono font-bold text-zinc-900">{params.row.receiptNo}</span>
@@ -417,7 +423,7 @@ export const AdminPayments = () => {
       },
       {
         field: "orderPayer",
-        headerName: "Order / Payer",
+        headerName: "Payer",
         flex: 1.2,
         minWidth: 180,
         valueGetter: (value, row) => `${row.orderId} ${row.customer}`,
@@ -433,17 +439,17 @@ export const AdminPayments = () => {
       },
       {
         field: "type",
-        headerName: "Payment Type",
+        headerName: "Payment type",
         width: 130,
         renderCell: (params) => (
           <span className="admin-table-badge text-[11px] font-mono font-medium bg-zinc-100 text-zinc-800 border border-zinc-200 uppercase">
-            {params.row.type}
+            {PAYMENT_TYPE_LABELS[params.row.type] || params.row.type}
           </span>
         ),
       },
       {
         field: "method",
-        headerName: "Method & Reference",
+        headerName: "Method",
         flex: 1.2,
         minWidth: 170,
         renderCell: (params) => {
@@ -460,20 +466,20 @@ export const AdminPayments = () => {
       },
       {
         field: "amount",
-        headerName: "Amount Settle",
+        headerName: "Amount",
         width: 140,
         type: "number",
         headerAlign: "left",
         align: "left",
         renderCell: (params) => (
-          <span className="font-mono font-bold text-emerald-800 text-xs">
+          <span className="font-mono font-bold text-zinc-900 text-xs">
             ₱{params.row.amount.toLocaleString()}
           </span>
         ),
       },
       {
         field: "recordedBy",
-        headerName: "Recorded By / Date",
+        headerName: "Recorded",
         flex: 1.2,
         minWidth: 170,
         renderCell: (params) => {
@@ -492,100 +498,105 @@ export const AdminPayments = () => {
 
   return (
     <div className="space-y-6">
-      
-      {/* Title & Actions Row */}
+      {/* Title and actions */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-zinc-200">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-zinc-900">
-            Payments, Receipts & Installment Schedules
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-zinc-900 text-balance">
+            Payments and schedules
           </h1>
           <p className="text-xs text-zinc-500 mt-0.5">
-            Record manual cash/bank collections, monitor contractual payment rows, and enforce default penalties (<code className="font-mono text-zinc-600">payments</code> & <code className="font-mono text-zinc-600">payment_schedules</code> records).
+            Record cash and bank collections, track installment schedules, and apply penalties to overdue accounts.
           </p>
         </div>
 
         <button
           type="button"
           onClick={() => handleOpenRecordModal()}
-          className="inline-flex items-center gap-2 h-9! px-4 rounded-md bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-xs font-semibold transition-colors cursor-pointer shadow-2xs self-start sm:self-auto"
+          className="inline-flex items-center gap-2 h-9 px-4 rounded bg-emerald-700 hover:bg-emerald-800 active:bg-emerald-900 text-white text-xs font-semibold transition-colors cursor-pointer self-start sm:self-auto"
         >
-          <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+          <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
             <line x1="12" y1="5" x2="12" y2="19" />
             <line x1="5" y1="12" x2="19" y2="12" />
           </svg>
-          <span>Record Collection</span>
+          <span>Record collection</span>
         </button>
       </div>
 
-      {/* Flat Unified Financial Metrics Strip (NO CARDS) */}
+      {/* Metrics */}
       <div className="border-y border-zinc-200 bg-white grid grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-zinc-200 py-3">
         <div className="px-4 py-2 space-y-1">
-          <span className="font-mono uppercase text-[10px] tracking-wider text-zinc-400">Month Collections</span>
+          <span className="block text-[11px] font-medium text-zinc-500">Month collections</span>
           <p className="text-2xl font-bold tracking-tight text-zinc-900 font-mono">₱89,810</p>
           <p className="text-[11px] text-zinc-500">14 transactions recorded</p>
         </div>
 
         <div className="px-4 py-2 space-y-1">
-          <span className="font-mono uppercase text-[10px] tracking-wider text-zinc-400">Unpaid Dues (Current)</span>
+          <span className="block text-[11px] font-medium text-zinc-500">Unpaid dues, current</span>
           <p className="text-2xl font-bold tracking-tight text-zinc-900 font-mono">₱14,742</p>
           <p className="text-[11px] text-zinc-500">2 installments maturing this week</p>
         </div>
 
         <div className="px-4 py-2 space-y-1">
-          <span className="font-mono uppercase text-[10px] tracking-wider text-red-700 flex items-center gap-1.5 font-bold">
-            <span className="w-1.5 h-1.5 rounded-full bg-red-600" />
-            Overdue Delinquencies
+          <span className="flex items-center gap-2 text-[11px] font-medium text-zinc-500">
+            <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0" />
+            Overdue delinquencies
           </span>
-          <p className="text-2xl font-bold tracking-tight text-red-700 font-mono">₱14,850</p>
-          <p className="text-[11px] text-red-600">2 delinquent schedule rows</p>
+          <p className="text-2xl font-bold tracking-tight text-rose-700 font-mono">₱14,850</p>
+          <p className="text-[11px] text-rose-600">2 delinquent schedule rows</p>
         </div>
 
         <div className="px-4 py-2 space-y-1">
-          <span className="font-mono uppercase text-[10px] tracking-wider text-zinc-400">Defaulted Accounts</span>
-          <p className="text-2xl font-bold tracking-tight text-zinc-900 font-mono">1 Account</p>
+          <span className="block text-[11px] font-medium text-zinc-500">Defaulted accounts</span>
+          <p className="text-2xl font-bold tracking-tight text-zinc-900 font-mono">1 account</p>
           <p className="text-[11px] text-zinc-500">Statutory delinquency enforcement</p>
         </div>
       </div>
 
-      {/* Sub-Tab Navigation & Search */}
+      {/* Tabs and search */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-200 pb-2">
         <div className="flex items-center gap-2 text-xs">
           <button
             type="button"
             onClick={() => setActiveSubTab("schedules")}
-            className={`px-3 py-1.5 font-semibold transition-colors cursor-pointer border-b-2 -mb-2 ${
+            className={`px-3 py-2 font-semibold transition-colors cursor-pointer border-b-2 -mb-2 ${
               activeSubTab === "schedules"
-                ? "border-emerald-600 text-emerald-950 font-bold"
+                ? "border-zinc-900 text-zinc-900 font-bold"
                 : "border-transparent text-zinc-500 hover:text-zinc-800"
             }`}
           >
-            Payment Schedules Tracker ({schedules.length})
+            Payment schedules ({schedules.length})
           </button>
           <button
             type="button"
             onClick={() => setActiveSubTab("payments")}
-            className={`px-3 py-1.5 font-semibold transition-colors cursor-pointer border-b-2 -mb-2 ${
+            className={`px-3 py-2 font-semibold transition-colors cursor-pointer border-b-2 -mb-2 ${
               activeSubTab === "payments"
-                ? "border-emerald-600 text-emerald-950 font-bold"
+                ? "border-zinc-900 text-zinc-900 font-bold"
                 : "border-transparent text-zinc-500 hover:text-zinc-800"
             }`}
           >
-            Official Receipts & Payments Log ({payments.length})
+            Receipts ({payments.length})
           </button>
         </div>
 
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search by order ref, customer, or status..."
-          className="!h-8 px-2.5 text-xs bg-white border border-zinc-300 focus:border-emerald-600 focus:outline-none max-w-xs"
-        />
+        <div className="max-w-xs w-full sm:w-auto">
+          <label htmlFor="payments-search" className="sr-only">
+            Search payment schedules
+          </label>
+          <input
+            id="payments-search"
+            type="text"
+            value={searchQuery}
+            onChange={handleSearchChange}
+            placeholder="Search by order, customer, or status"
+            className="!h-8 px-3 text-xs bg-white border border-zinc-300 rounded transition-colors focus:border-emerald-700 focus:outline-2 focus:outline-emerald-700 focus:outline-offset-1 w-full"
+          />
+        </div>
       </div>
 
-      {/* TAB 1: Payment Schedules Tracker */}
+      {/* Schedules */}
       {activeSubTab === "schedules" && (
-        <div className="border border-zinc-200 bg-white rounded-xl shadow-xs overflow-hidden">
+        <div className="border border-zinc-200 bg-white rounded overflow-hidden">
           <DataGrid
             rows={filteredSchedules}
             columns={scheduleColumns}
@@ -596,58 +607,14 @@ export const AdminPayments = () => {
               pagination: { paginationModel: { pageSize: 10 } },
             }}
             autoHeight
-            sx={{
-              border: "none",
-              fontFamily: "inherit",
-              fontSize: "0.75rem",
-              "& .MuiDataGrid-columnHeaders": {
-                backgroundColor: "#fafafa",
-                borderBottom: "1px solid #e4e4e7",
-                color: "#52525b",
-                fontWeight: 600,
-                fontSize: "0.6875rem",
-                textTransform: "uppercase",
-                fontFamily: "ui-monospace, monospace",
-                letterSpacing: "0.05em",
-              },
-              "& .MuiDataGrid-columnSeparator": {
-                display: "none !important",
-              },
-              "& .MuiDataGrid-columnHeader": {
-                paddingLeft: "16px",
-                paddingRight: "16px",
-              },
-              "& .MuiDataGrid-columnHeader:focus, & .MuiDataGrid-columnHeader:focus-within, & .MuiDataGrid-cell:focus, & .MuiDataGrid-cell:focus-within": {
-                outline: "none !important",
-              },
-              "& .MuiDataGrid-row": {
-                borderBottom: "1px solid #f4f4f5",
-                transition: "background-color 0.15s ease",
-              },
-              "& .MuiDataGrid-row:hover": {
-                backgroundColor: "rgba(244, 244, 245, 0.7)",
-              },
-              "& .MuiDataGrid-cell": {
-                display: "flex",
-                alignItems: "center",
-                paddingLeft: "16px",
-                paddingRight: "16px",
-              },
-              "& .MuiDataGrid-footerContainer": {
-                borderTop: "1px solid #e4e4e7",
-                backgroundColor: "#fafafa",
-              },
-              "& .MuiTablePagination-root": {
-                fontSize: "0.75rem",
-              },
-            }}
+            sx={adminDataGridSx}
           />
         </div>
       )}
 
-      {/* TAB 2: Official Receipts & Payments Log */}
+      {/* Receipts */}
       {activeSubTab === "payments" && (
-        <div className="border border-zinc-200 bg-white rounded-xl shadow-xs overflow-hidden">
+        <div className="border border-zinc-200 bg-white rounded overflow-hidden">
           <DataGrid
             rows={payments}
             columns={paymentColumns}
@@ -658,102 +625,69 @@ export const AdminPayments = () => {
               pagination: { paginationModel: { pageSize: 10 } },
             }}
             autoHeight
-            sx={{
-              border: "none",
-              fontFamily: "inherit",
-              fontSize: "0.75rem",
-              "& .MuiDataGrid-columnHeaders": {
-                backgroundColor: "#fafafa",
-                borderBottom: "1px solid #e4e4e7",
-                color: "#52525b",
-                fontWeight: 600,
-                fontSize: "0.6875rem",
-                textTransform: "uppercase",
-                fontFamily: "ui-monospace, monospace",
-                letterSpacing: "0.05em",
-              },
-              "& .MuiDataGrid-columnSeparator": {
-                display: "none !important",
-              },
-              "& .MuiDataGrid-columnHeader": {
-                paddingLeft: "16px",
-                paddingRight: "16px",
-              },
-              "& .MuiDataGrid-columnHeader:focus, & .MuiDataGrid-columnHeader:focus-within, & .MuiDataGrid-cell:focus, & .MuiDataGrid-cell:focus-within": {
-                outline: "none !important",
-              },
-              "& .MuiDataGrid-row": {
-                borderBottom: "1px solid #f4f4f5",
-                transition: "background-color 0.15s ease",
-              },
-              "& .MuiDataGrid-row:hover": {
-                backgroundColor: "rgba(244, 244, 245, 0.7)",
-              },
-              "& .MuiDataGrid-cell": {
-                display: "flex",
-                alignItems: "center",
-                paddingLeft: "16px",
-                paddingRight: "16px",
-              },
-              "& .MuiDataGrid-footerContainer": {
-                borderTop: "1px solid #e4e4e7",
-                backgroundColor: "#fafafa",
-              },
-              "& .MuiTablePagination-root": {
-                fontSize: "0.75rem",
-              },
-            }}
+            sx={adminDataGridSx}
           />
         </div>
       )}
 
-      {/* Record Manual Payment Modal */}
+      {/* Record collection modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 bg-zinc-900/40 backdrop-blur-2xs flex items-center justify-center p-4">
-          <div className="bg-white border border-zinc-200 rounded-lg shadow-xl max-w-md w-full overflow-hidden animate-fadeIn">
-            
-            <div className="p-4 border-b border-zinc-200 flex items-center justify-between bg-zinc-50">
-              <h2 className="text-sm font-bold text-zinc-900">
-                Record Manual Collection
+        <div className="fixed inset-0 z-50 bg-zinc-900/50 flex items-center justify-center p-4">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="record-collection-heading"
+            className="bg-white border border-zinc-300 rounded max-w-md w-full overflow-hidden"
+          >
+            <div className="p-4 border-b border-zinc-200 flex items-center justify-between gap-3 bg-zinc-50">
+              <h2 id="record-collection-heading" className="text-sm font-bold text-zinc-900">
+                Record collection
               </h2>
               <button
                 type="button"
                 onClick={() => setIsModalOpen(false)}
-                className="w-6 h-6 rounded flex items-center justify-center text-zinc-400 hover:text-zinc-700 hover:bg-zinc-200/60 text-xs"
+                aria-label="Close"
+                className="w-8 h-8 rounded flex items-center justify-center text-zinc-400 hover:text-zinc-700 hover:bg-zinc-200/60 cursor-pointer transition-colors"
               >
-                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
               </button>
             </div>
 
-            <form onSubmit={handleSubmit(onRecordPaymentSubmit)} noValidate className="p-4 space-y-3.5 text-xs">
-              
+            <form onSubmit={handleSubmit(onRecordPaymentSubmit)} noValidate className="p-4 space-y-3 text-xs">
+
               <div className="space-y-1">
-                <label className="font-semibold text-zinc-900">Target Order Reference *</label>
+                <label htmlFor="payment-order-id" className="font-semibold text-zinc-900">Order reference *</label>
                 <input
+                  id="payment-order-id"
                   type="text"
                   {...register("orderId")}
-                  className={`w-full !h-8 px-2.5 border ${
-                    errors.orderId ? "border-red-500 focus:border-red-500" : "border-zinc-300 focus:border-emerald-600"
-                  } rounded focus:outline-none font-mono`}
+                  className={`w-full !h-8 px-3 border rounded font-mono transition-colors focus:outline-2 focus:outline-offset-1 ${
+                    errors.orderId
+                      ? "border-rose-500 focus:border-rose-500 focus:outline-rose-500"
+                      : "border-zinc-300 focus:border-emerald-700 focus:outline-emerald-700"
+                  }`}
                 />
                 {errors.orderId && (
-                  <span className="text-[11px] text-red-600 block">
+                  <span className="text-[11px] text-rose-600 block">
                     {errors.orderId.message}
                   </span>
                 )}
               </div>
 
               <div className="space-y-1">
-                <label className="font-semibold text-zinc-900">Paying Customer Name *</label>
+                <label htmlFor="payment-customer" className="font-semibold text-zinc-900">Customer *</label>
                 <input
+                  id="payment-customer"
                   type="text"
                   {...register("customer")}
-                  className={`w-full !h-8 px-2.5 border ${
-                    errors.customer ? "border-red-500 focus:border-red-500" : "border-zinc-300 focus:border-emerald-600"
-                  } rounded focus:outline-none`}
+                  className={`w-full !h-8 px-3 border rounded transition-colors focus:outline-2 focus:outline-offset-1 ${
+                    errors.customer
+                      ? "border-rose-500 focus:border-rose-500 focus:outline-rose-500"
+                      : "border-zinc-300 focus:border-emerald-700 focus:outline-emerald-700"
+                  }`}
                 />
                 {errors.customer && (
-                  <span className="text-[11px] text-red-600 block">
+                  <span className="text-[11px] text-rose-600 block">
                     {errors.customer.message}
                   </span>
                 )}
@@ -761,30 +695,34 @@ export const AdminPayments = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <label className="font-semibold text-zinc-900">Payment Type *</label>
+                  <label htmlFor="payment-type" className="font-semibold text-zinc-900">Payment type *</label>
                   <select
+                    id="payment-type"
                     {...register("type")}
-                    className="w-full !h-8 px-2 border border-zinc-300 rounded focus:border-emerald-600 focus:outline-none capitalize"
+                    className="w-full !h-8 px-2 border border-zinc-300 rounded transition-colors focus:border-emerald-700 focus:outline-2 focus:outline-emerald-700 focus:outline-offset-1"
                   >
-                    <option value="installment">Installment Due</option>
+                    <option value="installment">Installment due</option>
                     <option value="downpayment">Downpayment</option>
-                    <option value="payoff">Early Payoff</option>
-                    <option value="full">Full Cash Settled</option>
+                    <option value="payoff">Early payoff</option>
+                    <option value="full">Full payment</option>
                   </select>
                 </div>
 
                 <div className="space-y-1">
-                  <label className="font-semibold text-zinc-900">Amount Paid (₱) *</label>
+                  <label htmlFor="payment-amount" className="font-semibold text-zinc-900">Amount paid *</label>
                   <input
+                    id="payment-amount"
                     type="number"
                     min={1}
                     {...register("amount")}
-                    className={`w-full !h-8 px-2.5 border ${
-                      errors.amount ? "border-red-500 focus:border-red-500" : "border-zinc-300 focus:border-emerald-600"
-                    } rounded focus:outline-none font-mono`}
+                    className={`w-full !h-8 px-3 border rounded font-mono transition-colors focus:outline-2 focus:outline-offset-1 ${
+                      errors.amount
+                        ? "border-rose-500 focus:border-rose-500 focus:outline-rose-500"
+                        : "border-zinc-300 focus:border-emerald-700 focus:outline-emerald-700"
+                    }`}
                   />
                   {errors.amount && (
-                    <span className="text-[11px] text-red-600 block">
+                    <span className="text-[11px] text-rose-600 block">
                       {errors.amount.message}
                     </span>
                   )}
@@ -793,30 +731,34 @@ export const AdminPayments = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <label className="font-semibold text-zinc-900">Method *</label>
+                  <label htmlFor="payment-method" className="font-semibold text-zinc-900">Method *</label>
                   <select
+                    id="payment-method"
                     {...register("method")}
-                    className="w-full !h-8 px-2 border border-zinc-300 rounded focus:border-emerald-600 focus:outline-none"
+                    className="w-full !h-8 px-2 border border-zinc-300 rounded transition-colors focus:border-emerald-700 focus:outline-2 focus:outline-emerald-700 focus:outline-offset-1"
                   >
-                    <option value="cash">Showroom Cash</option>
-                    <option value="bank_deposit">Bank Deposit (BDO/BPI)</option>
-                    <option value="online">Online / GCash / Maya</option>
-                    <option value="cod">Cash on Delivery</option>
+                    <option value="cash">Showroom cash</option>
+                    <option value="bank_deposit">Bank deposit (BDO or BPI)</option>
+                    <option value="online">Online (GCash or Maya)</option>
+                    <option value="cod">Cash on delivery</option>
                   </select>
                 </div>
 
                 <div className="space-y-1">
-                  <label className="font-semibold text-zinc-900">Bank / Ref Number *</label>
+                  <label htmlFor="payment-reference" className="font-semibold text-zinc-900">Reference number *</label>
                   <input
+                    id="payment-reference"
                     type="text"
                     {...register("referenceNo")}
                     placeholder="e.g. BDO-DEP-9921"
-                    className={`w-full !h-8 px-2.5 border ${
-                      errors.referenceNo ? "border-red-500 focus:border-red-500" : "border-zinc-300 focus:border-emerald-600"
-                    } rounded focus:outline-none font-mono`}
+                    className={`w-full !h-8 px-3 border rounded font-mono transition-colors focus:outline-2 focus:outline-offset-1 ${
+                      errors.referenceNo
+                        ? "border-rose-500 focus:border-rose-500 focus:outline-rose-500"
+                        : "border-zinc-300 focus:border-emerald-700 focus:outline-emerald-700"
+                    }`}
                   />
                   {errors.referenceNo && (
-                    <span className="text-[11px] text-red-600 block">
+                    <span className="text-[11px] text-rose-600 block">
                       {errors.referenceNo.message}
                     </span>
                   )}
@@ -827,16 +769,16 @@ export const AdminPayments = () => {
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="!h-8 px-3 rounded border border-zinc-200 text-zinc-700 hover:bg-zinc-50 cursor-pointer"
+                  className="!h-8 px-3 rounded border border-zinc-200 text-zinc-700 hover:bg-zinc-50 cursor-pointer transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="!h-8 px-4 rounded bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-medium cursor-pointer shadow-2xs disabled:opacity-60 disabled:cursor-not-allowed"
+                  className="!h-8 px-4 rounded bg-emerald-700 hover:bg-emerald-800 active:bg-emerald-900 text-white font-medium cursor-pointer transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  {isSubmitting ? "Generating..." : "Generate Official Receipt"}
+                  {isSubmitting ? "Saving..." : "Save receipt"}
                 </button>
               </div>
 

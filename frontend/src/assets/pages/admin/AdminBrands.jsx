@@ -20,8 +20,8 @@ import {
   CREATE_BRAND_RESET,
   UPDATE_BRAND_RESET,
   DELETE_BRAND_RESET,
-  RESTORE_BRAND_RESET,
 } from "../../../constants/productConstants.js";
+import { adminDataGridSx } from "../../../utils/adminDataGridTheme";
 
 const brandSchema = yup.object({
   name: yup.string().trim().required("Brand name is required"),
@@ -76,7 +76,15 @@ export const AdminBrands = () => {
     dispatch(getBrands({ all: "true" }));
   }, [dispatch]);
 
-  // Handle side-effects
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setEditingBrand(null);
+    reset({ name: "" });
+    setLogoPreview("");
+    setLogoData(undefined);
+  };
+
+  // Handle side-effects (toasts, modal close, refetch)
   useEffect(() => {
     if (error) {
       toast.error(error, { position: "bottom-right" });
@@ -84,14 +92,14 @@ export const AdminBrands = () => {
     }
 
     if (isBrandCreated) {
-      toast.success("Brand created successfully!", { position: "bottom-right" });
+      toast.success("Brand created.", { position: "bottom-right" });
       dispatch({ type: CREATE_BRAND_RESET });
       handleCloseModal();
       dispatch(getBrands({ all: "true" }));
     }
 
     if (isBrandUpdated) {
-      toast.success("Brand updated successfully!", { position: "bottom-right" });
+      toast.success("Brand updated.", { position: "bottom-right" });
       dispatch({ type: UPDATE_BRAND_RESET });
       handleCloseModal();
       dispatch(getBrands({ all: "true" }));
@@ -117,14 +125,6 @@ export const AdminBrands = () => {
     setLogoPreview(brand.logo?.url || "");
     setLogoData(undefined);
     setIsModalOpen(true);
-  };
-
-  const handleCloseModal = () => {
-    setIsModalOpen(false);
-    setEditingBrand(null);
-    reset({ name: "" });
-    setLogoPreview("");
-    setLogoData(undefined);
   };
 
   // Image file picker handler
@@ -170,13 +170,13 @@ export const AdminBrands = () => {
   // Delete handler: backend checks if active products exist
   const handleDelete = async (brand) => {
     const confirm = await Swal.fire({
-      title: `Delete brand "${brand.name}"?`,
-      text: `Are you sure you want to delete this brand?`,
+      title: `Delete "${brand.name}"?`,
+      text: "The brand will be archived and can be restored later.",
       icon: "warning",
       showCancelButton: true,
       confirmButtonColor: "#dc2626",
       cancelButtonColor: "#6b7280",
-      confirmButtonText: "Yes, delete",
+      confirmButtonText: "Delete brand",
       cancelButtonText: "Cancel",
     });
 
@@ -185,7 +185,7 @@ export const AdminBrands = () => {
     // Backend checks whether the brand has active products
     const res = await dispatch(deleteBrand(brand._id));
 
-    // If products exist, backend returns a 409 Conflict with the product count & products
+    // If products exist, backend returns a conflict with the product count and products
     if (res?.conflict) {
       setReassignState({
         isOpen: true,
@@ -198,7 +198,7 @@ export const AdminBrands = () => {
     }
 
     if (res?.success) {
-      toast.success(`Brand "${brand.name}" deleted successfully!`);
+      toast.success(`Brand "${brand.name}" deleted.`);
       dispatch(getBrands({ all: "true" }));
     }
   };
@@ -206,13 +206,13 @@ export const AdminBrands = () => {
   // Restore handler for soft-deleted brand
   const handleRestore = async (brand) => {
     const confirm = await Swal.fire({
-      title: `Restore brand "${brand.name}"?`,
-      text: `This brand will be restored and made available in the shop catalog.`,
+      title: `Restore "${brand.name}"?`,
+      text: "This brand will be restored and made available in the shop catalog.",
       icon: "question",
       showCancelButton: true,
       confirmButtonColor: "#059669",
       cancelButtonColor: "#6b7280",
-      confirmButtonText: "Yes, restore",
+      confirmButtonText: "Restore brand",
       cancelButtonText: "Cancel",
     });
 
@@ -220,7 +220,7 @@ export const AdminBrands = () => {
 
     const res = await dispatch(restoreBrand(brand._id));
     if (res?.success) {
-      toast.success(res.message || `Brand "${brand.name}" restored successfully!`);
+      toast.success(res.message || `Brand "${brand.name}" restored.`);
       dispatch(getBrands({ all: "true" }));
     } else {
       toast.error(res?.message || "Failed to restore brand");
@@ -231,7 +231,7 @@ export const AdminBrands = () => {
   const handleReassignSubmit = async (e) => {
     e.preventDefault();
     if (!reassignState.targetBrandId) {
-      toast.warn("Please select a target brand to reassign products to.");
+      toast.warn("Select a brand to move the products to.");
       return;
     }
 
@@ -243,10 +243,7 @@ export const AdminBrands = () => {
     );
 
     if (res?.success) {
-      toast.success(
-        res.data?.message ||
-          "Products reassigned and brand deleted successfully!",
-      );
+      toast.success(res.data?.message || "Products moved and brand archived.");
       setReassignState({
         isOpen: false,
         sourceBrand: null,
@@ -284,7 +281,6 @@ export const AdminBrands = () => {
       return 0;
     });
 
-  const brandsWithLogoCount = brands.filter((b) => !!b.logo?.url).length;
   const totalAssignedProducts = brands.reduce(
     (acc, curr) => acc + (curr.productsCount || 0),
     0,
@@ -304,7 +300,7 @@ export const AdminBrands = () => {
           const brand = params.row;
           const isArchived = !!brand.isArchived;
           return brand.logo?.url ? (
-            <div className="w-9 h-9 rounded-lg bg-zinc-50 border border-zinc-200 flex items-center justify-center p-1 mx-auto overflow-hidden">
+            <div className="w-9 h-9 rounded bg-zinc-50 border border-zinc-200 flex items-center justify-center p-1 mx-auto overflow-hidden">
               <img
                 src={brand.logo.url}
                 alt={brand.name}
@@ -313,10 +309,10 @@ export const AdminBrands = () => {
             </div>
           ) : (
             <div
-              className={`w-9 h-9 rounded-lg flex items-center justify-center font-extrabold text-xs mx-auto border ${
+              className={`w-9 h-9 rounded flex items-center justify-center font-extrabold text-xs mx-auto border ${
                 isArchived
                   ? "bg-amber-100 text-amber-800 border-amber-300"
-                  : "bg-zinc-100 border-zinc-200/80 text-zinc-500"
+                  : "bg-zinc-100 border-zinc-200 text-zinc-500"
               }`}
             >
               {brand.name.charAt(0).toUpperCase()}
@@ -326,7 +322,7 @@ export const AdminBrands = () => {
       },
       {
         field: "name",
-        headerName: "Brand Name",
+        headerName: "Brand",
         flex: 1.5,
         minWidth: 200,
         renderCell: (params) => {
@@ -342,8 +338,8 @@ export const AdminBrands = () => {
                 {brand.name}
               </span>
               {!brand.logo?.url && (
-                <span className="ml-2 text-[10px] text-zinc-400 font-normal">
-                  (No logo uploaded)
+                <span className="ml-2 text-[11px] text-zinc-500 font-normal">
+                  No logo
                 </span>
               )}
             </div>
@@ -360,7 +356,7 @@ export const AdminBrands = () => {
           return params.row.isArchived ? (
             <span className="admin-table-badge gap-1.5 text-[11px] font-medium bg-amber-50 text-amber-700 border border-amber-200">
               <span className="admin-table-badge__dot w-1.5 h-1.5 rounded-full bg-amber-500" />
-              Soft-Deleted
+              Archived
             </span>
           ) : (
             <span className="admin-table-badge gap-1.5 text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
@@ -372,8 +368,8 @@ export const AdminBrands = () => {
       },
       {
         field: "productsCount",
-        headerName: "Assigned Products",
-        width: 160,
+        headerName: "Products",
+        width: 140,
         type: "number",
         headerAlign: "center",
         align: "center",
@@ -387,7 +383,7 @@ export const AdminBrands = () => {
                   : "bg-zinc-100 text-zinc-600 border-zinc-200"
               }`}
             >
-              {pCount} {pCount === 1 ? "Product" : "Products"}
+              {pCount} {pCount === 1 ? "product" : "products"}
             </span>
           );
         },
@@ -405,16 +401,25 @@ export const AdminBrands = () => {
           const brand = params.row;
           const isArchived = !!brand.isArchived;
           return (
-            <div className="inline-flex items-center justify-end gap-1.5 w-full">
+            <div className="inline-flex items-center justify-end gap-1 w-full">
               {isArchived ? (
                 <button
                   type="button"
                   onClick={() => handleRestore(brand)}
-                  className="p-1.5 rounded-md hover:bg-emerald-50 text-emerald-600 hover:text-emerald-700 transition-colors cursor-pointer"
-                  title="Restore Brand"
-                  aria-label="Restore Brand"
+                  className="p-2 rounded hover:bg-emerald-50 text-emerald-600 hover:text-emerald-700 transition-colors cursor-pointer"
+                  title="Restore brand"
+                  aria-label="Restore brand"
                 >
-                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <svg
+                    className="w-4 h-4"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
                     <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
                     <path d="M3 3v5h5" />
                   </svg>
@@ -424,10 +429,20 @@ export const AdminBrands = () => {
                   <button
                     type="button"
                     onClick={() => handleOpenEdit(brand)}
-                    className="p-1.5 rounded-md hover:bg-zinc-100 text-zinc-600 hover:text-zinc-900 transition-colors cursor-pointer"
-                    title="Edit Brand"
+                    className="p-2 rounded hover:bg-zinc-100 text-zinc-600 hover:text-zinc-900 transition-colors cursor-pointer"
+                    title="Edit brand"
+                    aria-label="Edit brand"
                   >
-                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <svg
+                      className="w-4 h-4"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
                       <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
                       <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
                     </svg>
@@ -435,10 +450,20 @@ export const AdminBrands = () => {
                   <button
                     type="button"
                     onClick={() => handleDelete(brand)}
-                    className="p-1.5 rounded-md hover:bg-red-50 text-zinc-400 hover:text-red-600 transition-colors cursor-pointer"
-                    title="Delete Brand"
+                    className="p-2 rounded hover:bg-rose-50 text-zinc-400 hover:text-rose-600 transition-colors cursor-pointer"
+                    title="Delete brand"
+                    aria-label="Delete brand"
                   >
-                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <svg
+                      className="w-4 h-4"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
                       <polyline points="3 6 5 6 21 6" />
                       <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
                     </svg>
@@ -455,103 +480,101 @@ export const AdminBrands = () => {
 
   return (
     <div className="space-y-6">
-      {/* Catalog Subnavigation Tabs */}
+      {/* Catalog subnavigation */}
       <div className="flex items-center gap-2 border-b border-zinc-200 pb-3">
         <Link
           to="/admin/products"
-          className="px-3.5 py-1.5 rounded-lg text-xs font-semibold text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 transition-colors"
+          className="px-4 py-2 rounded text-xs font-semibold text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 transition-colors"
         >
-          Products &amp; Units
+          Products
         </Link>
         <Link
           to="/admin/categories"
-          className="px-3.5 py-1.5 rounded-lg text-xs font-semibold text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 transition-colors"
+          className="px-4 py-2 rounded text-xs font-semibold text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 transition-colors"
         >
           Categories
         </Link>
         <Link
           to="/admin/brands"
-          className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 text-white shadow-xs"
+          className="px-4 py-2 rounded text-xs font-semibold bg-emerald-600 text-white"
         >
           Brands ({brands.length})
         </Link>
       </div>
 
-      {/* Header and Add Action */}
+      {/* Title and actions */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-zinc-200">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-zinc-900">
-            Brand Management
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-zinc-900 text-balance">
+            Brands
           </h1>
-          <p className="text-xs text-zinc-500 mt-0.5">
-            Manage motorcycle and component manufacturers per FR1.3 and Database Specification §4.4.
+          <p className="text-xs text-zinc-500 mt-1">
+            Add, rename, and archive the manufacturers used across the catalog.
           </p>
         </div>
         <button
           type="button"
           onClick={handleOpenAdd}
-          className="inline-flex items-center gap-2 h-9 px-4 rounded-lg bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-xs font-semibold transition-colors cursor-pointer shadow-xs self-start sm:self-auto"
+          className="inline-flex items-center gap-2 h-9 px-4 rounded bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-xs font-semibold transition-colors cursor-pointer self-start sm:self-auto"
         >
-          <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+          <svg
+            className="w-3.5 h-3.5"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            aria-hidden="true"
+          >
             <line x1="12" y1="5" x2="12" y2="19" />
             <line x1="5" y1="12" x2="19" y2="12" />
           </svg>
-          Add New Brand
+          Add brand
         </button>
       </div>
 
-      {/* Stats Cards */}
+      {/* Counts */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="p-4 bg-white rounded-xl border border-zinc-200 shadow-2xs">
-          <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider block">
-            Active Brands
-          </span>
+        <div className="p-4 bg-white rounded border border-zinc-200">
+          <span className="text-[11px] font-semibold text-zinc-500 block">Active brands</span>
           <div className="mt-1 flex items-baseline gap-2">
             <span className="text-2xl font-extrabold text-zinc-900 font-mono">
               {activeBrands.length}
             </span>
-            <span className="text-xs text-zinc-400">
-              of {brands.length} total
-            </span>
+            <span className="text-xs text-zinc-500">of {brands.length} brands</span>
           </div>
         </div>
 
-        <div className="p-4 bg-white rounded-xl border border-zinc-200 shadow-2xs">
-          <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider block">
-            Soft-Deleted / Archived
-          </span>
+        <div className="p-4 bg-white rounded border border-zinc-200">
+          <span className="text-[11px] font-semibold text-zinc-500 block">Archived</span>
           <div className="mt-1 flex items-baseline gap-2">
             <span className="text-2xl font-extrabold text-amber-600 font-mono">
               {archivedBrands.length}
             </span>
-            <span className="text-xs text-zinc-400">recoverable</span>
+            <span className="text-xs text-zinc-500">can be restored</span>
           </div>
         </div>
 
-        <div className="p-4 bg-white rounded-xl border border-zinc-200 shadow-2xs">
-          <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider block">
-            Catalog Coverage
-          </span>
+        <div className="p-4 bg-white rounded border border-zinc-200">
+          <span className="text-[11px] font-semibold text-zinc-500 block">Assigned products</span>
           <div className="mt-1 flex items-baseline gap-2">
             <span className="text-2xl font-extrabold text-emerald-600 font-mono">
               {totalAssignedProducts}
             </span>
-            <span className="text-xs text-zinc-400">associated products</span>
+            <span className="text-xs text-zinc-500">units in the catalog</span>
           </div>
         </div>
       </div>
 
-      {/* Search & Filter Toolbar */}
-      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 bg-white p-3 rounded-xl border border-zinc-200 shadow-2xs">
-        {/* Status Filter Tabs */}
-        <div className="flex items-center gap-1 bg-zinc-100 p-1 rounded-lg shrink-0">
+      {/* Search and filter toolbar */}
+      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 bg-white p-4 rounded border border-zinc-200">
+        <div className="flex items-center gap-1 bg-zinc-100 p-1 rounded shrink-0">
           <button
             type="button"
             onClick={() => setStatusFilter("all")}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors cursor-pointer ${
+            className={`px-3 py-2 text-xs font-semibold rounded transition-colors cursor-pointer ${
               statusFilter === "all"
-                ? "bg-white text-zinc-900 shadow-2xs"
-                : "text-zinc-600 hover:text-zinc-900"
+                ? "bg-white text-zinc-900 border border-zinc-300"
+                : "text-zinc-600 hover:text-zinc-900 border border-transparent"
             }`}
           >
             All ({brands.length})
@@ -559,10 +582,10 @@ export const AdminBrands = () => {
           <button
             type="button"
             onClick={() => setStatusFilter("active")}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors cursor-pointer ${
+            className={`px-3 py-2 text-xs font-semibold rounded transition-colors cursor-pointer ${
               statusFilter === "active"
-                ? "bg-white text-emerald-700 shadow-2xs"
-                : "text-zinc-600 hover:text-zinc-900"
+                ? "bg-white text-emerald-700 border border-emerald-300"
+                : "text-zinc-600 hover:text-zinc-900 border border-transparent"
             }`}
           >
             Active ({activeBrands.length})
@@ -570,93 +593,113 @@ export const AdminBrands = () => {
           <button
             type="button"
             onClick={() => setStatusFilter("archived")}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors cursor-pointer ${
+            className={`px-3 py-2 text-xs font-semibold rounded transition-colors cursor-pointer ${
               statusFilter === "archived"
-                ? "bg-white text-amber-700 shadow-2xs"
-                : "text-zinc-600 hover:text-zinc-900"
+                ? "bg-white text-amber-700 border border-amber-300"
+                : "text-zinc-600 hover:text-zinc-900 border border-transparent"
             }`}
           >
-            Soft-Deleted ({archivedBrands.length})
+            Archived ({archivedBrands.length})
           </button>
         </div>
 
-        <div className="flex flex-1 items-center gap-3">
-          <div className="relative flex-1">
+        <div className="flex flex-1 items-center gap-4 flex-wrap">
+          <div className="relative flex-1 min-w-48">
             <svg
               className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
               strokeWidth="2"
+              aria-hidden="true"
             >
               <circle cx="11" cy="11" r="8" />
               <line x1="21" y1="21" x2="16.65" y2="16.65" />
             </svg>
+            <label htmlFor="brand-search" className="sr-only">
+              Search brands
+            </label>
             <input
+              id="brand-search"
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search brands by name..."
-              className="w-full h-9 pl-9 pr-3 text-xs bg-zinc-50 border border-zinc-200 rounded-lg focus:outline-none focus:border-emerald-600 focus:bg-white transition-colors"
+              placeholder="Search by brand name"
+              className="w-full h-9 pl-9 pr-3 text-xs bg-zinc-50 border border-zinc-300 rounded transition-colors focus:bg-white focus:border-emerald-700 focus:outline-2 focus:outline-offset-1 focus:outline-emerald-700"
             />
           </div>
 
-          <div className="flex items-center gap-2 flex-wrap shrink-0">
+          <div className="flex items-center gap-2 shrink-0">
+            <label htmlFor="brand-logo-filter" className="text-xs text-zinc-600 shrink-0 font-medium">
+              Logo
+            </label>
             <select
+              id="brand-logo-filter"
               value={filterLogo}
               onChange={(e) => setFilterLogo(e.target.value)}
-              className="h-9 px-3 text-xs bg-zinc-50 border border-zinc-200 rounded-lg focus:outline-none focus:border-emerald-600 cursor-pointer font-medium text-zinc-700"
+              className="h-9 px-3 text-xs bg-zinc-50 border border-zinc-300 rounded cursor-pointer font-medium text-zinc-700 transition-colors focus:bg-white focus:border-emerald-700 focus:outline-2 focus:outline-offset-1 focus:outline-emerald-700"
             >
-              <option value="all">All Logos</option>
-              <option value="with-logo">With Logo</option>
-              <option value="without-logo">Without Logo</option>
+              <option value="all">All logos</option>
+              <option value="with-logo">With logo</option>
+              <option value="without-logo">Without logo</option>
             </select>
 
+            <label htmlFor="brand-sort" className="text-xs text-zinc-600 shrink-0 font-medium">
+              Sort
+            </label>
             <select
+              id="brand-sort"
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
-              className="h-9 px-3 text-xs bg-zinc-50 border border-zinc-200 rounded-lg focus:outline-none focus:border-emerald-600 cursor-pointer font-medium text-zinc-700"
+              className="h-9 px-3 text-xs bg-zinc-50 border border-zinc-300 rounded cursor-pointer font-medium text-zinc-700 transition-colors focus:bg-white focus:border-emerald-700 focus:outline-2 focus:outline-offset-1 focus:outline-emerald-700"
             >
-              <option value="name-asc">Name (A → Z)</option>
-              <option value="name-desc">Name (Z → A)</option>
-              <option value="products-desc">Most Products</option>
-              <option value="products-asc">Fewest Products</option>
+              <option value="name-asc">Name (A to Z)</option>
+              <option value="name-desc">Name (Z to A)</option>
+              <option value="products-desc">Most products</option>
+              <option value="products-asc">Fewest products</option>
             </select>
           </div>
         </div>
       </div>
 
-      {/* Brands Table */}
+      {/* Brands grid */}
       {loadingBrands ? (
-        <div className="py-16 text-center text-zinc-400 bg-white rounded-xl border border-zinc-200">
+        <div className="py-16 text-center text-zinc-500 bg-white rounded border border-zinc-200">
           <div className="w-6 h-6 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
-          <span className="text-xs font-medium">Loading brands...</span>
+          <span className="text-xs font-medium">Loading brands</span>
         </div>
       ) : filteredBrands.length === 0 ? (
-        <div className="py-16 text-center bg-white rounded-xl border border-dashed border-zinc-300">
-          <div className="w-10 h-10 rounded-full bg-zinc-100 flex items-center justify-center text-zinc-400 mx-auto mb-2">
-            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
-              <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
+        <div className="py-16 text-center bg-white rounded border border-dashed border-zinc-300">
+          <div className="w-10 h-10 rounded bg-zinc-100 flex items-center justify-center text-zinc-400 mx-auto mb-2">
+            <svg
+              className="w-5 h-5"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              aria-hidden="true"
+            >
+              <path d="M20 13.5A8.5 8.5 0 0 1 10.5 4 8.5 8.5 0 1 0 20 13.5z" />
             </svg>
           </div>
           <h3 className="text-sm font-bold text-zinc-800">No brands found</h3>
           <p className="text-xs text-zinc-500 mt-1 max-w-sm mx-auto">
             {searchQuery
-              ? `No brand matches "${searchQuery}". Try a different term.`
-              : "No brands have been registered in the dealership yet."}
+              ? `No brand matches "${searchQuery}". Try a different keyword.`
+              : "No brands have been added yet."}
           </p>
           {!searchQuery && (
             <button
+              type="button"
               onClick={handleOpenAdd}
-              className="mt-3 inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700"
+              className="mt-4 inline-flex items-center gap-2 h-8 px-4 rounded bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 transition-colors cursor-pointer"
             >
-              Add First Brand
+              Add brand
             </button>
           )}
         </div>
       ) : (
-        <div className="bg-white rounded-xl border border-zinc-200 overflow-hidden shadow-xs">
+        <div className="bg-white rounded border border-zinc-200 overflow-hidden">
           <DataGrid
             rows={filteredBrands}
             columns={columns}
@@ -668,118 +711,91 @@ export const AdminBrands = () => {
               pagination: { paginationModel: { pageSize: 10 } },
             }}
             autoHeight
-            sx={{
-              border: "none",
-              fontFamily: "inherit",
-              fontSize: "0.75rem",
-              "& .MuiDataGrid-columnHeaders": {
-                backgroundColor: "#fafafa",
-                borderBottom: "1px solid #e4e4e7",
-                color: "#52525b",
-                fontWeight: 600,
-                fontSize: "0.6875rem",
-                textTransform: "uppercase",
-                fontFamily: "ui-monospace, monospace",
-                letterSpacing: "0.05em",
-              },
-              "& .MuiDataGrid-columnSeparator": {
-                display: "none !important",
-              },
-              "& .MuiDataGrid-columnHeader": {
-                paddingLeft: "16px",
-                paddingRight: "16px",
-              },
-              "& .MuiDataGrid-columnHeader:focus, & .MuiDataGrid-columnHeader:focus-within, & .MuiDataGrid-cell:focus, & .MuiDataGrid-cell:focus-within": {
-                outline: "none !important",
-              },
-              "& .MuiDataGrid-row": {
-                borderBottom: "1px solid #f4f4f5",
-                transition: "background-color 0.15s ease",
-              },
-              "& .MuiDataGrid-row:hover": {
-                backgroundColor: "rgba(244, 244, 245, 0.7)",
-              },
-              "& .MuiDataGrid-cell": {
-                display: "flex",
-                alignItems: "center",
-                paddingLeft: "16px",
-                paddingRight: "16px",
-              },
-              "& .MuiDataGrid-footerContainer": {
-                borderTop: "1px solid #e4e4e7",
-                backgroundColor: "#fafafa",
-              },
-              "& .MuiTablePagination-root": {
-                fontSize: "0.75rem",
-              },
-            }}
+            sx={adminDataGridSx}
           />
         </div>
       )}
 
-      {/* Add / Edit Brand Modal */}
+      {/* Add and edit modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-900/50 backdrop-blur-2xs animate-fadeIn">
-          <div className="bg-white rounded-xl shadow-xl border border-zinc-200 w-full max-w-md overflow-hidden">
-            <div className="px-5 py-4 border-b border-zinc-200 flex items-center justify-between bg-zinc-50/60">
-              <h2 className="text-sm font-bold text-zinc-900">
-                {editingBrand ? "Edit Brand" : "Add New Brand"}
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-900/50">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="brand-modal-heading"
+            className="bg-white rounded border border-zinc-300 w-full max-w-md overflow-hidden"
+          >
+            <div className="px-4 py-4 border-b border-zinc-200 flex items-center justify-between gap-3 bg-zinc-50">
+              <h2 id="brand-modal-heading" className="text-sm font-bold text-zinc-900">
+                {editingBrand ? "Edit brand" : "Add brand"}
               </h2>
               <button
                 type="button"
                 onClick={handleCloseModal}
-                className="text-zinc-400 hover:text-zinc-700 transition-colors"
+                aria-label="Close"
+                className="w-8 h-8 rounded flex items-center justify-center text-zinc-400 hover:text-zinc-700 hover:bg-zinc-200/60 transition-colors cursor-pointer"
               >
-                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <svg
+                  className="w-3.5 h-3.5"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  aria-hidden="true"
+                >
                   <line x1="18" y1="6" x2="6" y2="18" />
                   <line x1="6" y1="6" x2="18" y2="18" />
                 </svg>
               </button>
             </div>
 
-            <form onSubmit={handleSubmit(onSubmitBrand)} noValidate className="p-5 space-y-4 text-xs">
-              <div className="space-y-1.5">
-                <label className="font-semibold text-zinc-900 block">
-                  Brand Name <span className="text-red-500">*</span>
+            <form
+              onSubmit={handleSubmit(onSubmitBrand)}
+              noValidate
+              className="p-4 space-y-4 text-xs"
+            >
+              <div className="space-y-1">
+                <label htmlFor="brand-name" className="font-semibold text-zinc-900 block">
+                  Name *
                 </label>
                 <input
+                  id="brand-name"
                   type="text"
-                  placeholder="e.g. Honda, Yamaha, Kawasaki, CFMOTO"
+                  placeholder="Honda, Yamaha, Kawasaki"
                   {...register("name")}
-                  className={`w-full h-9 px-3 border ${
+                  className={`w-full h-9 px-3 border rounded transition-colors focus:outline-2 focus:outline-offset-1 ${
                     errors.name
-                      ? "border-red-500 focus:border-red-500 focus:ring-red-500"
-                      : "border-zinc-300 focus:border-emerald-600 focus:ring-emerald-600"
-                  } rounded-lg focus:outline-none transition-colors`}
+                      ? "border-rose-500 focus:border-rose-500 focus:outline-rose-500"
+                      : "border-zinc-300 focus:border-emerald-700 focus:outline-emerald-700"
+                  }`}
                 />
                 {errors.name && (
-                  <span className="text-[11px] text-red-600 block">
-                    {errors.name.message}
-                  </span>
+                  <span className="text-[11px] text-rose-600 block">{errors.name.message}</span>
                 )}
-                <span className="text-[10px] text-zinc-400 block">
-                  Must be unique across the catalog (FR1.3.3).
+                <span className="text-[11px] text-zinc-500 block">
+                  Must be unique across the catalog.
                 </span>
               </div>
 
-              {/* Logo Upload Section */}
+              {/* Logo upload */}
               <div className="space-y-2">
-                <label className="font-semibold text-zinc-900 block">
-                  Brand Logo <span className="text-zinc-400 font-normal">(Optional)</span>
+                <label htmlFor="brand-logo-file" className="font-semibold text-zinc-900 block">
+                  Logo
                 </label>
 
                 {logoPreview ? (
-                  <div className="flex items-center gap-3 p-3 bg-zinc-50 border border-zinc-200 rounded-lg">
-                    <div className="w-16 h-16 rounded-md bg-white border border-zinc-200 flex items-center justify-center p-1 overflow-hidden shrink-0">
+                  <div className="flex items-center gap-3 p-3 bg-zinc-50 border border-zinc-200 rounded">
+                    <div className="w-16 h-16 rounded bg-white border border-zinc-200 flex items-center justify-center p-1 overflow-hidden shrink-0">
                       <img
                         src={logoPreview}
-                        alt="Preview"
+                        alt="Logo preview"
                         className="max-h-full max-w-full object-contain"
                       />
                     </div>
-                    <div className="flex-1 space-y-1.5">
+                    <div className="flex-1 space-y-1">
                       <span className="text-[11px] font-medium text-zinc-700 block">
-                        Logo Selected
+                        Logo selected
                       </span>
                       <div className="flex items-center gap-2">
                         <label
@@ -791,7 +807,7 @@ export const AdminBrands = () => {
                         <button
                           type="button"
                           onClick={handleRemoveLogo}
-                          className="px-2.5 py-1 text-[11px] font-medium text-red-600 hover:bg-red-50 rounded transition-colors"
+                          className="px-2.5 py-1 text-[11px] font-medium text-rose-600 hover:bg-rose-50 rounded transition-colors cursor-pointer"
                         >
                           Remove
                         </button>
@@ -801,20 +817,25 @@ export const AdminBrands = () => {
                 ) : (
                   <label
                     htmlFor="brand-logo-file"
-                    className="flex flex-col items-center justify-center gap-1.5 p-5 border-2 border-dashed border-zinc-200 rounded-lg hover:border-emerald-600 hover:bg-emerald-50/40 transition-colors cursor-pointer text-center"
+                    className="flex flex-col items-center justify-center gap-1.5 p-5 border-2 border-dashed border-zinc-200 rounded hover:border-emerald-700 hover:bg-emerald-50/40 transition-colors cursor-pointer text-center"
                   >
-                    <div className="w-8 h-8 rounded-full bg-zinc-100 flex items-center justify-center text-zinc-500">
-                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <div className="w-8 h-8 rounded bg-zinc-100 flex items-center justify-center text-zinc-500">
+                      <svg
+                        className="w-4 h-4"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        aria-hidden="true"
+                      >
                         <rect x="3" y="3" width="18" height="18" rx="2" />
                         <circle cx="8.5" cy="8.5" r="1.5" />
                         <polyline points="21 15 16 10 5 21" />
                       </svg>
                     </div>
-                    <span className="text-xs font-medium text-zinc-700">
-                      Upload Brand Logo
-                    </span>
-                    <span className="text-[10px] text-zinc-400">
-                      PNG, JPG, SVG, WEBP • Max 2MB
+                    <span className="text-xs font-medium text-zinc-700">Upload logo</span>
+                    <span className="text-[11px] text-zinc-500">
+                      PNG, JPG, SVG or WEBP, up to 2MB
                     </span>
                   </label>
                 )}
@@ -828,18 +849,18 @@ export const AdminBrands = () => {
                 />
               </div>
 
-              <div className="pt-3 border-t border-zinc-200 flex items-center justify-end gap-2">
+              <div className="pt-4 border-t border-zinc-200 flex items-center justify-end gap-2">
                 <button
                   type="button"
                   onClick={handleCloseModal}
-                  className="h-8 px-3 rounded-lg border border-zinc-200 text-zinc-700 hover:bg-zinc-50 font-medium transition-colors"
+                  className="h-8 px-3 rounded border border-zinc-200 text-zinc-700 hover:bg-zinc-50 font-medium transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={actionLoading || isSubmitting}
-                  className="h-8 px-4 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-xs disabled:opacity-60 transition-colors inline-flex items-center gap-1.5"
+                  className="h-8 px-4 rounded bg-emerald-600 hover:bg-emerald-700 text-white font-semibold disabled:opacity-60 transition-colors inline-flex items-center gap-2 cursor-pointer"
                 >
                   {actionLoading || isSubmitting ? (
                     <>
@@ -847,9 +868,9 @@ export const AdminBrands = () => {
                       <span>Saving...</span>
                     </>
                   ) : editingBrand ? (
-                    "Update Brand"
+                    "Save changes"
                   ) : (
-                    "Create Brand"
+                    "Add brand"
                   )}
                 </button>
               </div>
@@ -858,21 +879,39 @@ export const AdminBrands = () => {
         </div>
       )}
 
-      {/* 409 Conflict Reassignment Dialog */}
+      {/* Brand in use dialog */}
       {reassignState.isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-900/50 backdrop-blur-2xs animate-fadeIn">
-          <div className="bg-white rounded-xl shadow-xl border border-amber-300 w-full max-w-lg overflow-hidden">
-            <div className="px-5 py-4 border-b border-amber-200 flex items-center justify-between bg-amber-50">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-900/50">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="brand-reassign-heading"
+            className="bg-white rounded border border-amber-300 w-full max-w-lg overflow-hidden"
+          >
+            <div className="px-4 py-4 border-b border-amber-200 flex items-center justify-between gap-3 bg-amber-50">
               <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-full bg-amber-200 text-amber-800 flex items-center justify-center text-xs font-bold">
-                  ⚠️
+                <div className="w-7 h-7 rounded bg-amber-200 text-amber-800 flex items-center justify-center shrink-0">
+                  <svg
+                    className="w-4 h-4"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" />
+                    <line x1="12" y1="9" x2="12" y2="13" />
+                    <line x1="12" y1="17" x2="12.01" y2="17" />
+                  </svg>
                 </div>
                 <div>
-                  <h2 className="text-sm font-bold text-amber-900">
-                    Brand In Use ({reassignState.sourceBrand?.name})
+                  <h2 id="brand-reassign-heading" className="text-sm font-bold text-amber-900">
+                    Brand in use ({reassignState.sourceBrand?.name})
                   </h2>
                   <p className="text-[11px] text-amber-700">
-                    409 Conflict: Cannot delete brand with active products
+                    This brand still has active products.
                   </p>
                 </div>
               </div>
@@ -886,47 +925,56 @@ export const AdminBrands = () => {
                     productCount: 0,
                   })
                 }
-                className="text-zinc-400 hover:text-zinc-700 transition-colors"
+                aria-label="Close"
+                className="w-8 h-8 rounded flex items-center justify-center text-zinc-400 hover:text-zinc-700 hover:bg-zinc-200/60 transition-colors cursor-pointer shrink-0"
               >
-                ✕
+                <svg
+                  className="w-3.5 h-3.5"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  aria-hidden="true"
+                >
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
               </button>
             </div>
 
-            <form onSubmit={handleReassignSubmit} className="p-5 space-y-4 text-xs">
-              <div className="p-3.5 bg-amber-50/70 border border-amber-200 rounded-lg text-amber-900 space-y-1">
+            <form onSubmit={handleReassignSubmit} className="p-4 space-y-4 text-xs">
+              <div className="p-4 bg-amber-50 border border-amber-200 rounded text-amber-900 space-y-1">
                 <p className="font-semibold text-xs">
-                  This brand currently has{" "}
-                  <span className="font-bold underline text-amber-950 font-mono">
-                    {reassignState.productCount} active product(s)
+                  This brand has{" "}
+                  <span className="font-bold font-mono">
+                    {reassignState.productCount} active{" "}
+                    {reassignState.productCount === 1 ? "product" : "products"}
                   </span>{" "}
-                  anchored to it.
+                  assigned to it.
                 </p>
                 <p className="text-[11px] text-amber-800">
-                  Per system design, you must choose to reassign these products to another
-                  brand before soft-deleting, or cancel the deletion.
+                  Move these products to another brand, or cancel the deletion.
                 </p>
               </div>
 
-              {/* Anchored Products List */}
               {reassignState.products.length > 0 && (
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between text-[11px]">
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between gap-3 text-[11px]">
                     <span className="font-semibold text-zinc-800">
-                      Anchored Products ({reassignState.productCount})
+                      Products to move ({reassignState.productCount})
                     </span>
-                    <span className="text-zinc-400">
-                      Will be migrated to new brand
-                    </span>
+                    <span className="text-zinc-500">Move them to the brand you pick</span>
                   </div>
-                  <div className="max-h-40 overflow-y-auto divide-y divide-zinc-100 border border-zinc-200 rounded-lg bg-zinc-50 p-1 space-y-1">
+                  <div className="max-h-40 overflow-y-auto divide-y divide-zinc-200 border border-zinc-200 rounded bg-zinc-50">
                     {reassignState.products.map((p) => {
                       const thumb = p.images?.[0]?.url;
                       return (
                         <div
                           key={p._id}
-                          className="flex items-center gap-3 p-2 bg-white rounded-md border border-zinc-100 shadow-2xs"
+                          className="flex items-center gap-3 p-2 bg-white"
                         >
-                          <div className="w-10 h-10 rounded-md bg-zinc-100 border border-zinc-200 flex items-center justify-center overflow-hidden shrink-0">
+                          <div className="w-10 h-10 rounded bg-zinc-100 border border-zinc-200 flex items-center justify-center overflow-hidden shrink-0">
                             {thumb ? (
                               <img
                                 src={thumb}
@@ -940,6 +988,7 @@ export const AdminBrands = () => {
                                 fill="none"
                                 stroke="currentColor"
                                 strokeWidth="2"
+                                aria-hidden="true"
                               >
                                 <rect x="3" y="3" width="18" height="18" rx="2" />
                                 <circle cx="8.5" cy="8.5" r="1.5" />
@@ -948,15 +997,12 @@ export const AdminBrands = () => {
                             )}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="font-semibold text-zinc-900 text-xs truncate">
-                              {p.name}
-                            </p>
-                            <div className="flex items-center gap-2 text-[10px] text-zinc-500">
-                              <span className="font-mono text-emerald-700 font-bold">
+                            <p className="font-semibold text-zinc-900 text-xs truncate">{p.name}</p>
+                            <div className="flex items-center gap-3 text-[11px] text-zinc-500">
+                              <span className="font-mono text-zinc-700 font-bold">
                                 ₱{Number(p.price || 0).toLocaleString()}
                               </span>
-                              <span>•</span>
-                              <span>Stock: {p.stock}</span>
+                              <span>Stock {p.stock}</span>
                             </div>
                           </div>
                         </div>
@@ -966,12 +1012,13 @@ export const AdminBrands = () => {
                 </div>
               )}
 
-              <div className="space-y-1.5">
-                <label className="font-semibold text-zinc-900 block">
-                  Reassign all {reassignState.productCount} product(s) to:{" "}
-                  <span className="text-red-500">*</span>
+              <div className="space-y-1">
+                <label htmlFor="brand-reassign-target" className="font-semibold text-zinc-900 block">
+                  Move all {reassignState.productCount}{" "}
+                  {reassignState.productCount === 1 ? "product" : "products"} to *
                 </label>
                 <select
+                  id="brand-reassign-target"
                   required
                   value={reassignState.targetBrandId}
                   onChange={(e) =>
@@ -980,9 +1027,9 @@ export const AdminBrands = () => {
                       targetBrandId: e.target.value,
                     })
                   }
-                  className="w-full h-9 px-3 border border-zinc-300 rounded-lg focus:border-emerald-600 focus:outline-none transition-colors font-medium text-zinc-800 bg-white"
+                  className="w-full h-9 px-3 border border-zinc-300 rounded transition-colors font-medium text-zinc-800 bg-white focus:border-emerald-700 focus:outline-2 focus:outline-offset-1 focus:outline-emerald-700"
                 >
-                  <option value="">-- Choose destination brand --</option>
+                  <option value="">Choose a brand</option>
                   {brands
                     .filter(
                       (b) =>
@@ -997,7 +1044,7 @@ export const AdminBrands = () => {
                 </select>
               </div>
 
-              <div className="pt-3 border-t border-zinc-200 flex items-center justify-end gap-2">
+              <div className="pt-4 border-t border-zinc-200 flex items-center justify-end gap-2">
                 <button
                   type="button"
                   onClick={() =>
@@ -1008,22 +1055,22 @@ export const AdminBrands = () => {
                       productCount: 0,
                     })
                   }
-                  className="h-8 px-3 rounded-lg border border-zinc-200 text-zinc-700 hover:bg-zinc-50 font-medium transition-colors"
+                  className="h-8 px-3 rounded border border-zinc-200 text-zinc-700 hover:bg-zinc-50 font-medium transition-colors cursor-pointer"
                 >
-                  Cancel Deletion
+                  Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={actionLoading || !reassignState.targetBrandId}
-                  className="h-8 px-4 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-semibold shadow-xs disabled:opacity-50 transition-colors inline-flex items-center gap-1.5"
+                  className="h-8 px-4 rounded bg-amber-600 hover:bg-amber-700 text-white font-semibold disabled:opacity-50 transition-colors inline-flex items-center gap-2 cursor-pointer"
                 >
                   {actionLoading ? (
                     <>
                       <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      <span>Reassigning &amp; Deleting...</span>
+                      <span>Moving...</span>
                     </>
                   ) : (
-                    "Reassign & Soft-Delete"
+                    "Move and archive"
                   )}
                 </button>
               </div>

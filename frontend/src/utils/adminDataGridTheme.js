@@ -23,6 +23,11 @@ export const adminDataGridSx = {
     paddingLeft: "16px",
     paddingRight: "16px",
   },
+  "& .MuiDataGrid-columnHeaderTitle": {
+    whiteSpace: "normal",
+    overflowWrap: "anywhere",
+    lineHeight: 1.2,
+  },
   "& .MuiDataGrid-columnHeader:focus, & .MuiDataGrid-columnHeader:focus-within, & .MuiDataGrid-cell:focus, & .MuiDataGrid-cell:focus-within": {
     outline: "none !important",
   },
@@ -44,6 +49,15 @@ export const adminDataGridSx = {
     alignItems: "center",
     paddingLeft: "16px",
     paddingRight: "16px",
+  },
+  "& .MuiDataGrid-cellContent": {
+    minWidth: 0,
+    maxWidth: "100%",
+    whiteSpace: "normal",
+    overflowWrap: "anywhere",
+    wordBreak: "break-word",
+    lineHeight: 1.3,
+    textOverflow: "clip",
   },
   "& .MuiCheckbox-root": {
     color: "#d4d4d8",
