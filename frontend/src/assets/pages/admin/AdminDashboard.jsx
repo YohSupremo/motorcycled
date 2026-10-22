@@ -55,6 +55,12 @@ export const AdminDashboard = ({ onSelectOrder }) => {
       pendingScreeningCount: 0,
       lowStockCount: 0,
     },
+    cashFlow: {
+      cashIn: 0,
+      cashOut: 0,
+      netCashFlow: 0,
+      initialCapital: 0,
+    },
     rangeSummary: {
       startDate: "",
       endDate: "",
@@ -127,8 +133,16 @@ export const AdminDashboard = ({ onSelectOrder }) => {
     fetchStats(preset, startDate, endDate, isManualRefresh);
   };
 
-  const { metrics, rangeSummary, salesTimeline, categorySales, pendingApprovals, recentOrders, lowStockProducts } =
-    dashboardData;
+  const {
+    metrics,
+    cashFlow = { cashIn: 0, cashOut: 0, netCashFlow: 0, initialCapital: 0 },
+    rangeSummary,
+    salesTimeline,
+    categorySales,
+    pendingApprovals,
+    recentOrders,
+    lowStockProducts,
+  } = dashboardData;
 
   const metricDataKey =
     metricMode === "sales" ? "sales" : metricMode === "orders" ? "orders" : "units";
@@ -405,18 +419,74 @@ export const AdminDashboard = ({ onSelectOrder }) => {
         </div>
       )}
 
-      {/* Key figures */}
-      <div className="border-y border-zinc-200 bg-white grid grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-zinc-200 py-3">
-        <div className="px-4 py-2 space-y-1">
-          <span className="block font-mono uppercase text-[10px] tracking-wider text-zinc-500">
-            Monthly collections
-          </span>
-          <p className="text-2xl font-bold tracking-tight text-zinc-900 font-mono">
-            {loading ? "Loading..." : fmtCurrency(metrics.monthlyRevenue)}
-          </p>
-          <p className="text-[11px] text-zinc-500">Cash sales and settled installments</p>
+      {/* Cash flow */}
+      <section className="space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2 pb-2 border-b border-zinc-900">
+          <div>
+            <span className="text-[11px] font-medium text-emerald-700 block">
+              This month
+            </span>
+            <h2 className="text-base sm:text-lg font-bold text-zinc-900 tracking-tight text-balance">
+              Cash flow
+            </h2>
+          </div>
+          <Link
+            to="/admin/settings"
+            className="text-xs text-emerald-700 hover:text-emerald-800 font-semibold cursor-pointer"
+          >
+            Set initial capital
+          </Link>
         </div>
 
+        <div className="border-y border-zinc-200 bg-white grid grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-zinc-200 py-3">
+          <div className="px-4 py-2 space-y-1">
+            <span className="block font-mono uppercase text-[10px] tracking-wider text-zinc-500">
+              Total cash in
+            </span>
+            <p className="text-2xl font-bold tracking-tight text-emerald-700 font-mono">
+              {loading ? "Loading..." : fmtCurrency(cashFlow.cashIn)}
+            </p>
+            <p className="text-[11px] text-zinc-500">Money actually received this month</p>
+          </div>
+
+          <div className="px-4 py-2 space-y-1">
+            <span className="block font-mono uppercase text-[10px] tracking-wider text-zinc-500">
+              Total cash out
+            </span>
+            <p className="text-2xl font-bold tracking-tight text-rose-700 font-mono">
+              {loading ? "Loading..." : fmtCurrency(cashFlow.cashOut)}
+            </p>
+            <p className="text-[11px] text-zinc-500">Supplier restocks this month</p>
+          </div>
+
+          <div className="px-4 py-2 space-y-1">
+            <span className="block font-mono uppercase text-[10px] tracking-wider text-zinc-500">
+              Net cash flow
+            </span>
+            <p
+              className={`text-2xl font-bold tracking-tight font-mono ${
+                cashFlow.netCashFlow < 0 ? "text-rose-700" : "text-zinc-900"
+              }`}
+            >
+              {loading ? "Loading..." : fmtCurrency(cashFlow.netCashFlow)}
+            </p>
+            <p className="text-[11px] text-zinc-500">Cash in minus cash out</p>
+          </div>
+
+          <div className="px-4 py-2 space-y-1">
+            <span className="block font-mono uppercase text-[10px] tracking-wider text-zinc-500">
+              Initial capital
+            </span>
+            <p className="text-2xl font-bold tracking-tight text-zinc-900 font-mono">
+              {loading ? "Loading..." : fmtCurrency(cashFlow.initialCapital)}
+            </p>
+            <p className="text-[11px] text-zinc-500">Owner's original investment</p>
+          </div>
+        </div>
+      </section>
+
+      {/* Key figures */}
+      <div className="border-y border-zinc-200 bg-white grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-zinc-200 py-3">
         <div className="px-4 py-2 space-y-1">
           <span className="block font-mono uppercase text-[10px] tracking-wider text-zinc-500">
             All-time revenue

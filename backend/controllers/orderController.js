@@ -4,16 +4,28 @@ import Order from "../model/Order.js";
 import InstallmentApplication from "../model/InstallmentApplication.js";
 import Category from "../model/Category.js";
 import User from "../model/User.js";
+import InventoryTransaction from "../model/InventoryTransaction.js";
+import StoreSettings from "../model/StoreSettings.js";
 import { cloudConf } from "../config/cloudinary.js";
 import { notifyOrderPlaced, notifyInstallmentUpdate, sendNotification } from "../services/notificationService.js";
 import { generateOrderInvoicePDF } from "../services/pdfService.js";
 import { sendOrderStatusEmail } from "../services/emailService.js";
+import { runInTransaction } from "../utils/transaction.js";
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
 const PROCESSING_FEE = 1500;
 const SHIPPING_DELIVERY = 350;
 const INTEREST_RATES = { 12: 0.07, 24: 0.08, 36: 0.09 };
+
+class HttpError extends Error {
+  constructor(message, statusCode = 400, details = null) {
+    super(message);
+    this.name = "HttpError";
+    this.statusCode = statusCode;
+    this.details = details;
+  }
+}
 
 /**
  * Compute all installment financing figures from a product price + term.
@@ -52,7 +64,7 @@ export const isCashOnDeliveryMethod = (method) => {
  * POST /api/v1/checkout
  * Processes a checkout session: creates Orders for cash purchases and
  * InstallmentApplications for installment purchases. Idempotent on
- * checkoutSessionId.
+ * checkoutSessionId and atomic across stock, order, and application writes.
  */
 export const newCheckout = async (req, res) => {
   try {
@@ -190,6 +202,16 @@ export const newCheckout = async (req, res) => {
       }
     }
 
+    const itemErrors = results.filter((result) => result.status === "error");
+    if (itemErrors.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Some items could not be checked out. Remove unavailable items and try again.",
+        errors: itemErrors,
+      });
+    }
+
     // ── 3.5. Separate logistics for Parts vs Motorcycles ─────────────────────
     // Motorcycles are ALWAYS released at the authorized showroom bay (pickup + PDI)
     const motorcycleShippingInfo = {
@@ -213,42 +235,41 @@ export const newCheckout = async (req, res) => {
     const shippingPrice =
       partsFulfillmentMethod === "delivery" ? SHIPPING_DELIVERY : 0;
 
-    // ── 4. Create parts Order (grouped) ──────────────────────────────────────
-    if (partsItems.length > 0) {
-      // Deduct stock atomically for each part
-      const stockErrors = [];
-      const confirmedParts = [];
+    const { createdOrders, transactionResults } = await runInTransaction(async (session) => {
+      const orders = [];
+      const transactionResults = [];
 
-      for (const pi of partsItems) {
-        const updated = await Product.findOneAndUpdate(
-          { _id: pi.product._id, stock: { $gte: pi.quantity } },
-          { $inc: { stock: -pi.quantity } },
-          { new: true },
-        );
-        if (!updated) {
-          stockErrors.push({ productId: pi.product._id.toString(), error: "Insufficient stock (race condition)" });
-        } else {
-          confirmedParts.push(pi);
+      // ── 4. Create parts Order (grouped) ────────────────────────────────────
+      if (partsItems.length > 0) {
+        const orderItems = [];
+
+        for (const pi of partsItems) {
+          const updated = await Product.findOneAndUpdate(
+            { _id: pi.product._id, stock: { $gte: pi.quantity } },
+            { $inc: { stock: -pi.quantity } },
+            { new: true, session },
+          );
+
+          if (!updated) {
+            throw new HttpError(
+              `"${pi.product.name}" no longer has enough stock.`,
+              409,
+              { productId: pi.product._id.toString(), productName: pi.product.name },
+            );
+          }
+
+          orderItems.push({
+            product: pi.product._id,
+            name: pi.product.name,
+            quantity: pi.quantity,
+            price: pi.product.price,
+            image: pi.product.images?.[0]?.url || "",
+            itemType: pi.itemType,
+          });
         }
-      }
 
-      // Push errors for parts that failed stock deduction
-      for (const se of stockErrors) {
-        results.push({ productId: se.productId, status: "error", error: se.error });
-      }
-
-      if (confirmedParts.length > 0) {
-        const orderItems = confirmedParts.map((pi) => ({
-          product: pi.product._id,
-          name: pi.product.name,
-          quantity: pi.quantity,
-          price: pi.product.price,
-          image: pi.product.images?.[0]?.url || "",
-          itemType: pi.itemType,
-        }));
-
-        const itemsPrice = confirmedParts.reduce(
-          (sum, pi) => sum + pi.product.price * pi.quantity,
+        const itemsPrice = orderItems.reduce(
+          (sum, item) => sum + item.price * item.quantity,
           0,
         );
         const totalPrice = itemsPrice + shippingPrice;
@@ -267,115 +288,129 @@ export const newCheckout = async (req, res) => {
           shippingPrice,
           totalPrice,
         });
-        await partsOrder.save();
-        notifyOrderPlaced(partsOrder, req.user);
+        await partsOrder.save({ session });
+        orders.push(partsOrder);
 
-        for (const pi of confirmedParts) {
-          results.push({
-            productId: pi.product._id.toString(),
-            productName: pi.product.name,
+        for (const item of orderItems) {
+          transactionResults.push({
+            productId: item.product.toString(),
+            productName: item.name,
             status: "success",
             type: "order",
             reference: partsOrder.orderNumber,
           });
         }
       }
-    }
 
-    // ── 5. Create individual Orders for cash motorcycle purchases ─────────────
-    for (const mi of motorcycleCashItems) {
-      const updated = await Product.findOneAndUpdate(
-        { _id: mi.product._id, stock: { $gte: mi.quantity } },
-        { $inc: { stock: -mi.quantity } },
-        { new: true },
-      );
+      // ── 5. Create individual Orders for cash motorcycle purchases ───────────
+      for (const mi of motorcycleCashItems) {
+        const updated = await Product.findOneAndUpdate(
+          { _id: mi.product._id, stock: { $gte: mi.quantity } },
+          { $inc: { stock: -mi.quantity } },
+          { new: true, session },
+        );
 
-      if (!updated) {
-        results.push({
+        if (!updated) {
+          throw new HttpError(
+            `"${mi.product.name}" no longer has enough stock.`,
+            409,
+            { productId: mi.product._id.toString(), productName: mi.product.name },
+          );
+        }
+
+        const itemsPrice = mi.product.price * mi.quantity;
+        // Motorcycles are always picked up from dealership for delivery coordination;
+        // use shippingPrice = 0 for motorcycles (dealership standard).
+        const isCod = isCashOnDeliveryMethod(paymentMethod);
+        const motoOrder = new Order({
+          checkoutSessionId,
+          user: req.user._id,
+          orderItems: [
+            {
+              product: mi.product._id,
+              name: mi.product.name,
+              quantity: mi.quantity,
+              price: mi.product.price,
+              image: mi.product.images?.[0]?.url || "",
+              itemType: mi.itemType,
+            },
+          ],
+          shippingInfo: motorcycleShippingInfo,
+          paymentMethod,
+          paymentDetails: paymentDetails || {},
+          paymentStatus: isCod ? "pending" : "paid",
+          paidAt: isCod ? undefined : new Date(),
+          itemsPrice,
+          shippingPrice: 0,
+          totalPrice: itemsPrice,
+        });
+        await motoOrder.save({ session });
+        orders.push(motoOrder);
+
+        transactionResults.push({
           productId: mi.product._id.toString(),
           productName: mi.product.name,
-          status: "error",
-          error: "Insufficient stock (race condition)",
+          status: "success",
+          type: "order",
+          reference: motoOrder.orderNumber,
         });
-        continue;
       }
 
-      const itemsPrice = mi.product.price * mi.quantity;
-      // Motorcycles are always picked up from dealership for delivery coordination;
-      // use shippingPrice = 0 for motorcycles (dealership standard).
-      const isCod = isCashOnDeliveryMethod(paymentMethod);
-      const motoOrder = new Order({
-        checkoutSessionId,
-        user: req.user._id,
-        orderItems: [
-          {
-            product: mi.product._id,
-            name: mi.product.name,
-            quantity: mi.quantity,
-            price: mi.product.price,
-            image: mi.product.images?.[0]?.url || "",
-            itemType: mi.itemType,
+      // ── 6. Create InstallmentApplications (no stock deduction) ─────────────
+      for (const ii of motorcycleInstallmentItems) {
+        const financing = computeFinancing(ii.product.price, ii.termMonths);
+
+        const documentUploads = req.body.documentUploads || {};
+        const verificationMethod = documentUploads.verificationMethod || "showroom_physical";
+
+        const app = new InstallmentApplication({
+          checkoutSessionId,
+          user: req.user._id,
+          product: ii.product._id,
+          productName: ii.product.name,
+          productPrice: ii.product.price,
+          productImage: ii.product.images?.[0]?.url || "",
+          termMonths: ii.termMonths,
+          downPayment: financing.downPayment,
+          financedAmount: financing.financedAmount,
+          interestRate: financing.interestRate,
+          monthlyPayment: financing.monthlyPayment,
+          processingFee: PROCESSING_FEE,
+          totalRepayment: financing.totalRepayment,
+          shippingInfo: motorcycleShippingInfo,
+          documentUploads: {
+            verificationMethod,
+            idCard: documentUploads.idCard || null,
+            proofOfIncome: documentUploads.proofOfIncome || null,
+            documentVerified: false,
           },
-        ],
-        shippingInfo: motorcycleShippingInfo,
-        paymentMethod,
-        paymentDetails: paymentDetails || {},
-        paymentStatus: isCod ? "pending" : "paid",
-        paidAt: isCod ? undefined : new Date(),
-        itemsPrice,
-        shippingPrice: 0,
-        totalPrice: itemsPrice,
-      });
-      await motoOrder.save();
-      notifyOrderPlaced(motoOrder, req.user);
+        });
+        await app.save({ session });
 
-      results.push({
-        productId: mi.product._id.toString(),
-        productName: mi.product.name,
-        status: "success",
-        type: "order",
-        reference: motoOrder.orderNumber,
-      });
-    }
+        transactionResults.push({
+          productId: ii.product._id.toString(),
+          productName: ii.product.name,
+          status: "success",
+          type: "application",
+          reference: app.applicationRef,
+        });
+      }
 
-    // ── 6. Create InstallmentApplications (no stock deduction) ───────────────
-    for (const ii of motorcycleInstallmentItems) {
-      const financing = computeFinancing(ii.product.price, ii.termMonths);
+      return { createdOrders: orders, transactionResults };
+    });
 
-      const documentUploads = req.body.documentUploads || {};
-      const verificationMethod = documentUploads.verificationMethod || "showroom_physical";
+    results.push(...transactionResults);
 
-      const app = new InstallmentApplication({
-        checkoutSessionId,
-        user: req.user._id,
-        product: ii.product._id,
-        productName: ii.product.name,
-        productPrice: ii.product.price,
-        productImage: ii.product.images?.[0]?.url || "",
-        termMonths: ii.termMonths,
-        downPayment: financing.downPayment,
-        financedAmount: financing.financedAmount,
-        interestRate: financing.interestRate,
-        monthlyPayment: financing.monthlyPayment,
-        processingFee: PROCESSING_FEE,
-        totalRepayment: financing.totalRepayment,
-        shippingInfo: motorcycleShippingInfo,
-        documentUploads: {
-          verificationMethod,
-          idCard: documentUploads.idCard || null,
-          proofOfIncome: documentUploads.proofOfIncome || null,
-          documentVerified: false,
-        },
-      });
-      await app.save();
-
-      results.push({
-        productId: ii.product._id.toString(),
-        productName: ii.product.name,
-        status: "success",
-        type: "application",
-        reference: app.applicationRef,
-      });
+    // Notifications run only after the transaction has committed.
+    for (const order of createdOrders) {
+      try {
+        await notifyOrderPlaced(order, req.user);
+      } catch (notificationError) {
+        console.error(
+          `[newCheckout] Order notification failed for ${order.orderNumber}:`,
+          notificationError.message,
+        );
+      }
     }
 
     // ── 7. Build summary ──────────────────────────────────────────────────────
@@ -393,6 +428,14 @@ export const newCheckout = async (req, res) => {
       },
     });
   } catch (error) {
+    if (error instanceof HttpError) {
+      return res.status(error.statusCode).json({
+        success: false,
+        message: error.message,
+        ...(error.details ? { errors: [error.details] } : {}),
+      });
+    }
+
     console.error("newCheckout error:", error);
     return res.status(500).json({ success: false, message: "Server error during checkout" });
   }
@@ -886,70 +929,66 @@ export const rejectApplication = async (req, res) => {
  */
 export const confirmInstallmentOrder = async (req, res) => {
   try {
-    const application = await InstallmentApplication.findById(req.params.id);
-    if (!application) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Installment application not found" });
-    }
+    const { application, order } = await runInTransaction(async (session) => {
+      const application = await InstallmentApplication.findById(req.params.id).session(session);
 
-    if (application.applicationStatus !== "approved") {
-      return res.status(400).json({
-        success: false,
-        message: `Application must be 'approved' before confirming an order (current: '${application.applicationStatus}')`,
+      if (!application) {
+        throw new HttpError("Installment application not found", 404);
+      }
+
+      if (application.applicationStatus !== "approved") {
+        throw new HttpError(
+          `Application must be 'approved' before confirming an order (current: '${application.applicationStatus}')`,
+          400,
+        );
+      }
+
+      if (application.linkedOrderId) {
+        throw new HttpError("An order has already been created for this application", 400);
+      }
+
+      const updatedProduct = await Product.findOneAndUpdate(
+        { _id: application.product, stock: { $gt: 0 } },
+        { $inc: { stock: -1 } },
+        { new: true, session },
+      );
+
+      if (!updatedProduct) {
+        throw new HttpError("Product is out of stock and cannot be ordered", 400);
+      }
+
+      // Use confirmed terms if available, otherwise fall back to application terms
+      const terms = application.confirmedTerms || application;
+
+      const itemsPrice = application.productPrice;
+      const order = new Order({
+        checkoutSessionId: application.checkoutSessionId,
+        user: application.user,
+        orderItems: [
+          {
+            product: application.product,
+            name: application.productName,
+            quantity: 1,
+            price: application.productPrice,
+            image: application.productImage || "",
+            itemType: "motorcycle",
+          },
+        ],
+        shippingInfo: application.shippingInfo,
+        paymentMethod: "bank_deposit",
+        paymentStatus: "processing",
+        itemsPrice,
+        shippingPrice: 0,
+        totalPrice: terms.totalRepayment || itemsPrice,
+        orderStatus: "pending",
       });
-    }
+      await order.save({ session });
 
-    if (application.linkedOrderId) {
-      return res.status(400).json({
-        success: false,
-        message: "An order has already been created for this application",
-      });
-    }
+      application.linkedOrderId = order._id;
+      await application.save({ session });
 
-    // Atomically verify and deduct stock
-    const updatedProduct = await Product.findOneAndUpdate(
-      { _id: application.product, stock: { $gt: 0 } },
-      { $inc: { stock: -1 } },
-      { new: true },
-    );
-
-    if (!updatedProduct) {
-      return res.status(400).json({
-        success: false,
-        message: "Product is out of stock and cannot be ordered",
-      });
-    }
-
-    // Use confirmed terms if available, otherwise fall back to application terms
-    const terms = application.confirmedTerms || application;
-
-    const itemsPrice = application.productPrice;
-    const order = new Order({
-      checkoutSessionId: application.checkoutSessionId,
-      user: application.user,
-      orderItems: [
-        {
-          product: application.product,
-          name: application.productName,
-          quantity: 1,
-          price: application.productPrice,
-          image: application.productImage || "",
-          itemType: "motorcycle",
-        },
-      ],
-      shippingInfo: application.shippingInfo,
-      paymentMethod: "bank_deposit",
-      paymentStatus: "processing",
-      itemsPrice,
-      shippingPrice: 0,
-      totalPrice: terms.totalRepayment || itemsPrice,
-      orderStatus: "pending",
+      return { application, order };
     });
-    await order.save();
-
-    application.linkedOrderId = order._id;
-    await application.save();
 
     return res.status(201).json({
       success: true,
@@ -957,6 +996,13 @@ export const confirmInstallmentOrder = async (req, res) => {
       data: { application, order },
     });
   } catch (error) {
+    if (error instanceof HttpError) {
+      return res.status(error.statusCode).json({
+        success: false,
+        message: error.message,
+      });
+    }
+
     console.error("confirmInstallmentOrder error:", error);
     return res
       .status(500)
@@ -1220,10 +1266,14 @@ export const getDashboardStats = async (req, res) => {
       }
     }
 
+    const currentMonthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+
     const [
       allOrders,
       allApps,
       lowStockProducts,
+      monthlyRestocks,
+      storeSettings,
     ] = await Promise.all([
       Order.find()
         .populate("user", "firstName lastName email contactNumber")
@@ -1236,6 +1286,13 @@ export const getDashboardStats = async (req, res) => {
       Product.find({ stock: { $lte: 5 }, isArchived: false })
         .select("name price stock category brand images")
         .sort({ stock: 1 }),
+      InventoryTransaction.find({
+        type: "restock",
+        createdAt: { $gte: currentMonthStart },
+      })
+        .select("unitCost quantityChange")
+        .lean(),
+      StoreSettings.findOne({ key: "primary" }).lean(),
     ]);
 
     const pendingApps = allApps.filter((a) => a.applicationStatus === "pending");
@@ -1259,11 +1316,18 @@ export const getDashboardStats = async (req, res) => {
     const totalRevenue = totalOrderSales + downpaymentCollections + amortizationCollections;
 
     // Monthly Collections (current month)
-    const currentMonthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
     const monthlyOrders = completedOrders.filter(
       (o) => new Date(o.createdAt) >= currentMonthStart
     );
     const monthlyRevenue = monthlyOrders.reduce((sum, o) => sum + (o.totalPrice || 0), 0);
+
+    const cashOut = monthlyRestocks.reduce(
+      (sum, transaction) =>
+        sum + (transaction.unitCost || 0) * Math.abs(transaction.quantityChange || 0),
+      0,
+    );
+    const initialCapital = storeSettings?.initialCapital || 0;
+    const netCashFlow = monthlyRevenue - cashOut;
 
     // Filtered range sales
     const rangeOrders = allOrders.filter((o) => {
@@ -1374,6 +1438,12 @@ export const getDashboardStats = async (req, res) => {
           ),
           pendingScreeningCount: pendingApps.length,
           lowStockCount: lowStockProducts.length,
+        },
+        cashFlow: {
+          cashIn: monthlyRevenue,
+          cashOut,
+          netCashFlow,
+          initialCapital,
         },
         rangeSummary: {
           startDate: start.toISOString().split("T")[0],

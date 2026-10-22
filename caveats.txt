@@ -1,0 +1,27 @@
+CAVEATS
+=======
+
+Module: Admin Dashboard - Total Revenue
+Backend: getDashboardStats
+File: backend/controllers/orderController.js
+Lines: 1301-1316
+
+Total Revenue is calculated as:
+
+  order sales + installment downpayments + recorded installment payments
+
+- Orders marked "completed" or "paid" add their full totalPrice.
+- Approved installment applications add their downPayment.
+- Every entry in an application's paymentHistory is added again.
+
+Caveat:
+When an installment-linked order is later marked "completed", its
+totalPrice (totalRepayment) can also be counted. This means the same
+financing deal can be double-counted through both the linked order and
+the application's downpayment/paymentHistory.
+
+Refunds are also not subtracted from Total Revenue.
+
+Impact:
+Admin Dashboard Total Revenue and the All-time revenue card may overstate
+actual money collected for installment sales.

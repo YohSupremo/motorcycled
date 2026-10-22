@@ -1,13 +1,18 @@
-import { useState, useMemo } from "react";
-import { useForm } from "react-hook-form";
+import { useEffect, useMemo, useRef, useState } from "react";
+import axios from "axios";
+import { Controller, useForm } from "react-hook-form";
+import { useDispatch, useSelector } from "react-redux";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
 import { DataGrid } from "@mui/x-data-grid";
 import { adminDataGridSx } from "../../../utils/adminDataGridTheme";
+import { getAdminProducts } from "../../../actions/productActions";
+
+const API = import.meta.env.VITE_API;
 
 const restockSchema = yup.object({
   supplierId: yup.string().required("Supplier is required"),
-  product: yup.string().trim().required("Product name is required"),
+  product: yup.string().trim().required("Select a product"),
   quantity: yup
     .number()
     .typeError("Quantity must be a valid number")
@@ -34,9 +39,14 @@ const OPERATION_LABELS = {
   adjustment: "Adjustment",
 };
 
-const nextTransactionId = () => `TXN-${Math.floor(8900 + Math.random() * 900)}`;
-
 const nextPurchaseOrderRef = () => `PO-SUP-2026-${Math.floor(100 + Math.random() * 900)}`;
+
+const fetchInventoryTransactions = async () => {
+  const { data } = await axios.get(`${API}/admin/inventory/transactions`, {
+    withCredentials: true,
+  });
+  return data.transactions || [];
+};
 
 const OPERATION_STYLES = {
   restock: "bg-emerald-50 text-emerald-800 border-emerald-200",
@@ -47,73 +57,225 @@ const OPERATION_STYLES = {
   adjustment: "bg-zinc-100 text-zinc-700 border-zinc-200",
 };
 
+const stockBadgeClass = (stock) => {
+  if (stock <= 0) return "bg-rose-50 text-rose-700 border-rose-200";
+  if (stock <= 5) return "bg-amber-50 text-amber-800 border-amber-200";
+  return "bg-zinc-100 text-zinc-600 border-zinc-200";
+};
+
+const ProductSelect = ({ id, value, options, loading, invalid, onChange, onBlur }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [search, setSearch] = useState(value ?? "");
+  const [activeIndex, setActiveIndex] = useState(0);
+  const wrapperRef = useRef(null);
+  const inputRef = useRef(null);
+
+  useEffect(() => {
+    const handleOutsideClick = (event) => {
+      if (!wrapperRef.current?.contains(event.target)) setIsOpen(false);
+    };
+
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, []);
+
+  const query = search.trim().toLowerCase();
+  const filteredOptions = query
+    ? options.filter((product) => product.name?.toLowerCase().includes(query))
+    : options;
+  const selectedProduct = options.find((product) => product.name === value);
+
+  const openOptions = () => {
+    setIsOpen(true);
+    setSearch("");
+    setActiveIndex(0);
+  };
+
+  const selectProduct = (product) => {
+    onChange(product.name);
+    setSearch(product.name);
+    setIsOpen(false);
+    setActiveIndex(0);
+  };
+
+  const closeOptions = () => {
+    setIsOpen(false);
+    setSearch(value ?? "");
+  };
+
+  const handleKeyDown = (event) => {
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      if (!isOpen) {
+        openOptions();
+      } else {
+        setActiveIndex((index) => Math.min(index + 1, filteredOptions.length - 1));
+      }
+    } else if (event.key === "ArrowUp") {
+      event.preventDefault();
+      setActiveIndex((index) => Math.max(index - 1, 0));
+    } else if (event.key === "Enter" && isOpen && filteredOptions.length > 0) {
+      event.preventDefault();
+      selectProduct(filteredOptions[activeIndex] ?? filteredOptions[0]);
+    } else if (event.key === "Escape" && isOpen) {
+      event.preventDefault();
+      closeOptions();
+    } else if (event.key === "Tab") {
+      setIsOpen(false);
+    }
+  };
+
+  return (
+    <div ref={wrapperRef} className="relative">
+      <div className="relative">
+        <input
+          ref={inputRef}
+          id={id}
+          type="text"
+          role="combobox"
+          autoComplete="off"
+          aria-expanded={isOpen}
+          aria-controls={`${id}-listbox`}
+          aria-autocomplete="list"
+          aria-activedescendant={
+            isOpen && filteredOptions[activeIndex]
+              ? `${id}-option-${filteredOptions[activeIndex]._id}`
+              : undefined
+          }
+          value={isOpen ? search : (value ?? "")}
+          placeholder="Search products"
+          onFocus={() => {
+            if (!isOpen) openOptions();
+          }}
+          onChange={(event) => {
+            setSearch(event.target.value);
+            setActiveIndex(0);
+            setIsOpen(true);
+            if (value) onChange("");
+          }}
+          onKeyDown={handleKeyDown}
+          onBlur={onBlur}
+          className={`w-full !h-8 pl-2 pr-8 border rounded transition-colors focus:outline-2 focus:outline-offset-1 ${
+            invalid
+              ? "border-rose-500 focus:border-rose-500 focus:outline-rose-500"
+              : "border-zinc-300 focus:border-emerald-700 focus:outline-emerald-700"
+          }`}
+        />
+        <button
+          type="button"
+          tabIndex={-1}
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() => {
+            if (isOpen) {
+              closeOptions();
+              inputRef.current?.blur();
+            } else {
+              inputRef.current?.focus();
+              openOptions();
+            }
+          }}
+          aria-label={isOpen ? "Close product list" : "Open product list"}
+          className="absolute right-0 top-0 flex h-8 w-8 cursor-pointer items-center justify-center text-zinc-400 transition-colors hover:text-zinc-700"
+        >
+          <svg
+            className={`h-3.5 w-3.5 transition-transform ${isOpen ? "rotate-180" : ""}`}
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <path d="m6 9 6 6 6-6" />
+          </svg>
+        </button>
+      </div>
+
+      {isOpen && (
+        <ul
+          id={`${id}-listbox`}
+          role="listbox"
+          className="absolute z-20 mt-1 max-h-52 w-full overflow-y-auto rounded border border-zinc-200 bg-white py-1"
+        >
+          {loading ? (
+            <li className="px-2.5 py-2 text-[11px] text-zinc-500">Loading products...</li>
+          ) : filteredOptions.length === 0 ? (
+            <li className="px-2.5 py-2 text-[11px] text-zinc-500">No products found.</li>
+          ) : (
+            filteredOptions.map((product, index) => {
+              const stock = Number(product.stock ?? 0);
+              return (
+                <li
+                  key={product._id}
+                  id={`${id}-option-${product._id}`}
+                  role="option"
+                  aria-selected={value === product.name}
+                  onMouseDown={(event) => {
+                    event.preventDefault();
+                    selectProduct(product);
+                  }}
+                  onMouseEnter={() => setActiveIndex(index)}
+                  className={`flex cursor-pointer items-center justify-between gap-3 px-2.5 py-1.5 ${
+                    index === activeIndex ? "bg-emerald-50" : "bg-white"
+                  }`}
+                >
+                  <span className="min-w-0 truncate text-[11px] font-medium text-zinc-900">
+                    {product.name}
+                  </span>
+                  <span
+                    className={`shrink-0 rounded border px-1.5 py-0.5 font-mono text-[10px] font-semibold ${stockBadgeClass(stock)}`}
+                  >
+                    {stock <= 0 ? "Out" : `${stock} left`}
+                  </span>
+                </li>
+              );
+            })
+          )}
+        </ul>
+      )}
+
+      {!isOpen && selectedProduct && (
+        <span className="mt-1 block text-[10px] text-zinc-500">
+          Current stock:{" "}
+          <span
+            className={`rounded border px-1 py-0.5 font-mono font-semibold ${stockBadgeClass(Number(selectedProduct.stock ?? 0))}`}
+          >
+            {Number(selectedProduct.stock ?? 0)}
+          </span>
+        </span>
+      )}
+    </div>
+  );
+};
+
 export const AdminInventory = () => {
+  const dispatch = useDispatch();
+  const { products = [], loading: productsLoading } = useSelector((state) => state.products);
   const [activeTab, setActiveTab] = useState("ledger"); // 'ledger' | 'suppliers'
   const [selectedTypeFilter, setSelectedTypeFilter] = useState("All");
   const [isRestockModalOpen, setIsRestockModalOpen] = useState(false);
 
-  const [ledger, setLedger] = useState([
-    {
-      id: "TXN-8821",
-      date: "2026-10-02 10:14",
-      product: "Motul 7100 4T 10W-40 Synthetic Oil (1L)",
-      type: "sale",
-      quantityChange: -2,
-      orderRef: "ORD-2026-0893",
-      performedBy: "Online Order",
-      note: "Checkout fulfilled via courier dispatch",
-    },
-    {
-      id: "TXN-8820",
-      date: "2026-10-01 14:35",
-      product: "Yamaha NMAX 155 ABS (Matte Dark Bluish Gray)",
-      type: "reserve",
-      quantityChange: -1,
-      orderRef: "ORD-2026-0891",
-      performedBy: "System Automated Reserve",
-      note: "Reserved upon installment credit approval",
-    },
-    {
-      id: "TXN-8819",
-      date: "2026-10-01 11:20",
-      product: "Brembo 4-Piston Caliper + Sintered Pads",
-      type: "restock",
-      quantityChange: +15,
-      orderRef: "PO-SUP-2026-042",
-      performedBy: "Kelly Laurence (Admin)",
-      note: "Received shipment from Apex Moto Distributors",
-    },
-    {
-      id: "TXN-8818",
-      date: "2026-09-30 16:40",
-      product: "Honda Click 125i (Pearl Arctic White)",
-      type: "release",
-      quantityChange: -1,
-      orderRef: "ORD-2026-0880",
-      performedBy: "Showroom Technician",
-      note: "Customer vehicle turnover and key release",
-    },
-    {
-      id: "TXN-8817",
-      date: "2026-09-29 13:10",
-      product: "Yamaha Genuine VVA Camshaft Assembly",
-      type: "adjustment",
-      quantityChange: +2,
-      orderRef: "ADJ-INV-0012",
-      performedBy: "Kelly Laurence (Admin)",
-      note: "Warehouse physical cycle count reconciliation",
-    },
-    {
-      id: "TXN-8816",
-      date: "2026-09-28 09:30",
-      product: "Kawasaki Ninja 400 SE",
-      type: "cancellation",
-      quantityChange: +1,
-      orderRef: "ORD-2026-0870",
-      performedBy: "System Automated Return",
-      note: "Unit returned to active inventory after order cancellation",
-    },
-  ]);
+  useEffect(() => {
+    dispatch(getAdminProducts());
+  }, [dispatch]);
+
+  const productOptions = useMemo(
+    () =>
+      [...products]
+        .filter((product) => !product.isArchived)
+        .sort(
+          (a, b) =>
+            Number(a.stock ?? 0) - Number(b.stock ?? 0) ||
+            (a.name ?? "").localeCompare(b.name ?? ""),
+        ),
+    [products],
+  );
+
+  const [ledger, setLedger] = useState([]);
+  const [ledgerLoading, setLedgerLoading] = useState(true);
+  const [ledgerError, setLedgerError] = useState("");
+  const [submitError, setSubmitError] = useState("");
 
   const [suppliers] = useState([
     {
@@ -154,16 +316,41 @@ export const AdminInventory = () => {
     },
   ]);
 
+  useEffect(() => {
+    let ignore = false;
+
+    fetchInventoryTransactions()
+      .then((transactions) => {
+        if (ignore) return;
+        setLedgerError("");
+        setLedger(transactions);
+      })
+      .catch((error) => {
+        if (ignore) return;
+        setLedgerError(
+          error.response?.data?.message || "Could not load stock transactions",
+        );
+      })
+      .finally(() => {
+        if (!ignore) setLedgerLoading(false);
+      });
+
+    return () => {
+      ignore = true;
+    };
+  }, []);
+
   const {
     register,
     handleSubmit,
     reset,
+    control,
     formState: { errors, isSubmitting },
   } = useForm({
     resolver: yupResolver(restockSchema),
     defaultValues: {
       supplierId: "SUP-01",
-      product: "Motul 7100 4T 10W-40 Synthetic Oil (1L)",
+      product: "",
       quantity: 24,
       unitCost: 580,
       referenceNo: "PO-SUP-2026-045",
@@ -174,30 +361,57 @@ export const AdminInventory = () => {
   const handleOpenRestock = () => {
     reset({
       supplierId: "SUP-01",
-      product: "Motul 7100 4T 10W-40 Synthetic Oil (1L)",
+      product: "",
       quantity: 24,
       unitCost: 580,
       referenceNo: nextPurchaseOrderRef(),
       notes: "Emergency replenishment for low-stock threshold",
     });
+    setSubmitError("");
     setIsRestockModalOpen(true);
   };
 
-  const onRestockSubmit = (data) => {
-    const qty = Number(data.quantity);
-    const newTxn = {
-      id: nextTransactionId(),
-      date: new Date().toISOString().slice(0, 16).replace("T", " "),
-      product: data.product.trim(),
-      type: "restock",
-      quantityChange: qty,
-      orderRef: data.referenceNo.trim(),
-      performedBy: "Kelly Laurence (Admin)",
-      note: data.notes ? data.notes.trim() : "",
-    };
+  const onRestockSubmit = async (data) => {
+    setSubmitError("");
+    const product = productOptions.find((option) => option.name === data.product);
+    const supplier = suppliers.find((option) => option.id === data.supplierId);
 
-    setLedger((prev) => [newTxn, ...prev]);
+    if (!product?._id) {
+      setSubmitError("Select a product from the list.");
+      return;
+    }
+
+    try {
+      await axios.post(
+        `${API}/admin/inventory/restock`,
+        {
+          productId: product._id,
+          quantity: Number(data.quantity),
+          unitCost: Number(data.unitCost),
+          referenceNo: data.referenceNo.trim(),
+          supplierId: data.supplierId,
+          supplierName: supplier?.name || "",
+          notes: data.notes ? data.notes.trim() : "",
+        },
+        { withCredentials: true },
+      );
+    } catch (error) {
+      setSubmitError(
+        error.response?.data?.message || "Could not save the restock. Try again.",
+      );
+      return;
+    }
+
     setIsRestockModalOpen(false);
+    dispatch(getAdminProducts());
+
+    try {
+      const transactions = await fetchInventoryTransactions();
+      setLedger(transactions);
+      setLedgerError("");
+    } catch {
+      setLedgerError("Restock saved, but the ledger could not refresh.");
+    }
   };
 
   const transactionTypes = ["All", "restock", "sale", "reserve", "release", "cancellation", "adjustment"];
@@ -480,14 +694,15 @@ export const AdminInventory = () => {
         <div className="border border-zinc-200 rounded bg-white overflow-hidden">
           <div className="p-4 bg-zinc-50 border-b border-zinc-200 text-xs text-zinc-600 flex items-center justify-between gap-3">
             <span className="font-semibold text-zinc-800">Stock transaction history</span>
-            <span className="text-[11px] text-zinc-500">
-              Showing {filteredLedger.length} transactions
+            <span className={`text-[11px] ${ledgerError ? "text-rose-600" : "text-zinc-500"}`}>
+              {ledgerError || `Showing ${filteredLedger.length} transactions`}
             </span>
           </div>
 
           <DataGrid
             rows={filteredLedger}
             columns={ledgerColumns}
+            loading={ledgerLoading}
             getRowId={(row) => row.id}
             rowHeight={60}
             pageSizeOptions={[10, 25, 50]}
@@ -581,18 +796,26 @@ export const AdminInventory = () => {
               </div>
 
               <div className="space-y-1">
-                <label htmlFor="restock-product" className="font-semibold text-zinc-900">
-                  Product *
-                </label>
-                <input
-                  id="restock-product"
-                  type="text"
-                  {...register("product")}
-                  className={`w-full !h-8 px-2 border rounded transition-colors focus:outline-2 focus:outline-offset-1 ${
-                    errors.product
-                      ? "border-rose-500 focus:border-rose-500 focus:outline-rose-500"
-                      : "border-zinc-300 focus:border-emerald-700 focus:outline-emerald-700"
-                  }`}
+                <div className="flex items-center justify-between gap-3">
+                  <label htmlFor="restock-product" className="font-semibold text-zinc-900">
+                    Product *
+                  </label>
+                  <span className="text-[10px] text-zinc-500">Lowest stock first</span>
+                </div>
+                <Controller
+                  name="product"
+                  control={control}
+                  render={({ field }) => (
+                    <ProductSelect
+                      id="restock-product"
+                      value={field.value}
+                      options={productOptions}
+                      loading={productsLoading}
+                      invalid={Boolean(errors.product)}
+                      onChange={field.onChange}
+                      onBlur={field.onBlur}
+                    />
+                  )}
                 />
                 {errors.product && (
                   <span className="text-[11px] text-rose-600 block">{errors.product.message}</span>
@@ -677,6 +900,12 @@ export const AdminInventory = () => {
                   className="w-full !h-8 px-2 border border-zinc-300 rounded transition-colors focus:border-emerald-700 focus:outline-2 focus:outline-offset-1 focus:outline-emerald-700"
                 />
               </div>
+
+              {submitError && (
+                <p className="rounded border border-rose-200 bg-rose-50 px-2.5 py-2 text-[11px] text-rose-700">
+                  {submitError}
+                </p>
+              )}
 
               <div className="pt-4 border-t border-zinc-200 flex items-center justify-end gap-2">
                 <button

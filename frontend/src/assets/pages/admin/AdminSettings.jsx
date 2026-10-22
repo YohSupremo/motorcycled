@@ -1,9 +1,12 @@
-import { useState, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
+import axios from "axios";
 import { DataGrid } from "@mui/x-data-grid";
 import { adminDataGridSx } from "../../../utils/adminDataGridTheme";
+
+const API = import.meta.env.VITE_API;
 
 const planSchema = yup.object({
   name: yup.string().trim().required("Plan title is required"),
@@ -41,6 +44,11 @@ const settingsSchema = yup.object({
     .typeError("Threshold must be a number")
     .required("Threshold is required")
     .min(1, "Threshold must be at least 1"),
+  initialCapital: yup
+    .number()
+    .typeError("Initial capital must be a number")
+    .required("Initial capital is required")
+    .min(0, "Initial capital cannot be negative"),
   downpaymentRefundable: yup.string().required(),
   latePenaltyEnabled: yup.boolean(),
   latePenaltyType: yup.string(),
@@ -56,6 +64,8 @@ const settingsSchema = yup.object({
 
 export const AdminSettings = () => {
   const [saveFeedback, setSaveFeedback] = useState(false);
+  const [settingsError, setSettingsError] = useState("");
+  const [settingsLoading, setSettingsLoading] = useState(true);
 
   // Installment plans
   const [plans, setPlans] = useState([
@@ -112,12 +122,14 @@ export const AdminSettings = () => {
     register: registerSettings,
     handleSubmit: handleSubmitSettings,
     watch: watchSettings,
+    setValue: setSettingsValue,
     formState: { errors: settingsErrors, isSubmitting: isSettingsSubmitting },
   } = useForm({
     resolver: yupResolver(settingsSchema),
     defaultValues: {
       taxRate: 12,
       defaultLowStockThreshold: 5,
+      initialCapital: 0,
       downpaymentRefundable: "forfeited",
       latePenaltyEnabled: true,
       latePenaltyType: "fixed",
@@ -127,6 +139,40 @@ export const AdminSettings = () => {
   });
 
   const latePenaltyEnabled = watchSettings("latePenaltyEnabled");
+
+  useEffect(() => {
+    let active = true;
+
+    const loadSettings = async () => {
+      setSettingsLoading(true);
+      setSettingsError("");
+      try {
+        const { data } = await axios.get(`${API}/admin/settings`, {
+          withCredentials: true,
+        });
+        if (active) {
+          setSettingsValue(
+            "initialCapital",
+            Number(data?.settings?.initialCapital) || 0,
+          );
+        }
+      } catch (err) {
+        if (active) {
+          setSettingsError(
+            err.response?.data?.message || "Could not load saved settings.",
+          );
+        }
+      } finally {
+        if (active) setSettingsLoading(false);
+      }
+    };
+
+    loadSettings();
+
+    return () => {
+      active = false;
+    };
+  }, [setSettingsValue]);
 
   const {
     register: registerPlan,
@@ -144,9 +190,25 @@ export const AdminSettings = () => {
     },
   });
 
-  const handleSaveSettings = () => {
-    setSaveFeedback(true);
-    setTimeout(() => setSaveFeedback(false), 2500);
+  const handleSaveSettings = async (data) => {
+    setSettingsError("");
+    try {
+      const { data: result } = await axios.put(
+        `${API}/admin/settings`,
+        { initialCapital: Number(data.initialCapital) },
+        { withCredentials: true },
+      );
+      setSettingsValue(
+        "initialCapital",
+        Number(result?.settings?.initialCapital) || 0,
+      );
+      setSaveFeedback(true);
+      setTimeout(() => setSaveFeedback(false), 2500);
+    } catch (err) {
+      setSettingsError(
+        err.response?.data?.message || "Could not save store settings.",
+      );
+    }
   };
 
   const handleTogglePlanArchive = (id) => {
@@ -345,6 +407,12 @@ export const AdminSettings = () => {
         )}
       </div>
 
+      {settingsError && (
+        <div className="border border-red-200 bg-red-50 text-red-700 text-xs p-3 rounded">
+          {settingsError}
+        </div>
+      )}
+
       <form
         onSubmit={handleSubmitSettings(handleSaveSettings)}
         noValidate
@@ -436,6 +504,51 @@ export const AdminSettings = () => {
               </select>
               <span className="text-[11px] text-zinc-500 block">
                 What happens to the downpayment when an order is cancelled
+              </span>
+            </div>
+          </div>
+        </section>
+
+        {/* Cash flow baseline */}
+        <section className="space-y-4">
+          <div className="border-b border-zinc-900 pb-2">
+            <span className="text-[11px] font-medium text-emerald-700 block">
+              Owner's capital
+            </span>
+            <h2 className="text-base font-bold text-zinc-900 tracking-tight text-balance">
+              Cash flow baseline
+            </h2>
+          </div>
+
+          <div className="text-xs bg-white p-4 border border-zinc-200">
+            <div className="max-w-xs space-y-1">
+              <label
+                htmlFor="setting-initial-capital"
+                className="font-semibold text-zinc-800 block"
+              >
+                Initial capital (₱)
+              </label>
+              <input
+                id="setting-initial-capital"
+                type="number"
+                step="0.01"
+                min={0}
+                {...registerSettings("initialCapital")}
+                className={`w-full h-8 px-2.5 border rounded font-mono transition-colors focus:outline-2 focus:outline-offset-1 ${
+                  settingsErrors.initialCapital
+                    ? "border-rose-500 focus:border-rose-500 focus:outline-rose-500"
+                    : "border-zinc-300 focus:border-emerald-700 focus:outline-emerald-700"
+                }`}
+              />
+              {settingsErrors.initialCapital && (
+                <span className="text-[11px] text-rose-600 block">
+                  {settingsErrors.initialCapital.message}
+                </span>
+              )}
+              <span className="text-[11px] text-zinc-500 block">
+                {settingsLoading
+                  ? "Loading saved capital..."
+                  : "Owner's original investment, shown on the dashboard."}
               </span>
             </div>
           </div>
