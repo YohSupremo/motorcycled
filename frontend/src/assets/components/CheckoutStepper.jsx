@@ -16,6 +16,7 @@ export const CheckoutStepper = ({ activeStep = 0 }) => {
             <StepLabel
               sx={{
                 "& .MuiStepLabel-label": {
+                  fontFamily: "inherit",
                   fontSize: { xs: "0.7rem", sm: "0.78rem" },
                   fontWeight: 600,
                   color: "#6b7280",

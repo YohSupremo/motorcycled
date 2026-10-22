@@ -392,8 +392,8 @@ export const Homepage = ({ onNavigate }) => {
               Motorcycled Dealership
             </p>
 
-            {/* Heavy condensed headline */}
-            <h1 className="text-5xl sm:text-7xl lg:text-8xl font-black uppercase tracking-tight text-white leading-[0.98] mb-5 font-['Bebas_Neue',Impact,sans-serif]">
+            {/* Heavy modern condensed headline */}
+            <h1 className="text-4xl sm:text-6xl lg:text-7xl font-extrabold uppercase tracking-tight text-white leading-[1.05] mb-5 font-display">
               Built for the open road.
             </h1>
 
@@ -807,12 +807,7 @@ export const Homepage = ({ onNavigate }) => {
                   className="timeline__step relative flex gap-5 pb-8 last:pb-0"
                 >
                   <span
-                    className="timeline__node relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-zinc-950"
-                    style={{
-                      fontFamily: "'Bebas Neue', Impact, sans-serif",
-                      fontSize: "1.125rem",
-                      lineHeight: 1,
-                    }}
+                    className="timeline__node relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-zinc-950 font-display font-bold text-base leading-none shadow-xs"
                   >
                     {i + 1}
                   </span>
@@ -1215,7 +1210,7 @@ const FeaturedProductCarousel = ({
         )}
 
         {current.images?.length > 1 && (
-          <span className="text-[10px] font-mono text-zinc-400">
+          <span className="text-[10px] text-zinc-400 font-medium">
             {current.images.length} photos
           </span>
         )}

@@ -213,12 +213,12 @@ export const Profile = ({ activeTab = "all" }) => {
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 shrink-0">
             {/* Sub-tab Switcher: Profile vs Address vs Verification */}
-            <div className="flex items-center gap-1 border border-zinc-200 p-0.5 rounded bg-zinc-50 text-xs font-medium">
+            <div className="flex items-center gap-1 border border-zinc-200 p-0.5 rounded-lg bg-zinc-50 text-xs font-medium max-w-full overflow-x-auto">
               <Link
                 to="/profile"
-                className={`px-3 py-1.5 rounded transition-colors cursor-pointer ${
+                className={`px-3 py-1.5 rounded-md whitespace-nowrap shrink-0 transition-colors cursor-pointer ${
                   currentTab === "all"
                     ? "bg-white text-zinc-900 font-semibold shadow-2xs"
                     : "text-zinc-500 hover:text-zinc-900"
@@ -228,7 +228,7 @@ export const Profile = ({ activeTab = "all" }) => {
               </Link>
               <Link
                 to="/profile/personal-info"
-                className={`px-3 py-1.5 rounded transition-colors cursor-pointer ${
+                className={`px-3 py-1.5 rounded-md whitespace-nowrap shrink-0 transition-colors cursor-pointer ${
                   currentTab === "profile"
                     ? "bg-white text-zinc-900 font-semibold shadow-2xs"
                     : "text-zinc-500 hover:text-zinc-900"
@@ -238,7 +238,7 @@ export const Profile = ({ activeTab = "all" }) => {
               </Link>
               <Link
                 to="/profile/address"
-                className={`px-3 py-1.5 rounded transition-colors cursor-pointer ${
+                className={`px-3 py-1.5 rounded-md whitespace-nowrap shrink-0 transition-colors cursor-pointer ${
                   currentTab === "address"
                     ? "bg-white text-zinc-900 font-semibold shadow-2xs"
                     : "text-zinc-500 hover:text-zinc-900"
@@ -248,7 +248,7 @@ export const Profile = ({ activeTab = "all" }) => {
               </Link>
               <Link
                 to="/profile/verification"
-                className={`px-3 py-1.5 rounded transition-colors cursor-pointer ${
+                className={`px-3 py-1.5 rounded-md whitespace-nowrap shrink-0 transition-colors cursor-pointer ${
                   currentTab === "verification"
                     ? "bg-white text-zinc-900 font-semibold shadow-2xs"
                     : "text-zinc-500 hover:text-zinc-900"
@@ -707,7 +707,7 @@ export const Profile = ({ activeTab = "all" }) => {
                         <span className="font-bold text-xs text-zinc-900">
                           Valid Primary Government ID
                         </span>
-                        <span className="text-[10px] font-mono text-emerald-800 bg-emerald-50 border border-emerald-200 px-1.5 py-0.2 rounded">
+                        <span className="text-[10px] font-bold tracking-wider text-emerald-800 bg-emerald-50 border border-emerald-200 px-1.5 py-0.2 rounded">
                           VERIFIED
                         </span>
                       </div>
@@ -715,7 +715,7 @@ export const Profile = ({ activeTab = "all" }) => {
                         Philippine Passport (Exp: 2031) — Encrypted File Storage
                       </p>
                     </div>
-                    <span className="text-xs text-zinc-400 font-mono">
+                    <span className="text-xs text-zinc-400 font-semibold tracking-wider">
                       ID-2026-PH
                     </span>
                   </div>
@@ -726,7 +726,7 @@ export const Profile = ({ activeTab = "all" }) => {
                         <span className="font-bold text-xs text-zinc-900">
                           Proof of Income & Employment
                         </span>
-                        <span className="text-[10px] font-mono text-emerald-800 bg-emerald-50 border border-emerald-200 px-1.5 py-0.2 rounded">
+                        <span className="text-[10px] font-bold tracking-wider text-emerald-800 bg-emerald-50 border border-emerald-200 px-1.5 py-0.2 rounded">
                           VERIFIED
                         </span>
                       </div>
@@ -734,7 +734,7 @@ export const Profile = ({ activeTab = "all" }) => {
                         Certificate of Employment & 3-Month Payslip Records
                       </p>
                     </div>
-                    <span className="text-xs text-zinc-400 font-mono">
+                    <span className="text-xs text-zinc-400 font-semibold tracking-wider">
                       INC-REVIEW-OK
                     </span>
                   </div>

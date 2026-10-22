@@ -544,7 +544,7 @@ export const ProductDetails = () => {
               <div className="flex items-baseline justify-between">
                 <div>
                   <span className="text-xs text-zinc-500 block">Cash price</span>
-                  <span className="text-3xl font-bold text-zinc-900 tracking-tight">
+                  <span className="text-3xl font-bold text-zinc-900 tracking-tight font-price">
                     ₱
                     {Number(product.price).toLocaleString("en-US", {
                       minimumFractionDigits: 2,
@@ -567,11 +567,11 @@ export const ProductDetails = () => {
                 <div className="pt-3 border-t border-zinc-200/80 text-xs space-y-1">
                   <div className="flex items-center justify-between font-semibold text-emerald-900">
                     <span>In-house financing estimate (12 months)</span>
-                    <span>₱{monthlyEstimate.toLocaleString()}/mo</span>
+                    <span className="font-price">₱{monthlyEstimate.toLocaleString()}/mo</span>
                   </div>
                   <div className="flex items-center justify-between text-zinc-500">
                     <span>Minimum downpayment</span>
-                    <span>₱{minDown.toLocaleString()}</span>
+                    <span className="font-price">₱{minDown.toLocaleString()}</span>
                   </div>
                 </div>
               )}
@@ -817,7 +817,7 @@ export const ProductDetails = () => {
                           }}
                         />
                       </div>
-                      <span className="w-4 text-right text-zinc-400 font-mono">{count}</span>
+                      <span className="w-4 text-right text-zinc-400 font-medium">{count}</span>
                     </button>
                   );
                 })}
@@ -905,7 +905,7 @@ export const ProductDetails = () => {
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                     <span className="text-xs font-bold text-zinc-800 uppercase tracking-wider flex items-center gap-1.5">
                       <span>Filter Reviews</span>
-                      <span className="text-[10px] text-zinc-500 font-normal font-mono">
+                      <span className="text-[10px] text-zinc-500 font-normal">
                         ({filteredOtherReviews.length} shown)
                       </span>
                     </span>

@@ -348,7 +348,7 @@ export const Shop = ({ onNavigate }) => {
                   }}
                 />
               </Box>
-              <div className="flex items-center justify-between text-[11px] font-mono text-zinc-600">
+              <div className="flex items-center justify-between text-[11px] font-semibold text-zinc-600 font-price">
                 <span>₱{priceRange[0].toLocaleString()}</span>
                 <span>₱{priceRange[1].toLocaleString()}</span>
               </div>
@@ -490,7 +490,7 @@ export const Shop = ({ onNavigate }) => {
                 <div className="flex flex-col">
                   <span className="text-xs font-semibold text-zinc-900 flex items-center gap-1.5">
                     <span>Only Reviewed Products</span>
-                    <span className="text-[10px] bg-amber-50 text-amber-800 border border-amber-200 px-1 rounded font-mono font-bold">
+                    <span className="text-[10px] bg-amber-50 text-amber-800 border border-amber-200 px-1.5 py-0.2 rounded font-semibold">
                       ★ 1+
                     </span>
                   </span>
@@ -730,7 +730,7 @@ export const Shop = ({ onNavigate }) => {
                                 className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-200"
                               />
                               {p.images.length > 1 && (
-                                <span className="absolute bottom-2 right-2 bg-zinc-950/80 text-white text-[10px] px-1.5 py-0.5 rounded font-mono">
+                                <span className="absolute bottom-2 right-2 bg-zinc-950/80 text-white text-[10px] px-1.5 py-0.5 rounded font-medium">
                                   +{p.images.length - 1} photos
                                 </span>
                               )}
@@ -747,7 +747,7 @@ export const Shop = ({ onNavigate }) => {
                         <div className="p-4.5 space-y-3 flex-1 flex flex-col justify-between">
                           <div className="space-y-1.5">
                             <div className="flex items-center justify-between text-[11px]">
-                              <span className="font-mono uppercase tracking-wider text-zinc-500 font-semibold">
+                              <span className="uppercase tracking-wider text-zinc-500 font-semibold text-[10px]">
                                 {brandName}
                               </span>
                               <span
@@ -788,7 +788,7 @@ export const Shop = ({ onNavigate }) => {
                             </div>
 
                             {p.compatibleModels && p.compatibleModels.length > 0 && (
-                              <p className="text-[11px] text-zinc-500 line-clamp-1 font-mono">
+                              <p className="text-[11px] text-zinc-500 line-clamp-1 font-medium">
                                 Compatible: {p.compatibleModels.join(", ")}
                               </p>
                             )}
@@ -802,13 +802,13 @@ export const Shop = ({ onNavigate }) => {
 
                           <div className="pt-2 border-t border-zinc-100 space-y-2">
                             <div className="flex items-baseline justify-between">
-                              <span className="text-sm font-bold text-zinc-900 font-mono">
+                              <span className="text-sm font-bold text-zinc-900 font-price tracking-tight">
                                 ₱
                                 {Number(p.price).toLocaleString("en-US", {
                                   minimumFractionDigits: 2,
                                 })}
                               </span>
-                              <span className="text-[11px] text-zinc-400 font-mono">
+                              <span className="text-[11px] text-zinc-400 font-medium">
                                 {categoryName}
                               </span>
                             </div>
@@ -816,7 +816,7 @@ export const Shop = ({ onNavigate }) => {
                             {p.installmentEligible && (
                               <div className="text-[11px] text-emerald-800 font-medium bg-emerald-50/60 border border-emerald-200/60 px-2 py-1 rounded">
                                 Financing: ₱{monthlyEstimate.toLocaleString()}/mo (12 mos)
-                                <span className="block text-[10px] text-zinc-500 font-mono">
+                                <span className="block text-[10px] text-zinc-500 font-price">
                                   Min Down: ₱{minDown.toLocaleString()}
                                 </span>
                               </div>
@@ -862,7 +862,7 @@ export const Shop = ({ onNavigate }) => {
                             Compatibility
                           </th>
                           <th className="py-3 px-3.5 text-center">Stock</th>
-                          <th className="py-3 px-3.5 font-mono">Price (PHP)</th>
+                          <th className="py-3 px-3.5 font-semibold">Price (PHP)</th>
                           <th className="py-3 px-3.5 text-right">Actions</th>
                         </tr>
                       </thead>
@@ -915,7 +915,7 @@ export const Shop = ({ onNavigate }) => {
                               </td>
                               <td className="py-3 px-3.5 hidden md:table-cell">
                                 <span className="text-zinc-800">{categoryName}</span>
-                                <span className="block text-[10px] text-zinc-400 font-mono">
+                                <span className="block text-[10px] text-zinc-400 font-medium uppercase tracking-wider">
                                   {brandName}
                                 </span>
                               </td>
@@ -937,7 +937,7 @@ export const Shop = ({ onNavigate }) => {
                                   {p.stock === 0 ? "Out of stock" : `${p.stock} units`}
                                 </span>
                               </td>
-                              <td className="py-3 px-3.5 font-mono font-bold text-zinc-900 whitespace-nowrap">
+                              <td className="py-3 px-3.5 font-price font-bold text-zinc-900 whitespace-nowrap">
                                 ₱
                                 {Number(p.price).toLocaleString("en-US", {
                                   minimumFractionDigits: 2,

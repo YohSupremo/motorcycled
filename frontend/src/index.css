@@ -1,5 +1,59 @@
-@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,600&display=swap');
 @import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-heading: "Plus Jakarta Sans", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-display: "Plus Jakarta Sans", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+:root {
+  font-family: var(--font-sans);
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  font-optical-sizing: auto;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  font-family: inherit;
+  color: #18181b;
+}
+
+/* Headings use the refined geometric Plus Jakarta Sans */
+h1, h2, h3, h4, .font-heading, .font-display {
+  font-family: var(--font-heading);
+  letter-spacing: -0.02em;
+}
+
+/* Neutralize typewriter monospace: format prices & numbers with clean tabular digits */
+.font-mono,
+[class*="font-mono"] {
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+  font-variant-numeric: tabular-nums lining-nums;
+  letter-spacing: -0.015em;
+}
+
+/* Dedicated crisp price typography */
+.font-price,
+.price-tag,
+.price-value {
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11", "tnum" 1;
+  letter-spacing: -0.02em;
+}
+
+/* Ensure MUI components inherit unified typography */
+.MuiTypography-root,
+.MuiButton-root,
+.MuiInputBase-root,
+.MuiStepLabel-label,
+.MuiSlider-root {
+  font-family: inherit !important;
+}
 
 .admin-shell {
   font-family: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;

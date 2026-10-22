@@ -350,7 +350,7 @@ export const Cart = () => {
                         <div className="flex items-start justify-between gap-2">
                           <div>
                             <div className="flex items-center gap-2 flex-wrap">
-                              <span className="text-[10px] font-mono font-bold uppercase bg-zinc-900 text-white px-2 py-0.5 rounded">
+                              <span className="text-[10px] font-bold uppercase tracking-wider bg-zinc-900 text-white px-2 py-0.5 rounded">
                                 {item.brand}
                               </span>
                               <span className="text-[11px] text-emerald-800 font-semibold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
@@ -366,8 +366,8 @@ export const Cart = () => {
                           </div>
 
                           <div className="text-right shrink-0">
-                            <span className="text-xs text-zinc-400 block font-mono">SRP</span>
-                            <span className="text-base sm:text-lg font-mono font-extrabold text-zinc-900 block">
+                            <span className="text-[10px] text-zinc-400 block uppercase tracking-wider font-semibold">SRP</span>
+                            <span className="text-base sm:text-lg font-price font-extrabold text-zinc-900 block">
                               {fmt(item.price)}
                             </span>
                             <button
@@ -640,7 +640,7 @@ export const Cart = () => {
                   {selectedMotorcycles.filter((m) => m.purchaseMethod === "cash").length > 0 && (
                     <div className="flex justify-between py-1 text-zinc-600">
                       <span>Motorcycles, cash ({selectedMotorcycles.filter((m) => m.purchaseMethod === "cash").length}):</span>
-                      <span className="font-mono text-zinc-900 font-bold">
+                      <span className="font-price text-zinc-900 font-bold">
                         {fmt(motorcycleCashTotal)}
                       </span>
                     </div>
@@ -649,7 +649,7 @@ export const Cart = () => {
                   {selectedMotorcycles.filter((m) => m.purchaseMethod === "installment").length > 0 && (
                     <div className="flex justify-between py-1 text-zinc-600">
                       <span>Motorcycles, installment:</span>
-                      <span className="font-mono text-amber-800 font-bold text-[11px] bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                      <span className="text-amber-800 font-bold text-[11px] bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
                         {selectedMotorcycles.filter((m) => m.purchaseMethod === "installment").length} Application(s)
                       </span>
                     </div>
@@ -658,7 +658,7 @@ export const Cart = () => {
                   {selectedParts.length > 0 && (
                     <div className="flex justify-between py-1 text-zinc-600">
                       <span>Parts and accessories ({selectedParts.length}):</span>
-                      <span className="font-mono text-zinc-900 font-bold">
+                      <span className="font-price text-zinc-900 font-bold">
                         {fmt(partsCashTotal)}
                       </span>
                     </div>
@@ -670,7 +670,7 @@ export const Cart = () => {
                       <div className="space-y-1">
                         <div className="flex justify-between items-center text-xs">
                           <span className="text-zinc-500">Due today:</span>
-                          <span className="font-mono font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 text-xs">
+                          <span className="font-price font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 text-xs">
                             ₱0.00
                           </span>
                         </div>
@@ -682,7 +682,7 @@ export const Cart = () => {
                       <div className="space-y-1">
                         <div className="flex justify-between text-xs text-zinc-600">
                           <span>Cash due now:</span>
-                          <span className="font-mono font-extrabold text-zinc-900 text-base">
+                          <span className="font-price font-extrabold text-zinc-900 text-base">
                             {fmt(immediateCashTotal)}
                           </span>
                         </div>
@@ -693,7 +693,7 @@ export const Cart = () => {
                     ) : (
                       <div className="flex justify-between items-center text-sm font-bold text-zinc-900">
                         <span>Total cash payable:</span>
-                        <span className="font-mono text-xl font-extrabold text-zinc-900">
+                        <span className="font-price text-xl font-extrabold text-zinc-900">
                           {fmt(immediateCashTotal)}
                         </span>
                       </div>

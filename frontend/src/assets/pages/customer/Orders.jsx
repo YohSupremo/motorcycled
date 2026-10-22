@@ -54,7 +54,7 @@ const StatusBadge = ({ label }) => {
   }
   if (s === "pending") {
     return (
-      <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full border bg-zinc-100 text-zinc-700 border-zinc-300 font-mono">
+      <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full border bg-zinc-100 text-zinc-700 border-zinc-300">
         <span>Order Placed</span>
       </span>
     );
@@ -213,7 +213,7 @@ export const Orders = () => {
                 key={t.key}
                 type="button"
                 onClick={() => setActiveTab(t.key)}
-                className={`px-3.5 py-1.5 rounded-lg text-xs transition-all cursor-pointer flex items-center gap-2 ${activeTab === t.key
+                className={`px-3.5 py-1.5 rounded-lg text-xs transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap shrink-0 ${activeTab === t.key
                     ? "bg-zinc-900 text-white font-semibold shadow-xs"
                     : t.highlight && completedOrders.length > 0
                       ? "text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 font-semibold"
@@ -308,8 +308,8 @@ export const Orders = () => {
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-3.5 bg-zinc-50/80 border-b border-zinc-200/80">
                         <div className="flex items-center gap-2.5 flex-wrap">
                           <div className="flex items-center gap-1.5">
-                            <span className="text-zinc-400 text-xs font-mono">Order</span>
-                            <span className="font-mono font-bold text-zinc-900 text-sm tracking-tight bg-white px-2 py-0.5 rounded border border-zinc-200 shadow-2xs">
+                            <span className="text-zinc-400 text-xs font-medium uppercase tracking-wider">Order</span>
+                            <span className="font-bold text-zinc-900 text-sm tracking-tight bg-white px-2 py-0.5 rounded border border-zinc-200 shadow-2xs font-price">
                               {order.orderNumber}
                             </span>
                           </div>
@@ -323,7 +323,7 @@ export const Orders = () => {
                             </span>
                           )}
                         </div>
-                        <div className="flex items-center gap-1.5 text-xs text-zinc-500 font-mono">
+                        <div className="flex items-center gap-1.5 text-xs text-zinc-500 font-medium">
                           <svg className="w-3.5 h-3.5 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                           </svg>
@@ -391,9 +391,9 @@ export const Orders = () => {
                                     {item.name}
                                   </Link>
                                   <div className="flex items-center gap-2 text-xs text-zinc-500">
-                                    <span className="font-mono">{fmt(item.price)}</span>
+                                    <span className="font-price font-semibold text-zinc-800">{fmt(item.price)}</span>
                                     <span>×</span>
-                                    <span className="bg-zinc-100 px-1.5 py-0.2 rounded font-mono text-[11px] font-semibold text-zinc-700">
+                                    <span className="bg-zinc-100 px-1.5 py-0.2 rounded text-[11px] font-semibold text-zinc-700">
                                       Qty: {item.quantity}
                                     </span>
                                     <span className="text-zinc-300">•</span>
@@ -407,8 +407,8 @@ export const Orders = () => {
                               {/* Item Right Side: Price & Actions */}
                               <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-zinc-100">
                                 <div className="text-left sm:text-right pr-1">
-                                  <span className="text-[10px] text-zinc-400 block font-mono">Item Total</span>
-                                  <span className="font-mono font-bold text-zinc-900 text-sm">
+                                  <span className="text-[10px] text-zinc-400 block uppercase tracking-wider font-medium">Item Total</span>
+                                  <span className="font-price font-bold text-zinc-900 text-sm">
                                     {fmt(item.price * item.quantity)}
                                   </span>
                                 </div>
@@ -471,11 +471,11 @@ export const Orders = () => {
                           </div>
 
                           <div className="flex items-center gap-2 text-xs">
-                            <span className="text-[11px] text-zinc-400 font-mono uppercase">Settlement:</span>
-                            <span className="font-semibold text-zinc-800 text-[11px] bg-white border border-zinc-200 px-2 py-0.5 rounded font-mono">
+                            <span className="text-[11px] text-zinc-400 uppercase tracking-wider font-semibold">Settlement:</span>
+                            <span className="font-semibold text-zinc-800 text-[11px] bg-white border border-zinc-200 px-2 py-0.5 rounded">
                               {order.paymentMethod?.replace(/_/g, " ").toUpperCase()}
                             </span>
-                            <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded ${order.paymentStatus === 'paid'
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded tracking-wide ${order.paymentStatus === 'paid'
                                 ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
                                 : 'bg-amber-100 text-amber-800 border border-amber-200'
                               }`}>
@@ -517,8 +517,8 @@ export const Orders = () => {
                           <div className="h-6 w-px bg-zinc-200 hidden sm:block" />
 
                           <div className="text-right">
-                            <p className="text-[10px] text-zinc-400 font-mono uppercase tracking-wider">Total Paid / Due</p>
-                            <p className="font-mono font-extrabold text-zinc-900 text-lg leading-tight">
+                            <p className="text-[10px] text-zinc-400 font-semibold uppercase tracking-wider">Total Paid / Due</p>
+                            <p className="font-price font-extrabold text-zinc-900 text-lg leading-tight">
                               {fmt(order.totalPrice)}
                             </p>
                           </div>
@@ -606,22 +606,22 @@ export const Orders = () => {
                       <div className="lg:col-span-7 space-y-3">
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
                           <div className="bg-zinc-50 rounded-xl p-2.5 border border-zinc-200">
-                            <span className="text-[10px] text-zinc-400 block font-mono uppercase">Term</span>
-                            <span className="font-mono font-bold text-zinc-900">{totalMonths} Months</span>
+                            <span className="text-[10px] text-zinc-400 block uppercase tracking-wider font-medium">Term</span>
+                            <span className="font-price font-bold text-zinc-900">{totalMonths} Months</span>
                           </div>
                           <div className="bg-zinc-50 rounded-xl p-2.5 border border-zinc-200">
-                            <span className="text-[10px] text-zinc-400 block font-mono uppercase">Downpayment</span>
-                            <span className="font-mono font-bold text-zinc-900">{fmt(app.downPayment)}</span>
+                            <span className="text-[10px] text-zinc-400 block uppercase tracking-wider font-medium">Downpayment</span>
+                            <span className="font-price font-bold text-zinc-900">{fmt(app.downPayment)}</span>
                           </div>
                           <div className="bg-amber-50 rounded-xl p-2.5 border border-amber-200">
-                            <span className="text-[10px] text-amber-800 block font-mono uppercase font-bold">Monthly Amort.</span>
-                            <span className="font-mono font-extrabold text-amber-950 text-sm">
+                            <span className="text-[10px] text-amber-800 block uppercase font-bold tracking-wider">Monthly Amort.</span>
+                            <span className="font-price font-extrabold text-amber-950 text-sm">
                               {fmt(app.monthlyPayment)}
                             </span>
                           </div>
                           <div className="bg-zinc-50 rounded-xl p-2.5 border border-zinc-200">
-                            <span className="text-[10px] text-zinc-400 block font-mono uppercase">Total Repay</span>
-                            <span className="font-mono font-bold text-zinc-900">{fmt(app.totalRepayment)}</span>
+                            <span className="text-[10px] text-zinc-400 block uppercase tracking-wider font-medium">Total Repay</span>
+                            <span className="font-price font-bold text-zinc-900">{fmt(app.totalRepayment)}</span>
                           </div>
                         </div>
 
