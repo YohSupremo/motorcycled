@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
+import { useForm, useWatch } from "react-hook-form";
+import { yupResolver } from "@hookform/resolvers/yup";
 import { getProductDetails, clearErrors } from "../../../actions/productActions";
 import { addToCart } from "../../../actions/cartActions";
 import {
@@ -17,6 +19,7 @@ import {
 } from "../../../constants/reviewConstants";
 import { toast } from "react-toastify";
 import { ProductImagePlaceholder } from "../../components/ProductImagePlaceholder";
+import { reviewSchema } from "../../schema/reviewSchema.js";
 
 // Product detail page: gallery, pricing, financing, reviews, and specifications.
 export const ProductDetails = () => {
@@ -47,10 +50,22 @@ export const ProductDetails = () => {
 
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [quantity, setQuantity] = useState(1);
-  const [reviewRating, setReviewRating] = useState(0);
-  const [reviewTitle, setReviewTitle] = useState("");
-  const [reviewComment, setReviewComment] = useState("");
   const [editingReview, setEditingReview] = useState(false);
+
+  const {
+    register,
+    handleSubmit: handleReviewFormSubmit,
+    setValue,
+    reset: resetReview,
+    control: reviewControl,
+    formState: { errors: reviewErrors },
+  } = useForm({
+    mode: "onTouched",
+    resolver: yupResolver(reviewSchema),
+    defaultValues: { rating: 0, title: "", comment: "" },
+  });
+
+  const reviewForm = useWatch({ control: reviewControl });
 
   // MP2 Review Filters (5pts: Star filter, Verified Purchase filter, keyword search)
   const [reviewFilterRating, setReviewFilterRating] = useState(0); // 0 = all
@@ -88,17 +103,17 @@ export const ProductDetails = () => {
   }, [id]);
 
   const resetReviewForm = () => {
-    setReviewRating(0);
-    setReviewTitle("");
-    setReviewComment("");
+    resetReview({ rating: 0, title: "", comment: "" });
     setEditingReview(false);
   };
 
   const handleStartEdit = () => {
     if (!myReview) return;
-    setReviewRating(myReview.rating);
-    setReviewTitle(myReview.title || "");
-    setReviewComment(myReview.comment || "");
+    resetReview({
+      rating: myReview.rating,
+      title: myReview.title || "",
+      comment: myReview.comment || "",
+    });
     setEditingReview(true);
   };
 
@@ -116,20 +131,11 @@ export const ProductDetails = () => {
     }
   };
 
-  const handleReviewSubmit = async (e) => {
-    e.preventDefault();
-    if (!reviewRating) {
-      toast.warning("Please select a star rating.");
-      return;
-    }
-    if (!reviewComment.trim()) {
-      toast.warning("Please write a short review.");
-      return;
-    }
+  const handleReviewSubmit = async (data) => {
     const payload = {
-      rating: reviewRating,
-      title: reviewTitle.trim(),
-      comment: reviewComment.trim(),
+      rating: data.rating,
+      title: (data.title || "").trim(),
+      comment: (data.comment || "").trim(),
     };
     const result = myReview
       ? await dispatch(updateReview(id, payload))
@@ -885,9 +891,11 @@ export const ProductDetails = () => {
                       {myReview.title}
                     </p>
                   )}
-                  <p className="text-sm text-zinc-700 leading-relaxed mt-0.5">
-                    {myReview.comment}
-                  </p>
+                  {myReview.comment && (
+                    <p className="text-sm text-zinc-700 leading-relaxed mt-0.5">
+                      {myReview.comment}
+                    </p>
+                  )}
                 </div>
               )}
 
@@ -1043,9 +1051,11 @@ export const ProductDetails = () => {
                               {r.title}
                             </p>
                           )}
-                          <p className="text-sm text-zinc-600 leading-relaxed mt-0.5">
-                            {r.comment}
-                          </p>
+                          {r.comment && (
+                            <p className="text-sm text-zinc-600 leading-relaxed mt-0.5">
+                              {r.comment}
+                            </p>
+                          )}
                         </div>
                       </li>
                     );
@@ -1118,48 +1128,81 @@ export const ProductDetails = () => {
                     </p>
                   ) : (
                     <form
-                      onSubmit={handleReviewSubmit}
+                      onSubmit={handleReviewFormSubmit(handleReviewSubmit)}
+                      noValidate
                       className="mt-4 space-y-3"
                     >
-                      <div className="flex items-center gap-1">
-                        {[1, 2, 3, 4, 5].map((star) => (
-                          <button
-                            key={star}
-                            type="button"
-                            onClick={() => setReviewRating(star)}
-                            aria-label={`${star} star${star > 1 ? "s" : ""}`}
-                            className="cursor-pointer p-0.5"
-                          >
-                            <svg
-                              className={`w-6 h-6 transition-colors ${
-                                star <= reviewRating
-                                  ? "text-amber-400 fill-amber-400"
-                                  : "text-zinc-300 fill-zinc-200 hover:fill-amber-200"
-                              }`}
-                              viewBox="0 0 24 24"
-                              aria-hidden="true"
+                      <div>
+                        <div className="flex items-center gap-1">
+                          {[1, 2, 3, 4, 5].map((star) => (
+                            <button
+                              key={star}
+                              type="button"
+                              onClick={() =>
+                                setValue("rating", star, {
+                                  shouldValidate: true,
+                                  shouldTouch: true,
+                                })
+                              }
+                              aria-label={`${star} star${star > 1 ? "s" : ""}`}
+                              className="cursor-pointer p-0.5"
                             >
-                              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-                            </svg>
-                          </button>
-                        ))}
+                              <svg
+                                className={`w-6 h-6 transition-colors ${
+                                  star <= reviewForm.rating
+                                    ? "text-amber-400 fill-amber-400"
+                                    : "text-zinc-300 fill-zinc-200 hover:fill-amber-200"
+                                }`}
+                                viewBox="0 0 24 24"
+                                aria-hidden="true"
+                              >
+                                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                              </svg>
+                            </button>
+                          ))}
+                        </div>
+                        {reviewErrors.rating && (
+                          <p className="text-xs text-red-600 mt-1">
+                            {reviewErrors.rating.message}
+                          </p>
+                        )}
                       </div>
-                      <input
-                        type="text"
-                        value={reviewTitle}
-                        onChange={(e) => setReviewTitle(e.target.value)}
-                        maxLength={80}
-                        placeholder="Title (optional)"
-                        className="w-full h-10 px-3 rounded-md border border-zinc-300 bg-white text-sm text-zinc-900 focus:outline-none focus:border-emerald-600"
-                      />
-                      <textarea
-                        value={reviewComment}
-                        onChange={(e) => setReviewComment(e.target.value)}
-                        rows={3}
-                        maxLength={1000}
-                        placeholder={`What do you think about the ${product.name}?`}
-                        className="w-full px-3 py-2 rounded-md border border-zinc-300 bg-white text-sm text-zinc-900 focus:outline-none focus:border-emerald-600 resize-y"
-                      />
+                      <div>
+                        <input
+                          type="text"
+                          {...register("title")}
+                          maxLength={80}
+                          placeholder="Title (optional)"
+                          className={`w-full h-10 px-3 rounded-md border bg-white text-sm text-zinc-900 focus:outline-none ${
+                            reviewErrors.title
+                              ? "border-red-500"
+                              : "border-zinc-300 focus:border-emerald-600"
+                          }`}
+                        />
+                        {reviewErrors.title && (
+                          <p className="text-xs text-red-600 mt-1">
+                            {reviewErrors.title.message}
+                          </p>
+                        )}
+                      </div>
+                      <div>
+                        <textarea
+                          {...register("comment")}
+                          rows={3}
+                          maxLength={1000}
+                          placeholder={`What do you think about the ${product.name}? (optional)`}
+                          className={`w-full px-3 py-2 rounded-md border bg-white text-sm text-zinc-900 focus:outline-none resize-y ${
+                            reviewErrors.comment
+                              ? "border-red-500"
+                              : "border-zinc-300 focus:border-emerald-600"
+                          }`}
+                        />
+                        {reviewErrors.comment && (
+                          <p className="text-xs text-red-600 mt-1">
+                            {reviewErrors.comment.message}
+                          </p>
+                        )}
+                      </div>
                       <div className="flex items-center justify-between gap-3">
                         <span className="text-xs text-zinc-500">
                           Posting as <strong className="text-zinc-800 font-medium">{[user?.firstName, user?.lastName].filter(Boolean).join(" ") || "you"}</strong>

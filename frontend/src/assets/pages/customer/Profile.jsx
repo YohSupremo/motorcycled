@@ -1,8 +1,14 @@
 import { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
+import { yupResolver } from "@hookform/resolvers/yup";
 import { ScrollReveal } from "../../components/ScrollReveal";
 import { Link } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { toast } from "react-toastify";
+import {
+  profileAddressSchema,
+  profileInfoSchema,
+} from "../../schema/profileSchema.js";
 import {
   addAddress,
   deleteAddress,
@@ -27,14 +33,44 @@ export const Profile = ({ activeTab = "all" }) => {
   const [isEditingAddress, setIsEditingAddress] = useState(false);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [selectedAddressId, setSelectedAddressId] = useState(null);
-  const [profileData, setProfileData] = useState({});
-  const [addressData, setAddressData] = useState({});
   const [profilePhotoUrl, setProfilePhotoUrl] = useState(null);
   const [pendingProfilePhoto, setPendingProfilePhoto] = useState(null);
   const persistedProfilePhoto =
     profile?.profilePicture || user?.profilePicture || null;
   const displayedProfilePhoto =
     profilePhotoUrl === "" ? null : profilePhotoUrl || persistedProfilePhoto;
+
+  const {
+    register: registerProfile,
+    handleSubmit: handleSubmitProfile,
+    reset: resetProfile,
+    formState: { errors: profileErrors },
+  } = useForm({
+    mode: "onTouched",
+    resolver: yupResolver(profileInfoSchema),
+    defaultValues: {
+      firstName: user?.firstName || "",
+      lastName: user?.lastName || "",
+      contactNumber: user?.contactNumber || "",
+    },
+  });
+
+  const {
+    register: registerAddress,
+    handleSubmit: handleSubmitAddress,
+    reset: resetAddress,
+    formState: { errors: addressErrors },
+  } = useForm({
+    mode: "onTouched",
+    resolver: yupResolver(profileAddressSchema),
+    defaultValues: {
+      label: "",
+      street: "",
+      barangay: "",
+      city: "",
+      postalCode: "",
+    },
+  });
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -43,13 +79,22 @@ export const Profile = ({ activeTab = "all" }) => {
     }
   }, [dispatch, isAuthenticated]);
 
+  useEffect(() => {
+    if (!profile || isEditingProfile) return;
+    resetProfile({
+      firstName: profile.firstName ?? "",
+      lastName: profile.lastName ?? "",
+      contactNumber: profile.contactNumber ?? "",
+    });
+  }, [profile, isEditingProfile, resetProfile]);
+
   const showNotice = (message) => {
     toast.success(message);
   };
 
   const beginAddressEdit = (address) => {
     setSelectedAddressId(address?._id ?? null);
-    setAddressData({
+    resetAddress({
       label: address?.label ?? "",
       street: address?.street ?? "",
       barangay: address?.barangay ?? "",
@@ -59,11 +104,27 @@ export const Profile = ({ activeTab = "all" }) => {
     setIsEditingAddress(true);
   };
 
-  const handleSaveAddress = async (e) => {
-    e.preventDefault();
+  const handleSaveProfile = async (data) => {
+    const saved = await dispatch(
+      updateProfile({
+        firstName: data.firstName,
+        lastName: data.lastName,
+        contactNumber: data.contactNumber,
+      }),
+    );
+    if (saved) {
+      resetProfile(data);
+      setIsEditingProfile(false);
+      showNotice("Profile updated successfully.");
+    } else {
+      toast.error("Unable to update profile.");
+    }
+  };
+
+  const handleSaveAddress = async (data) => {
     const saved = selectedAddressId
-      ? await dispatch(updateAddress(selectedAddressId, addressData))
-      : await dispatch(addAddress(addressData));
+      ? await dispatch(updateAddress(selectedAddressId, data))
+      : await dispatch(addAddress(data));
     if (saved) {
       setIsEditingAddress(false);
       setSelectedAddressId(null);
@@ -93,12 +154,21 @@ export const Profile = ({ activeTab = "all" }) => {
   };
 
   const handleProfilePhotoChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const url = URL.createObjectURL(file);
-      setProfilePhotoUrl(url);
-      setPendingProfilePhoto(file);
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("File must be an image.");
+      e.target.value = "";
+      return;
     }
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("Image must be 2 MB or smaller.");
+      e.target.value = "";
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    setProfilePhotoUrl(url);
+    setPendingProfilePhoto(file);
   };
 
   const handleApplyProfilePhoto = async () => {
@@ -209,7 +279,11 @@ export const Profile = ({ activeTab = "all" }) => {
                 </div>
               </div>
 
-              <div className="md:col-span-8 space-y-6">
+              <form
+                className="md:col-span-8 space-y-6"
+                onSubmit={handleSubmitProfile(handleSaveProfile)}
+                noValidate
+              >
                 {/* Profile Picture Upload & Preview */}
                 <div className="flex flex-col sm:flex-row sm:items-center gap-4 pb-6 border-b border-zinc-200">
                   <div className="relative shrink-0 inline-block">
@@ -294,16 +368,19 @@ export const Profile = ({ activeTab = "all" }) => {
                     </label>
                     <input
                       type="text"
-                      value={profileData.firstName ?? profile?.firstName ?? ""}
                       readOnly={!isEditingProfile}
-                      onChange={(e) =>
-                        setProfileData((previous) => ({
-                          ...previous,
-                          firstName: e.target.value,
-                        }))
-                      }
-                      className="h-9! w-full px-3 text-zinc-900 bg-zinc-50 border border-zinc-300 rounded-md focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
+                      {...registerProfile("firstName")}
+                      className={`h-9! w-full px-3 text-zinc-900 bg-zinc-50 border rounded-md focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 ${
+                        profileErrors.firstName
+                          ? "border-red-500"
+                          : "border-zinc-300"
+                      }`}
                     />
+                    {profileErrors.firstName && (
+                      <p className="mt-1 text-[11px] text-red-600">
+                        {profileErrors.firstName.message}
+                      </p>
+                    )}
                   </div>
 
                   <div>
@@ -312,16 +389,19 @@ export const Profile = ({ activeTab = "all" }) => {
                     </label>
                     <input
                       type="text"
-                      value={profileData.lastName ?? profile?.lastName ?? ""}
                       readOnly={!isEditingProfile}
-                      onChange={(e) =>
-                        setProfileData((previous) => ({
-                          ...previous,
-                          lastName: e.target.value,
-                        }))
-                      }
-                      className="h-9! w-full px-3 text-zinc-900 bg-zinc-50 border border-zinc-300 rounded-md focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
+                      {...registerProfile("lastName")}
+                      className={`h-9! w-full px-3 text-zinc-900 bg-zinc-50 border rounded-md focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 ${
+                        profileErrors.lastName
+                          ? "border-red-500"
+                          : "border-zinc-300"
+                      }`}
                     />
+                    {profileErrors.lastName && (
+                      <p className="mt-1 text-[11px] text-red-600">
+                        {profileErrors.lastName.message}
+                      </p>
+                    )}
                   </div>
 
                   <div>
@@ -345,18 +425,20 @@ export const Profile = ({ activeTab = "all" }) => {
                     </label>
                     <input
                       type="text"
-                      value={
-                        profileData.contactNumber ?? profile?.contactNumber ?? ""
-                      }
+                      inputMode="numeric"
                       readOnly={!isEditingProfile}
-                      onChange={(e) =>
-                        setProfileData((previous) => ({
-                          ...previous,
-                          contactNumber: e.target.value,
-                        }))
-                      }
-                      className="h-9! w-full px-3 text-zinc-900 bg-zinc-50 border border-zinc-300 rounded-md focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
+                      {...registerProfile("contactNumber")}
+                      className={`h-9! w-full px-3 text-zinc-900 bg-zinc-50 border rounded-md focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 ${
+                        profileErrors.contactNumber
+                          ? "border-red-500"
+                          : "border-zinc-300"
+                      }`}
                     />
+                    {profileErrors.contactNumber && (
+                      <p className="mt-1 text-[11px] text-red-600">
+                        {profileErrors.contactNumber.message}
+                      </p>
+                    )}
                   </div>
 
                   <div>
@@ -374,25 +456,18 @@ export const Profile = ({ activeTab = "all" }) => {
                 <div className="flex justify-end">
                   <button
                     type="button"
-                    onClick={async () => {
-                      if (!isEditingProfile) {
-                        setIsEditingProfile(true);
-                        return;
-                      }
-                      const saved = await dispatch(updateProfile(profileData));
-                      if (saved) {
-                        setIsEditingProfile(false);
-                        showNotice("Profile updated successfully.");
-                      } else {
-                        toast.error("Unable to update profile.");
-                      }
-                    }}
-                    className="px-4 py-1.5 rounded bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium cursor-pointer"
+                    onClick={
+                      isEditingProfile
+                        ? handleSubmitProfile(handleSaveProfile)
+                        : () => setIsEditingProfile(true)
+                    }
+                    disabled={updating}
+                    className="px-4 py-1.5 rounded bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     {isEditingProfile ? (updating ? "Saving..." : "Save Profile") : "Edit Profile"}
                   </button>
                 </div>
-              </div>
+              </form>
             </section>
           </ScrollReveal>
         )}
@@ -431,21 +506,19 @@ export const Profile = ({ activeTab = "all" }) => {
 
               <div className="md:col-span-8">
                 {isEditingAddress ? (
-                  <form onSubmit={handleSaveAddress} className="space-y-4 text-xs">
+                  <form
+                    onSubmit={handleSubmitAddress(handleSaveAddress)}
+                    className="space-y-4 text-xs"
+                    noValidate
+                  >
                     <div>
                       <label className="block text-zinc-700 font-semibold mb-1">
                         Address Label
                       </label>
                       <input
                         type="text"
-                        value={addressData.label ?? ""}
-                        onChange={(e) =>
-                          setAddressData((previous) => ({
-                            ...previous,
-                            label: e.target.value,
-                          }))
-                        }
                         placeholder="Home, Work, etc."
+                        {...registerAddress("label")}
                         className="h-9! w-full px-3 text-zinc-900 bg-white border border-zinc-300 rounded-md focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
                       />
                     </div>
@@ -455,15 +528,18 @@ export const Profile = ({ activeTab = "all" }) => {
                       </label>
                       <input
                         type="text"
-                        value={addressData.street ?? ""}
-                        onChange={(e) =>
-                          setAddressData((previous) => ({
-                            ...previous,
-                            street: e.target.value,
-                          }))
-                        }
-                        className="h-9! w-full px-3 text-zinc-900 bg-white border border-zinc-300 rounded-md focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
+                        {...registerAddress("street")}
+                        className={`h-9! w-full px-3 text-zinc-900 bg-white border rounded-md focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 ${
+                          addressErrors.street
+                            ? "border-red-500"
+                            : "border-zinc-300"
+                        }`}
                       />
+                      {addressErrors.street && (
+                        <p className="mt-1 text-[11px] text-red-600">
+                          {addressErrors.street.message}
+                        </p>
+                      )}
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -473,15 +549,18 @@ export const Profile = ({ activeTab = "all" }) => {
                         </label>
                         <input
                           type="text"
-                          value={addressData.city ?? ""}
-                          onChange={(e) =>
-                            setAddressData((previous) => ({
-                              ...previous,
-                              city: e.target.value,
-                            }))
-                          }
-                          className="h-9! w-full px-3 text-zinc-900 bg-white border border-zinc-300 rounded-md focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
+                          {...registerAddress("city")}
+                          className={`h-9! w-full px-3 text-zinc-900 bg-white border rounded-md focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 ${
+                            addressErrors.city
+                              ? "border-red-500"
+                              : "border-zinc-300"
+                          }`}
                         />
+                        {addressErrors.city && (
+                          <p className="mt-1 text-[11px] text-red-600">
+                            {addressErrors.city.message}
+                          </p>
+                        )}
                       </div>
                       <div>
                         <label className="block text-zinc-700 font-semibold mb-1">
@@ -489,15 +568,19 @@ export const Profile = ({ activeTab = "all" }) => {
                         </label>
                         <input
                           type="text"
-                          value={addressData.postalCode ?? ""}
-                          onChange={(e) =>
-                            setAddressData((previous) => ({
-                              ...previous,
-                              postalCode: e.target.value,
-                            }))
-                          }
-                          className="h-9! w-full px-3 text-zinc-900 bg-white border border-zinc-300 rounded-md focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
+                          inputMode="numeric"
+                          {...registerAddress("postalCode")}
+                          className={`h-9! w-full px-3 text-zinc-900 bg-white border rounded-md focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 ${
+                            addressErrors.postalCode
+                              ? "border-red-500"
+                              : "border-zinc-300"
+                          }`}
                         />
+                        {addressErrors.postalCode && (
+                          <p className="mt-1 text-[11px] text-red-600">
+                            {addressErrors.postalCode.message}
+                          </p>
+                        )}
                       </div>
                     </div>
                     <div>
@@ -506,15 +589,18 @@ export const Profile = ({ activeTab = "all" }) => {
                       </label>
                       <input
                         type="text"
-                        value={addressData.barangay ?? ""}
-                        onChange={(e) =>
-                          setAddressData((previous) => ({
-                            ...previous,
-                            barangay: e.target.value,
-                          }))
-                        }
-                        className="h-9! w-full px-3 text-zinc-900 bg-white border border-zinc-300 rounded-md focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
+                        {...registerAddress("barangay")}
+                        className={`h-9! w-full px-3 text-zinc-900 bg-white border rounded-md focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 ${
+                          addressErrors.barangay
+                            ? "border-red-500"
+                            : "border-zinc-300"
+                        }`}
                       />
+                      {addressErrors.barangay && (
+                        <p className="mt-1 text-[11px] text-red-600">
+                          {addressErrors.barangay.message}
+                        </p>
+                      )}
                     </div>
 
                     <div className="pt-2 flex justify-end gap-2">
@@ -527,7 +613,8 @@ export const Profile = ({ activeTab = "all" }) => {
                       </button>
                       <button
                         type="submit"
-                        className="px-4 py-1.5 rounded bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-medium cursor-pointer"
+                        disabled={addressesUpdating}
+                        className="px-4 py-1.5 rounded bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-medium cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                       >
                         {addressesUpdating ? "Saving..." : "Save Address"}
                       </button>

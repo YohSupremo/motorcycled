@@ -456,7 +456,10 @@ export const Homepage = ({ onNavigate }) => {
 
       {/* Brand Logo Loop Marquee - Dynamic from Database */}
       {liveBrands.length > 0 && (
-        <section className="bg-zinc-950 border-b border-zinc-800/80 py-5 overflow-hidden relative">
+        <section
+          id="brands"
+          className="bg-zinc-950 border-b border-zinc-800/80 py-5 overflow-hidden relative scroll-mt-24"
+        >
           <div className="max-w-6xl mx-auto px-4 sm:px-6 mb-3 flex items-center justify-between">
             <span className="text-[10px] font-mono uppercase tracking-widest text-zinc-500 font-medium">
               Authorized Dealership & Certified OEM Brands
@@ -595,7 +598,7 @@ export const Homepage = ({ onNavigate }) => {
       <main className="flex-1 w-full">
         {/* Section 2: Catalog Categories (Structured Directory Index - NO floating cards) */}
         <ScrollReveal threshold={0.08} delay={60} duration={400}>
-          <section className="w-full bg-zinc-900">
+          <section id="catalog" className="w-full bg-zinc-900 scroll-mt-24">
             <div className="max-w-6xl mx-auto px-4 sm:px-6 py-12 sm:py-16 space-y-4">
             <div className="pb-3 border-b border-zinc-700">
               <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
@@ -785,7 +788,7 @@ export const Homepage = ({ onNavigate }) => {
 
         {/* Section 3: Financing Protocol (dark band) */}
         <ScrollReveal threshold={0.08} delay={80} duration={400}>
-          <section className="w-full bg-zinc-900">
+          <section id="financing" className="w-full bg-zinc-900 scroll-mt-24">
             <div className="max-w-6xl mx-auto px-4 sm:px-6 py-12 sm:py-16 space-y-8">
             <div className="max-w-2xl space-y-1">
               <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight">

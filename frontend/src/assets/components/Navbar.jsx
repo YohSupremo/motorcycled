@@ -37,6 +37,9 @@ export const Navbar = ({ currentPage }) => {
   const initials = user
     ? `${user.firstName?.[0] || ""}${user.lastName?.[0] || ""}`.toUpperCase()
     : "JD";
+  const profileTab = location.pathname.startsWith("/profile")
+    ? location.pathname.split("/")[2] || "personal-info"
+    : null;
 
   // Pages whose first section is a dark full-bleed hero. The bar blends into
   // the hero (dark, light text) at the top and turns into a flat translucent
@@ -79,8 +82,16 @@ export const Navbar = ({ currentPage }) => {
       }
     };
 
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") setIsDropdownOpen(false);
+    };
+
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
   }, []);
 
   // Track how far the page hero has scrolled under the bar.
@@ -237,12 +248,14 @@ export const Navbar = ({ currentPage }) => {
             /* User Account Menu with Avatar, Name & Separated Dropdown */
             <div className="relative" ref={dropdownRef}>
               <button
+                id="account-menu-button"
                 type="button"
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                className={`flex items-center gap-2.5 px-2 py-1 rounded-md transition-colors cursor-pointer focus:outline-none border border-transparent ${
+                className={`flex items-center gap-2.5 px-2 py-1 rounded-md transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 border border-transparent ${
                   overDark ? "hover:bg-white/10 hover:border-white/20" : "hover:bg-zinc-100/80 hover:border-zinc-200"
                 }`}
                 aria-expanded={isDropdownOpen}
+                aria-controls={isDropdownOpen ? "account-menu" : undefined}
               >
                 {/* Profile Picture / Avatar */}
                 <div className="relative shrink-0">
@@ -313,198 +326,183 @@ export const Navbar = ({ currentPage }) => {
                 </svg>
               </button>
 
-              {/* Interactive Dropdown Menu */}
+              {/* Account menu */}
               {isDropdownOpen && (
-                <div className="absolute right-0 top-full mt-1.5 w-72 bg-white border border-zinc-200 rounded-lg shadow-lg z-50 py-1 divide-y divide-zinc-100 animate-fadeIn">
-                  {/* Dropdown Header: User Info */}
-                  <div className="px-4 py-3 bg-zinc-50/70">
+                <div
+                  id="account-menu"
+                  className="absolute right-0 top-full z-50 mt-2 w-72 overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-lg animate-fadeIn"
+                >
+                  <div className="border-b border-emerald-100/80 bg-emerald-50/50 px-4 py-3.5">
                     <div className="flex items-center gap-3">
-                      <div className="relative shrink-0">
-                        <div className="w-9 h-9 rounded-full bg-zinc-900 text-white flex items-center justify-center font-bold text-xs ring-1 ring-zinc-300 overflow-hidden">
-                          {user.profilePicture ? (
-                            <img
-                              src={user.profilePicture}
-                              alt={displayName}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <span className="tracking-tighter">{initials}</span>
-                          )}
-                        </div>
-                        <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-600 ring-2 ring-white z-10 pointer-events-none" />
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-zinc-900 text-xs font-bold text-white ring-2 ring-emerald-200/70">
+                        {user.profilePicture ? (
+                          <img
+                            src={user.profilePicture}
+                            alt={displayName}
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <span className="tracking-tighter">{initials}</span>
+                        )}
                       </div>
-                      <div className="overflow-hidden">
-                        <p className="text-xs font-bold text-zinc-900 truncate">
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-[13px] font-semibold text-zinc-900">
                           {displayName}
                         </p>
-                        <p className="text-[11px] text-zinc-500 font-mono truncate">
+                        <p className="mt-0.5 truncate text-xs text-zinc-600">
                           {user.email}
                         </p>
                       </div>
-                    </div>
-
-                    <div className="mt-2.5 pt-2 border-t border-zinc-200/60 flex items-center justify-between text-[11px]">
-                      <span className="text-zinc-500">Account Status:</span>
-                      <span className="font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 px-1.5 py-0.2 rounded text-[10px]">
-                        {user.role === "admin" ? "Administrator" : "Active"}
-                      </span>
+                      {user.role === "admin" && (
+                        <span className="shrink-0 rounded border border-emerald-200 bg-white/80 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-800">
+                          Admin
+                        </span>
+                      )}
                     </div>
                   </div>
 
-                  {/* Separated Items in Dropdown (Profile, Addresses, Verification) */}
-                  <div className="p-1 space-y-0.5">
-                    {/* 1. Profile Option */}
-                    <button
-                      type="button"
-                      onClick={() => handleNavClick("personal-info")}
-                      className={`w-full text-left px-3 py-2 rounded-md text-xs transition-colors cursor-pointer flex items-center gap-2.5 ${
-                        currentPage === "profile"
-                          ? "bg-zinc-100 text-zinc-900 font-semibold"
-                          : "text-zinc-700 hover:bg-zinc-50 hover:text-zinc-900"
-                      }`}
-                    >
-                      <div className="w-7 h-7 rounded bg-zinc-100 flex items-center justify-center text-zinc-700 shrink-0">
-                        <svg
-                          className="w-3.5 h-3.5"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
+                  <div className="p-1.5">
+                    {[
+                      {
+                        tab: "personal-info",
+                        label: "Personal profile",
+                        icon: (
+                          <>
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                            <circle cx="12" cy="7" r="4" />
+                          </>
+                        ),
+                      },
+                      {
+                        tab: "address",
+                        label: "Delivery addresses",
+                        icon: (
+                          <>
+                            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+                            <circle cx="12" cy="10" r="3" />
+                          </>
+                        ),
+                      },
+                      {
+                        tab: "verification",
+                        label: "Credit verification",
+                        icon: (
+                          <>
+                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                            <path d="M9 12l2 2 4-4" />
+                          </>
+                        ),
+                      },
+                    ].map((item) => {
+                      const isActive = profileTab === item.tab;
+                      return (
+                        <button
+                          key={item.tab}
+                          type="button"
+                          onClick={() => handleNavClick(item.tab)}
+                          className={`group flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left text-[13px] font-medium transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-emerald-700 ${
+                            isActive
+                              ? "bg-emerald-50 text-emerald-950"
+                              : "text-zinc-700 hover:bg-emerald-50/60 hover:text-emerald-950"
+                          }`}
                         >
-                          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                          <circle cx="12" cy="7" r="4" />
-                        </svg>
-                      </div>
-                      <div>
-                        <span className="block font-medium text-xs text-zinc-900">
-                          Personal Profile
-                        </span>
-                        <span className="block text-[10px] text-zinc-500">
-                          Legal name, email & contact phone
-                        </span>
-                      </div>
-                    </button>
-
-                    {/* 2. Addresses Option (Separated) */}
-                    <button
-                      type="button"
-                      onClick={() => handleNavClick("address")}
-                      className="w-full text-left px-3 py-2 rounded-md text-xs transition-colors cursor-pointer flex items-center gap-2.5 text-zinc-700 hover:bg-zinc-50 hover:text-zinc-900"
-                    >
-                      <div className="w-7 h-7 rounded bg-blue-50 text-blue-700 flex items-center justify-center shrink-0 border border-blue-200/50">
-                        <svg
-                          className="w-3.5 h-3.5"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                        >
-                          <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
-                          <circle cx="12" cy="10" r="3" />
-                        </svg>
-                      </div>
-                      <div>
-                        <span className="block font-medium text-xs text-zinc-900">
-                          Delivery Addresses
-                        </span>
-                        <span className="block text-[10px] text-zinc-500">
-                          Shipping location & postal code
-                        </span>
-                      </div>
-                    </button>
-
-                    {/* 3. Verification Option (Separated) */}
-                    <button
-                      type="button"
-                      onClick={() => handleNavClick("verification")}
-                      className="w-full text-left px-3 py-2 rounded-md text-xs transition-colors cursor-pointer flex items-center gap-2.5 text-zinc-700 hover:bg-zinc-50 hover:text-zinc-900"
-                    >
-                      <div className="w-7 h-7 rounded bg-emerald-50 text-emerald-800 flex items-center justify-center shrink-0 border border-emerald-200/50">
-                        <svg
-                          className="w-3.5 h-3.5"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                        >
-                          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                          <path d="M9 12l2 2 4-4" />
-                        </svg>
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-medium text-xs text-zinc-900">
-                            Credit Verification
+                          <span
+                            className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md ring-1 ring-inset transition-colors ${
+                              isActive
+                                ? "bg-emerald-100 text-emerald-800 ring-emerald-200"
+                                : "bg-emerald-50 text-emerald-700 ring-emerald-100 group-hover:bg-emerald-100/80"
+                            }`}
+                          >
+                            <svg
+                              className="h-3.5 w-3.5"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              aria-hidden="true"
+                            >
+                              {item.icon}
+                            </svg>
                           </span>
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
-                        </div>
-                        <span className="block text-[10px] text-zinc-500">
-                          Government ID & proof of income
-                        </span>
-                      </div>
-                    </button>
-
-                    {/* 4. Dealership Operations Portal */}
+                          <span className="flex-1">{item.label}</span>
+                          {isActive && (
+                            <span
+                              className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-600"
+                              aria-hidden="true"
+                            />
+                          )}
+                        </button>
+                      );
+                    })}
 
                     {user?.role === "admin" && (
-                      <Link
-                        to="/admin/dashboard"
-                        onClick={() => setIsDropdownOpen(false)}
-                        className="w-full text-left px-3 py-2 rounded-md text-xs transition-colors cursor-pointer flex items-center gap-2.5 text-zinc-700 hover:bg-emerald-50 hover:text-emerald-950"
-                      >
-                        <div className="w-7 h-7 rounded bg-zinc-900 text-white flex items-center justify-center shrink-0">
+                      <>
+                        <div className="my-1.5 border-t border-zinc-100" />
+                        <Link
+                          to="/admin/dashboard"
+                          onClick={() => setIsDropdownOpen(false)}
+                          className="group flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-[13px] font-medium text-zinc-700 transition-colors cursor-pointer hover:bg-emerald-50 hover:text-emerald-950 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-emerald-700"
+                        >
+                          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-emerald-700 text-white ring-1 ring-inset ring-emerald-800/20">
+                            <svg
+                              className="h-3.5 w-3.5"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              aria-hidden="true"
+                            >
+                              <rect x="3" y="3" width="7" height="7" />
+                              <rect x="14" y="3" width="7" height="7" />
+                              <rect x="14" y="14" width="7" height="7" />
+                              <rect x="3" y="14" width="7" height="7" />
+                            </svg>
+                          </span>
+                          <span className="flex-1">Dealership operations</span>
                           <svg
-                            className="w-3.5 h-3.5"
+                            className="h-4 w-4 shrink-0 text-emerald-600/70 group-hover:text-emerald-700"
                             viewBox="0 0 24 24"
                             fill="none"
                             stroke="currentColor"
                             strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            aria-hidden="true"
                           >
-                            <rect x="3" y="3" width="7" height="7" />
-                            <rect x="14" y="3" width="7" height="7" />
-                            <rect x="14" y="14" width="7" height="7" />
-                            <rect x="3" y="14" width="7" height="7" />
+                            <polyline points="9 18 15 12 9 6" />
                           </svg>
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-1.5">
-                            <span className="font-semibold text-xs text-zinc-900">
-                              Dealership Operations
-                            </span>
-                            <span className="text-[9px] font-mono font-medium px-1.5 py-0.2 rounded bg-emerald-50 text-emerald-800 border border-emerald-200">
-                              Management
-                            </span>
-                          </div>
-                          <span className="block text-[10px] text-zinc-500">
-                            Inventory, orders & financing underwriting
-                          </span>
-                        </div>
-                      </Link>)}
+                        </Link>
+                      </>
+                    )}
                   </div>
 
-                  {/* Dropdown Footer: Sign Out */}
-                  <div className="p-1">
+                  <div className="border-t border-zinc-100 bg-zinc-50/50 p-1.5">
                     <button
                       type="button"
                       onClick={handleLogout}
-                      className="w-full text-left px-3 py-2 rounded-md text-xs text-red-600 hover:bg-red-50 hover:text-red-700 transition-colors cursor-pointer flex items-center gap-2.5"
+                      className="group flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left text-[13px] font-medium text-zinc-600 transition-colors cursor-pointer hover:bg-red-50 hover:text-red-700 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-red-600"
                     >
-                      <div className="w-7 h-7 rounded bg-red-50 flex items-center justify-center text-red-600 shrink-0">
+                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-white text-zinc-500 ring-1 ring-inset ring-zinc-200 transition-colors group-hover:bg-red-50 group-hover:text-red-600 group-hover:ring-red-200">
                         <svg
-                          className="w-3.5 h-3.5"
+                          className="h-3.5 w-3.5"
                           viewBox="0 0 24 24"
                           fill="none"
                           stroke="currentColor"
                           strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          aria-hidden="true"
                         >
                           <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
                           <polyline points="16 17 21 12 16 7" />
                           <line x1="21" y1="12" x2="9" y2="12" />
                         </svg>
-                      </div>
-                      <span className="font-semibold text-xs">
-                        Sign out of account
                       </span>
+                      <span>Sign out</span>
                     </button>
                   </div>
                 </div>

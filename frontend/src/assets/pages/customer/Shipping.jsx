@@ -1,6 +1,13 @@
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
+import { useForm, useWatch } from "react-hook-form";
+import { yupResolver } from "@hookform/resolvers/yup";
+import {
+  buildShippingSchema,
+  MONTHLY_INCOME_RANGES,
+  shippingAddressSchema,
+} from "../../schema/shippingSchema.js";
 import { saveShippingInfo } from "../../../actions/cartActions";
 import {
   getAddresses,
@@ -84,54 +91,92 @@ export const Shipping = () => {
     (m) => m.purchaseMethod === "installment"
   );
 
-  // Form state — focused & streamlined
-  const [form, setForm] = useState(() => ({
-    recipientName:
-      shippingInfo?.recipientName ||
-      (user ? `${user.firstName || ""} ${user.lastName || ""}`.trim() : ""),
-    contactNumber: shippingInfo?.contactNumber || user?.contactNumber || "",
-    email: shippingInfo?.email || user?.email || "",
-
-    // Fulfillment
-    fulfillmentMethod: hasMotorcycles
-      ? "pickup"
-      : shippingInfo?.fulfillmentMethod || "delivery",
-    partsFulfillmentMethod:
-      shippingInfo?.partsFulfillmentMethod ||
-      (hasParts ? "delivery" : "pickup"),
-    branch: shippingInfo?.branch || BRANCHES[0].name,
-
-    // Courier delivery address (if parts delivery chosen)
-    address: shippingInfo?.address || "",
-    barangay: shippingInfo?.barangay || "",
-    city: shippingInfo?.city || "",
-    postalCode: shippingInfo?.postalCode || "",
-    deliveryNotes: shippingInfo?.deliveryNotes || "",
-
-    // Financing verification (only needed if installment chosen)
-    governmentIdType: shippingInfo?.governmentIdType || GOV_IDS[0],
-    governmentIdNumber: shippingInfo?.governmentIdNumber || "",
-    employerName: shippingInfo?.employerName || "",
-    monthlyIncome: shippingInfo?.monthlyIncome || "",
-  }));
-
-  const [errors, setErrors] = useState({});
-
   // Address selection & inline management state
-  const [selectedAddressId, setSelectedAddressId] = useState(null);
+  const [explicitAddressId, setExplicitAddressId] = useState(null);
   const [isAddingNew, setIsAddingNew] = useState(false);
   const [editingAddressId, setEditingAddressId] = useState(null);
-  const userSelectedAddressRef = useRef(false);
+  const defaultAddress =
+    addresses.find((a) => a.isDefault) || addresses[0] || null;
+  const selectedAddressId = explicitAddressId ?? defaultAddress?._id ?? null;
 
-  const [addressForm, setAddressForm] = useState({
-    label: "Home",
-    street: "",
-    barangay: "",
-    city: "",
-    postalCode: "",
-    isDefault: false,
+  const shippingSchema = useMemo(
+    () =>
+      buildShippingSchema({
+        hasMotorcycles,
+        hasInstallment,
+        requireAddress: hasParts && !isAddingNew && addresses.length > 0,
+      }),
+    [hasMotorcycles, hasInstallment, hasParts, isAddingNew, addresses.length],
+  );
+
+  const {
+    control,
+    register,
+    handleSubmit,
+    setValue,
+    clearErrors,
+    formState: { errors },
+  } = useForm({
+    mode: "onTouched",
+    resolver: yupResolver(shippingSchema),
+    defaultValues: {
+      recipientName:
+        shippingInfo?.recipientName ||
+        (user ? `${user.firstName || ""} ${user.lastName || ""}`.trim() : ""),
+      contactNumber: shippingInfo?.contactNumber || user?.contactNumber || "",
+      email: shippingInfo?.email || user?.email || "",
+
+      // Fulfillment
+      fulfillmentMethod: hasMotorcycles
+        ? "pickup"
+        : shippingInfo?.fulfillmentMethod || "delivery",
+      partsFulfillmentMethod:
+        shippingInfo?.partsFulfillmentMethod ||
+        (hasParts ? "delivery" : "pickup"),
+      branch: shippingInfo?.branch || BRANCHES[0].name,
+
+      // Courier delivery address (if parts delivery chosen)
+      address: shippingInfo?.address || "",
+      barangay: shippingInfo?.barangay || "",
+      city: shippingInfo?.city || "",
+      postalCode: shippingInfo?.postalCode || "",
+      deliveryNotes: shippingInfo?.deliveryNotes || "",
+
+      // Financing verification (only needed if installment chosen)
+      governmentIdType: shippingInfo?.governmentIdType || GOV_IDS[0],
+      governmentIdNumber: shippingInfo?.governmentIdNumber || "",
+      employerName: shippingInfo?.employerName || "",
+      monthlyIncome: MONTHLY_INCOME_RANGES.includes(
+        shippingInfo?.monthlyIncome,
+      )
+        ? shippingInfo.monthlyIncome
+        : "",
+    },
   });
-  const [addressFormErrors, setAddressFormErrors] = useState({});
+
+  const form = useWatch({ control });
+
+  const {
+    control: addressControl,
+    register: registerAddress,
+    handleSubmit: handleSubmitAddress,
+    reset: resetAddress,
+    trigger: triggerAddress,
+    formState: { errors: addressFormErrors },
+  } = useForm({
+    mode: "onTouched",
+    resolver: yupResolver(shippingAddressSchema),
+    defaultValues: {
+      label: "Home",
+      street: "",
+      barangay: "",
+      city: "",
+      postalCode: "",
+      isDefault: false,
+    },
+  });
+
+  const addressForm = useWatch({ control: addressControl });
 
   // Fetch saved user addresses on mount
   useEffect(() => {
@@ -140,56 +185,27 @@ export const Shipping = () => {
     }
   }, [dispatch, user]);
 
-  // Synchronize saved addresses with form and selection
+  const applyAddressToForm = (addr) => {
+    setValue("address", addr.street || "");
+    setValue("barangay", addr.barangay || "");
+    setValue("city", addr.city || "");
+    setValue("postalCode", addr.postalCode || "");
+    clearErrors(["address", "barangay", "city", "postalCode"]);
+  };
+
+  // Synchronize saved addresses with the selected address (explicit or default)
   useEffect(() => {
     if (!addresses || addresses.length === 0) return;
 
-    // If the customer explicitly selected an address during this checkout session, preserve that selection
-    if (userSelectedAddressRef.current && selectedAddressId) {
-      const currentSelected = addresses.find((a) => a._id === selectedAddressId);
-      if (currentSelected) {
-        setForm((prev) => ({
-          ...prev,
-          address: currentSelected.street || "",
-          barangay: currentSelected.barangay || "",
-          city: currentSelected.city || "",
-          postalCode: currentSelected.postalCode || "",
-        }));
-        return;
-      }
-    }
-
-    // Always prioritize the user's active DEFAULT address (or first address if none marked default)
-    const defaultAddr = addresses.find((a) => a.isDefault) || addresses[0];
-    if (defaultAddr) {
-      setSelectedAddressId(defaultAddr._id);
-      setForm((prev) => ({
-        ...prev,
-        address: defaultAddr.street || "",
-        barangay: defaultAddr.barangay || "",
-        city: defaultAddr.city || "",
-        postalCode: defaultAddr.postalCode || "",
-      }));
-    }
+    const activeAddress =
+      addresses.find((a) => a._id === selectedAddressId) || defaultAddress;
+    if (activeAddress) applyAddressToForm(activeAddress);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [addresses]);
 
   const selectAddress = (addr) => {
-    userSelectedAddressRef.current = true;
-    setSelectedAddressId(addr._id);
-    setForm((prev) => ({
-      ...prev,
-      address: addr.street || "",
-      barangay: addr.barangay || "",
-      city: addr.city || "",
-      postalCode: addr.postalCode || "",
-    }));
-    setErrors((prev) => ({
-      ...prev,
-      address: "",
-      barangay: "",
-      city: "",
-      postalCode: "",
-    }));
+    setExplicitAddressId(addr._id);
+    applyAddressToForm(addr);
     setIsAddingNew(false);
     setEditingAddressId(null);
   };
@@ -198,7 +214,7 @@ export const Shipping = () => {
     e.stopPropagation();
     const success = await dispatch(setDefaultAddress(addressId));
     if (success) {
-      userSelectedAddressRef.current = false;
+      setExplicitAddressId(null);
       toast.success("Default address updated!");
     }
   };
@@ -206,7 +222,7 @@ export const Shipping = () => {
   const startAddAddress = () => {
     setIsAddingNew(true);
     setEditingAddressId(null);
-    setAddressForm({
+    resetAddress({
       label: "Home",
       street: "",
       barangay: "",
@@ -214,13 +230,12 @@ export const Shipping = () => {
       postalCode: "",
       isDefault: addresses.length === 0,
     });
-    setAddressFormErrors({});
   };
 
   const startEditAddress = (addr) => {
     setEditingAddressId(addr._id);
     setIsAddingNew(false);
-    setAddressForm({
+    resetAddress({
       label: addr.label || "Home",
       street: addr.street || "",
       barangay: addr.barangay || "",
@@ -228,96 +243,46 @@ export const Shipping = () => {
       postalCode: addr.postalCode || "",
       isDefault: addr.isDefault || false,
     });
-    setAddressFormErrors({});
   };
 
   const cancelAddressForm = () => {
     setIsAddingNew(false);
     setEditingAddressId(null);
-    setAddressFormErrors({});
   };
 
-  const handleSaveNewAddress = async (e) => {
-    if (e) e.preventDefault();
-    const errs = {};
-    if (!addressForm.street.trim()) errs.street = "Street address is required";
-    if (!addressForm.barangay.trim()) errs.barangay = "Barangay is required";
-    if (!addressForm.city.trim()) errs.city = "City / Municipality is required";
-    if (!addressForm.postalCode.trim()) errs.postalCode = "Postal code is required";
+  const handleSaveNewAddress = async (data) => {
+    const res = await dispatch(addAddress(data));
+    if (!res) return;
 
-    if (Object.keys(errs).length > 0) {
-      setAddressFormErrors(errs);
-      return;
-    }
+    toast.success("Delivery address saved!");
+    const saved = typeof res === "object" ? res : null;
+    const newId = saved?._id || null;
 
-    const res = await dispatch(addAddress(addressForm));
-    if (res) {
-      toast.success("Delivery address saved!");
-      const saved = typeof res === "object" ? res : null;
-      const newStreet = saved?.street || addressForm.street;
-      const newBarangay = saved?.barangay || addressForm.barangay;
-      const newCity = saved?.city || addressForm.city;
-      const newPostalCode = saved?.postalCode || addressForm.postalCode;
-      const newId = saved?._id || null;
+    if (newId) setExplicitAddressId(newId);
+    setValue("address", saved?.street || data.street);
+    setValue("barangay", saved?.barangay || data.barangay);
+    setValue("city", saved?.city || data.city);
+    setValue("postalCode", saved?.postalCode || data.postalCode);
+    clearErrors(["address", "barangay", "city", "postalCode"]);
 
-      if (newId) setSelectedAddressId(newId);
-      setForm((prev) => ({
-        ...prev,
-        address: newStreet,
-        barangay: newBarangay,
-        city: newCity,
-        postalCode: newPostalCode,
-      }));
-      setErrors((prev) => ({
-        ...prev,
-        address: "",
-        barangay: "",
-        city: "",
-        postalCode: "",
-      }));
-
-      setIsAddingNew(false);
-      setEditingAddressId(null);
-      setAddressFormErrors({});
-    }
+    setIsAddingNew(false);
+    setEditingAddressId(null);
   };
 
-  const handleUpdateAddress = async (e) => {
-    if (e) e.preventDefault();
-    const errs = {};
-    if (!addressForm.street.trim()) errs.street = "Street address is required";
-    if (!addressForm.barangay.trim()) errs.barangay = "Barangay is required";
-    if (!addressForm.city.trim()) errs.city = "City / Municipality is required";
-    if (!addressForm.postalCode.trim()) errs.postalCode = "Postal code is required";
+  const handleUpdateAddress = async (data) => {
+    const res = await dispatch(updateAddress(editingAddressId, data));
+    if (!res) return;
 
-    if (Object.keys(errs).length > 0) {
-      setAddressFormErrors(errs);
-      return;
+    toast.success("Address updated successfully!");
+    if (selectedAddressId === editingAddressId) {
+      setValue("address", data.street);
+      setValue("barangay", data.barangay);
+      setValue("city", data.city);
+      setValue("postalCode", data.postalCode);
+      clearErrors(["address", "barangay", "city", "postalCode"]);
     }
-
-    const res = await dispatch(updateAddress(editingAddressId, addressForm));
-    if (res) {
-      toast.success("Address updated successfully!");
-      if (selectedAddressId === editingAddressId) {
-        setForm((prev) => ({
-          ...prev,
-          address: addressForm.street,
-          barangay: addressForm.barangay,
-          city: addressForm.city,
-          postalCode: addressForm.postalCode,
-        }));
-      }
-      setIsAddingNew(false);
-      setEditingAddressId(null);
-      setAddressFormErrors({});
-    }
-  };
-
-  const handleChange = (field, value) => {
-    setForm((prev) => ({ ...prev, [field]: value }));
-    if (errors[field]) {
-      setErrors((prev) => ({ ...prev, [field]: "" }));
-    }
+    setIsAddingNew(false);
+    setEditingAddressId(null);
   };
 
   // Calculations
@@ -337,111 +302,43 @@ export const Shipping = () => {
   const grandTotal =
     partsTotal + motoCashTotal + installmentDownpayments + shippingFee;
 
-  const validate = () => {
-    const errs = {};
-    if (!form.recipientName.trim()) {
-      errs.recipientName = "Full name is required";
-    }
-    if (!form.contactNumber.trim()) {
-      errs.contactNumber = "Mobile number is required";
-    } else if (!/^09\d{9}$/.test(form.contactNumber.replace(/[\s-]/g, ""))) {
-      errs.contactNumber = "Enter a valid 11-digit mobile number (e.g. 09171234567)";
-    }
-    if (!form.email.trim()) {
-      errs.email = "Email address is required";
-    } else if (!/\S+@\S+\.\S+/.test(form.email)) {
-      errs.email = "Enter a valid email address";
-    }
+  const handleContinue = async (data) => {
+    const payload = {
+      ...data,
+      fulfillmentMethod: hasMotorcycles
+        ? "pickup"
+        : data.partsFulfillmentMethod,
+    };
 
-    if (hasMotorcycles || form.partsFulfillmentMethod === "pickup") {
-      if (!form.branch) {
-        errs.branch = "Please select an authorized showroom";
-      }
-    }
-
-    if (hasParts && form.partsFulfillmentMethod === "delivery") {
-      if (!form.address.trim()) errs.address = "Street address is required";
-      if (!form.barangay.trim()) errs.barangay = "Barangay is required";
-      if (!form.city.trim()) errs.city = "City / Municipality is required";
-      if (!form.postalCode.trim()) errs.postalCode = "Postal code is required";
-    }
-
-    if (hasInstallment) {
-      if (!form.governmentIdNumber.trim()) {
-        errs.governmentIdNumber = "Valid ID number is required for credit evaluation";
-      }
-      if (!form.employerName.trim()) {
-        errs.employerName = "Employer or business name is required";
-      }
-      if (!form.monthlyIncome.trim()) {
-        errs.monthlyIncome = "Approximate monthly income is required";
-      }
-    }
-
-    return errs;
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-
-    let currentForm = { ...form };
-
-    // If currently in add mode with address fields filled, auto-save before proceeding
+    // If adding a new address (or none saved yet), validate and save it first
     if (
       hasParts &&
-      form.partsFulfillmentMethod === "delivery" &&
-      (isAddingNew || addresses.length === 0) &&
-      addressForm.street.trim() &&
-      addressForm.city.trim()
+      data.partsFulfillmentMethod === "delivery" &&
+      (isAddingNew || addresses.length === 0)
     ) {
-      const addrErrs = {};
-      if (!addressForm.street.trim()) addrErrs.street = "Street address is required";
-      if (!addressForm.barangay.trim()) addrErrs.barangay = "Barangay is required";
-      if (!addressForm.city.trim()) addrErrs.city = "City / Municipality is required";
-      if (!addressForm.postalCode.trim()) addrErrs.postalCode = "Postal code is required";
-
-      if (Object.keys(addrErrs).length > 0) {
-        setAddressFormErrors(addrErrs);
+      const addressValid = await triggerAddress();
+      if (!addressValid) {
         toast.error("Please fill in all required delivery address fields.");
         return;
       }
 
-      const res = await dispatch(addAddress(addressForm));
+      const addressDraft = shippingAddressSchema.cast(addressForm);
+      const res = await dispatch(addAddress(addressDraft));
       if (!res) {
         toast.error("Failed to save delivery address.");
         return;
       }
+
       const saved = typeof res === "object" ? res : null;
-      const newStreet = saved?.street || addressForm.street;
-      const newBarangay = saved?.barangay || addressForm.barangay;
-      const newCity = saved?.city || addressForm.city;
-      const newPostalCode = saved?.postalCode || addressForm.postalCode;
+      payload.address = saved?.street || addressDraft.street;
+      payload.barangay = saved?.barangay || addressDraft.barangay;
+      payload.city = saved?.city || addressDraft.city;
+      payload.postalCode = saved?.postalCode || addressDraft.postalCode;
 
-      currentForm.address = newStreet;
-      currentForm.barangay = newBarangay;
-      currentForm.city = newCity;
-      currentForm.postalCode = newPostalCode;
-
-      setForm((prev) => ({
-        ...prev,
-        address: newStreet,
-        barangay: newBarangay,
-        city: newCity,
-        postalCode: newPostalCode,
-      }));
+      if (saved?._id) setExplicitAddressId(saved._id);
+      setIsAddingNew(false);
+      setEditingAddressId(null);
     }
-
-    const errs = validate();
-    if (Object.keys(errs).length > 0) {
-      setErrors(errs);
-      toast.error("Please fill in all required fields before proceeding.");
-      return;
-    }
-
-    const payload = {
-      ...currentForm,
-      fulfillmentMethod: hasMotorcycles ? "pickup" : currentForm.partsFulfillmentMethod,
-    };
 
     dispatch(saveShippingInfo(payload));
     navigate("/checkout/confirm");
@@ -480,7 +377,13 @@ export const Shipping = () => {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           {/* Main Form (7 cols) */}
           <div className="lg:col-span-7">
-            <form onSubmit={handleSubmit} className="bg-white border border-zinc-200 rounded-xl shadow-xs divide-y divide-zinc-100 overflow-hidden">
+            <form
+              onSubmit={handleSubmit(handleContinue, () =>
+                toast.error("Please fill in all required fields before proceeding."),
+              )}
+              className="bg-white border border-zinc-200 rounded-xl shadow-xs divide-y divide-zinc-100 overflow-hidden"
+              noValidate
+            >
               {/* Header */}
               <div className="p-6">
                 <h1 className="text-xl font-bold tracking-tight text-zinc-900">
@@ -503,9 +406,8 @@ export const Shipping = () => {
                   </label>
                   <input
                     type="text"
-                    value={form.recipientName}
-                    onChange={(e) => handleChange("recipientName", e.target.value)}
                     placeholder="e.g. Juan Dela Cruz"
+                    {...register("recipientName")}
                     className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-1 transition-colors ${
                       errors.recipientName
                         ? "border-red-500 focus:border-red-500 focus:ring-red-500"
@@ -513,7 +415,7 @@ export const Shipping = () => {
                     }`}
                   />
                   {errors.recipientName && (
-                    <p className="text-[11px] text-red-600 mt-1">{errors.recipientName}</p>
+                    <p className="text-[11px] text-red-600 mt-1">{errors.recipientName.message}</p>
                   )}
                 </div>
 
@@ -524,9 +426,8 @@ export const Shipping = () => {
                     </label>
                     <input
                       type="tel"
-                      value={form.contactNumber}
-                      onChange={(e) => handleChange("contactNumber", e.target.value)}
-                      placeholder="0917 123 4567"
+                      placeholder="09171234567"
+                      {...register("contactNumber")}
                       className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-1 transition-colors ${
                         errors.contactNumber
                           ? "border-red-500 focus:border-red-500 focus:ring-red-500"
@@ -534,7 +435,7 @@ export const Shipping = () => {
                       }`}
                     />
                     {errors.contactNumber && (
-                      <p className="text-[11px] text-red-600 mt-1">{errors.contactNumber}</p>
+                      <p className="text-[11px] text-red-600 mt-1">{errors.contactNumber.message}</p>
                     )}
                   </div>
 
@@ -544,9 +445,8 @@ export const Shipping = () => {
                     </label>
                     <input
                       type="email"
-                      value={form.email}
-                      onChange={(e) => handleChange("email", e.target.value)}
                       placeholder="juan@example.com"
+                      {...register("email")}
                       className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-1 transition-colors ${
                         errors.email
                           ? "border-red-500 focus:border-red-500 focus:ring-red-500"
@@ -554,7 +454,7 @@ export const Shipping = () => {
                       }`}
                     />
                     {errors.email && (
-                      <p className="text-[11px] text-red-600 mt-1">{errors.email}</p>
+                      <p className="text-[11px] text-red-600 mt-1">{errors.email.message}</p>
                     )}
                   </div>
                 </div>
@@ -593,9 +493,8 @@ export const Shipping = () => {
                         >
                           <input
                             type="radio"
-                            name="branch"
-                            checked={form.branch === b.name}
-                            onChange={() => handleChange("branch", b.name)}
+                            value={b.name}
+                            {...register("branch")}
                             className="mt-1 accent-zinc-900 cursor-pointer"
                           />
                           <div className="flex-1 text-xs">
@@ -628,9 +527,8 @@ export const Shipping = () => {
                       >
                         <input
                           type="radio"
-                          name="partsFulfillmentMethod"
-                          checked={form.partsFulfillmentMethod === "delivery"}
-                          onChange={() => handleChange("partsFulfillmentMethod", "delivery")}
+                          value="delivery"
+                          {...register("partsFulfillmentMethod")}
                           className="mt-1 accent-zinc-900 cursor-pointer"
                         />
                         <div className="text-xs">
@@ -648,9 +546,8 @@ export const Shipping = () => {
                       >
                         <input
                           type="radio"
-                          name="partsFulfillmentMethod"
-                          checked={form.partsFulfillmentMethod === "pickup"}
-                          onChange={() => handleChange("partsFulfillmentMethod", "pickup")}
+                          value="pickup"
+                          {...register("partsFulfillmentMethod")}
                           className="mt-1 accent-zinc-900 cursor-pointer"
                         />
                         <div className="text-xs">
@@ -783,7 +680,7 @@ export const Shipping = () => {
                               })}
                             </div>
                             {errors.address && (
-                              <p className="text-[11px] text-red-600">{errors.address}</p>
+                              <p className="text-[11px] text-red-600">{errors.address.message}</p>
                             )}
                           </div>
                         )}
@@ -818,8 +715,7 @@ export const Shipping = () => {
                                   Address Label
                                 </label>
                                 <select
-                                  value={addressForm.label}
-                                  onChange={(e) => setAddressForm((prev) => ({ ...prev, label: e.target.value }))}
+                                  {...registerAddress("label")}
                                   className="w-full px-3 py-2 text-xs bg-white border border-zinc-300 rounded-lg focus:outline-none focus:border-zinc-900"
                                 >
                                   <option value="Home">Home</option>
@@ -835,20 +731,14 @@ export const Shipping = () => {
                                 </label>
                                 <input
                                   type="text"
-                                  value={addressForm.street}
-                                  onChange={(e) => {
-                                    setAddressForm((prev) => ({ ...prev, street: e.target.value }));
-                                    if (addressFormErrors.street) {
-                                      setAddressFormErrors((prev) => ({ ...prev, street: "" }));
-                                    }
-                                  }}
+                                  {...registerAddress("street")}
                                   placeholder="Block 03 Lot 18, Palayan Village"
                                   className={`w-full px-3 py-2 text-xs bg-white border rounded-lg focus:outline-none ${
                                     addressFormErrors.street ? "border-red-500" : "border-zinc-300 focus:border-zinc-900"
                                   }`}
                                 />
                                 {addressFormErrors.street && (
-                                  <p className="text-[11px] text-red-600 mt-1">{addressFormErrors.street}</p>
+                                  <p className="text-[11px] text-red-600 mt-1">{addressFormErrors.street.message}</p>
                                 )}
                               </div>
                             </div>
@@ -860,20 +750,14 @@ export const Shipping = () => {
                                 </label>
                                 <input
                                   type="text"
-                                  value={addressForm.barangay}
-                                  onChange={(e) => {
-                                    setAddressForm((prev) => ({ ...prev, barangay: e.target.value }));
-                                    if (addressFormErrors.barangay) {
-                                      setAddressFormErrors((prev) => ({ ...prev, barangay: "" }));
-                                    }
-                                  }}
+                                  {...registerAddress("barangay")}
                                   placeholder="e.g. Bagumbayan"
                                   className={`w-full px-3 py-2 text-xs bg-white border rounded-lg focus:outline-none ${
                                     addressFormErrors.barangay ? "border-red-500" : "border-zinc-300 focus:border-zinc-900"
                                   }`}
                                 />
                                 {addressFormErrors.barangay && (
-                                  <p className="text-[11px] text-red-600 mt-1">{addressFormErrors.barangay}</p>
+                                  <p className="text-[11px] text-red-600 mt-1">{addressFormErrors.barangay.message}</p>
                                 )}
                               </div>
 
@@ -883,20 +767,14 @@ export const Shipping = () => {
                                 </label>
                                 <input
                                   type="text"
-                                  value={addressForm.city}
-                                  onChange={(e) => {
-                                    setAddressForm((prev) => ({ ...prev, city: e.target.value }));
-                                    if (addressFormErrors.city) {
-                                      setAddressFormErrors((prev) => ({ ...prev, city: "" }));
-                                    }
-                                  }}
+                                  {...registerAddress("city")}
                                   placeholder="e.g. Taguig City"
                                   className={`w-full px-3 py-2 text-xs bg-white border rounded-lg focus:outline-none ${
                                     addressFormErrors.city ? "border-red-500" : "border-zinc-300 focus:border-zinc-900"
                                   }`}
                                 />
                                 {addressFormErrors.city && (
-                                  <p className="text-[11px] text-red-600 mt-1">{addressFormErrors.city}</p>
+                                  <p className="text-[11px] text-red-600 mt-1">{addressFormErrors.city.message}</p>
                                 )}
                               </div>
 
@@ -906,20 +784,14 @@ export const Shipping = () => {
                                 </label>
                                 <input
                                   type="text"
-                                  value={addressForm.postalCode}
-                                  onChange={(e) => {
-                                    setAddressForm((prev) => ({ ...prev, postalCode: e.target.value }));
-                                    if (addressFormErrors.postalCode) {
-                                      setAddressFormErrors((prev) => ({ ...prev, postalCode: "" }));
-                                    }
-                                  }}
+                                  {...registerAddress("postalCode")}
                                   placeholder="1630"
                                   className={`w-full px-3 py-2 text-xs bg-white border rounded-lg focus:outline-none ${
                                     addressFormErrors.postalCode ? "border-red-500" : "border-zinc-300 focus:border-zinc-900"
                                   }`}
                                 />
                                 {addressFormErrors.postalCode && (
-                                  <p className="text-[11px] text-red-600 mt-1">{addressFormErrors.postalCode}</p>
+                                  <p className="text-[11px] text-red-600 mt-1">{addressFormErrors.postalCode.message}</p>
                                 )}
                               </div>
                             </div>
@@ -928,8 +800,7 @@ export const Shipping = () => {
                               <label className="flex items-center gap-2 cursor-pointer select-none">
                                 <input
                                   type="checkbox"
-                                  checked={addressForm.isDefault}
-                                  onChange={(e) => setAddressForm((prev) => ({ ...prev, isDefault: e.target.checked }))}
+                                  {...registerAddress("isDefault")}
                                   className="accent-emerald-600 rounded"
                                 />
                                 <span className="text-[11px] text-zinc-600">Save as default delivery address</span>
@@ -948,7 +819,7 @@ export const Shipping = () => {
                                 <button
                                   type="button"
                                   disabled={addressesUpdating}
-                                  onClick={handleSaveNewAddress}
+                                  onClick={handleSubmitAddress(handleSaveNewAddress)}
                                   className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs rounded-lg transition-colors cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
                                 >
                                   {addressesUpdating && (
@@ -989,8 +860,7 @@ export const Shipping = () => {
                                   Address Label
                                 </label>
                                 <select
-                                  value={addressForm.label}
-                                  onChange={(e) => setAddressForm((prev) => ({ ...prev, label: e.target.value }))}
+                                  {...registerAddress("label")}
                                   className="w-full px-3 py-2 text-xs bg-white border border-zinc-300 rounded-lg focus:outline-none focus:border-zinc-900"
                                 >
                                   <option value="Home">Home</option>
@@ -1006,19 +876,13 @@ export const Shipping = () => {
                                 </label>
                                 <input
                                   type="text"
-                                  value={addressForm.street}
-                                  onChange={(e) => {
-                                    setAddressForm((prev) => ({ ...prev, street: e.target.value }));
-                                    if (addressFormErrors.street) {
-                                      setAddressFormErrors((prev) => ({ ...prev, street: "" }));
-                                    }
-                                  }}
+                                  {...registerAddress("street")}
                                   className={`w-full px-3 py-2 text-xs bg-white border rounded-lg focus:outline-none ${
                                     addressFormErrors.street ? "border-red-500" : "border-zinc-300 focus:border-zinc-900"
                                   }`}
                                 />
                                 {addressFormErrors.street && (
-                                  <p className="text-[11px] text-red-600 mt-1">{addressFormErrors.street}</p>
+                                  <p className="text-[11px] text-red-600 mt-1">{addressFormErrors.street.message}</p>
                                 )}
                               </div>
                             </div>
@@ -1030,19 +894,13 @@ export const Shipping = () => {
                                 </label>
                                 <input
                                   type="text"
-                                  value={addressForm.barangay}
-                                  onChange={(e) => {
-                                    setAddressForm((prev) => ({ ...prev, barangay: e.target.value }));
-                                    if (addressFormErrors.barangay) {
-                                      setAddressFormErrors((prev) => ({ ...prev, barangay: "" }));
-                                    }
-                                  }}
+                                  {...registerAddress("barangay")}
                                   className={`w-full px-3 py-2 text-xs bg-white border rounded-lg focus:outline-none ${
                                     addressFormErrors.barangay ? "border-red-500" : "border-zinc-300 focus:border-zinc-900"
                                   }`}
                                 />
                                 {addressFormErrors.barangay && (
-                                  <p className="text-[11px] text-red-600 mt-1">{addressFormErrors.barangay}</p>
+                                  <p className="text-[11px] text-red-600 mt-1">{addressFormErrors.barangay.message}</p>
                                 )}
                               </div>
 
@@ -1052,19 +910,13 @@ export const Shipping = () => {
                                 </label>
                                 <input
                                   type="text"
-                                  value={addressForm.city}
-                                  onChange={(e) => {
-                                    setAddressForm((prev) => ({ ...prev, city: e.target.value }));
-                                    if (addressFormErrors.city) {
-                                      setAddressFormErrors((prev) => ({ ...prev, city: "" }));
-                                    }
-                                  }}
+                                  {...registerAddress("city")}
                                   className={`w-full px-3 py-2 text-xs bg-white border rounded-lg focus:outline-none ${
                                     addressFormErrors.city ? "border-red-500" : "border-zinc-300 focus:border-zinc-900"
                                   }`}
                                 />
                                 {addressFormErrors.city && (
-                                  <p className="text-[11px] text-red-600 mt-1">{addressFormErrors.city}</p>
+                                  <p className="text-[11px] text-red-600 mt-1">{addressFormErrors.city.message}</p>
                                 )}
                               </div>
 
@@ -1074,19 +926,13 @@ export const Shipping = () => {
                                 </label>
                                 <input
                                   type="text"
-                                  value={addressForm.postalCode}
-                                  onChange={(e) => {
-                                    setAddressForm((prev) => ({ ...prev, postalCode: e.target.value }));
-                                    if (addressFormErrors.postalCode) {
-                                      setAddressFormErrors((prev) => ({ ...prev, postalCode: "" }));
-                                    }
-                                  }}
+                                  {...registerAddress("postalCode")}
                                   className={`w-full px-3 py-2 text-xs bg-white border rounded-lg focus:outline-none ${
                                     addressFormErrors.postalCode ? "border-red-500" : "border-zinc-300 focus:border-zinc-900"
                                   }`}
                                 />
                                 {addressFormErrors.postalCode && (
-                                  <p className="text-[11px] text-red-600 mt-1">{addressFormErrors.postalCode}</p>
+                                  <p className="text-[11px] text-red-600 mt-1">{addressFormErrors.postalCode.message}</p>
                                 )}
                               </div>
                             </div>
@@ -1102,7 +948,7 @@ export const Shipping = () => {
                               <button
                                 type="button"
                                 disabled={addressesUpdating}
-                                onClick={handleUpdateAddress}
+                                onClick={handleSubmitAddress(handleUpdateAddress)}
                                 className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs rounded-lg transition-colors cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
                               >
                                 {addressesUpdating && (
@@ -1124,9 +970,8 @@ export const Shipping = () => {
                           </label>
                           <input
                             type="text"
-                            value={form.deliveryNotes}
-                            onChange={(e) => handleChange("deliveryNotes", e.target.value)}
                             placeholder="Landmark, gate access, or recipient instructions"
+                            {...register("deliveryNotes")}
                             className="w-full px-3 py-2 text-sm bg-white border border-zinc-300 rounded-lg focus:outline-none focus:border-zinc-900"
                           />
                         </div>
@@ -1154,8 +999,7 @@ export const Shipping = () => {
                         Government ID Type <span className="text-red-500">*</span>
                       </label>
                       <select
-                        value={form.governmentIdType}
-                        onChange={(e) => handleChange("governmentIdType", e.target.value)}
+                        {...register("governmentIdType")}
                         className="w-full px-3 py-2 text-sm bg-white border border-zinc-300 rounded-lg focus:outline-none focus:border-zinc-900"
                       >
                         {GOV_IDS.map((id) => (
@@ -1172,15 +1016,14 @@ export const Shipping = () => {
                       </label>
                       <input
                         type="text"
-                        value={form.governmentIdNumber}
-                        onChange={(e) => handleChange("governmentIdNumber", e.target.value)}
                         placeholder="e.g. N01-12-345678"
+                        {...register("governmentIdNumber")}
                         className={`w-full px-3 py-2 text-sm bg-white border rounded-lg focus:outline-none focus:ring-1 ${
                           errors.governmentIdNumber ? "border-red-500" : "border-zinc-300 focus:border-zinc-900"
                         }`}
                       />
                       {errors.governmentIdNumber && (
-                        <p className="text-[11px] text-red-600 mt-1">{errors.governmentIdNumber}</p>
+                        <p className="text-[11px] text-red-600 mt-1">{errors.governmentIdNumber.message}</p>
                       )}
                     </div>
 
@@ -1190,15 +1033,14 @@ export const Shipping = () => {
                       </label>
                       <input
                         type="text"
-                        value={form.employerName}
-                        onChange={(e) => handleChange("employerName", e.target.value)}
                         placeholder="Company or Business Name"
+                        {...register("employerName")}
                         className={`w-full px-3 py-2 text-sm bg-white border rounded-lg focus:outline-none focus:ring-1 ${
                           errors.employerName ? "border-red-500" : "border-zinc-300 focus:border-zinc-900"
                         }`}
                       />
                       {errors.employerName && (
-                        <p className="text-[11px] text-red-600 mt-1">{errors.employerName}</p>
+                        <p className="text-[11px] text-red-600 mt-1">{errors.employerName.message}</p>
                       )}
                     </div>
 
@@ -1206,17 +1048,21 @@ export const Shipping = () => {
                       <label className="block text-xs font-medium text-zinc-700 mb-1">
                         Approximate Monthly Income (₱) <span className="text-red-500">*</span>
                       </label>
-                      <input
-                        type="text"
-                        value={form.monthlyIncome}
-                        onChange={(e) => handleChange("monthlyIncome", e.target.value)}
-                        placeholder="e.g. 45,000"
+                      <select
+                        {...register("monthlyIncome")}
                         className={`w-full px-3 py-2 text-sm bg-white border rounded-lg focus:outline-none focus:ring-1 ${
                           errors.monthlyIncome ? "border-red-500" : "border-zinc-300 focus:border-zinc-900"
                         }`}
-                      />
+                      >
+                        <option value="">Select income range</option>
+                        {MONTHLY_INCOME_RANGES.map((range) => (
+                          <option key={range} value={range}>
+                            {range}
+                          </option>
+                        ))}
+                      </select>
                       {errors.monthlyIncome && (
-                        <p className="text-[11px] text-red-600 mt-1">{errors.monthlyIncome}</p>
+                        <p className="text-[11px] text-red-600 mt-1">{errors.monthlyIncome.message}</p>
                       )}
                     </div>
                   </div>

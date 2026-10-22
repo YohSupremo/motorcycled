@@ -1,7 +1,10 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
+import { useForm, useWatch } from "react-hook-form";
+import { yupResolver } from "@hookform/resolvers/yup";
 import { getMyOrders, payInstallmentAmortization } from "../../../actions/orderActions";
+import { installmentPaymentSchema } from "../../schema/installmentPaymentSchema.js";
 import { ProductImagePlaceholder } from "../../components/ProductImagePlaceholder";
 import { toast } from "react-toastify";
 
@@ -92,9 +95,22 @@ export const Orders = () => {
 
   // Installment Payment Modal State
   const [payingApp, setPayingApp] = useState(null);
-  const [payMethod, setPayMethod] = useState("gcash");
-  const [refNumber, setRefNumber] = useState("");
   const [submittingPay, setSubmittingPay] = useState(false);
+
+  const {
+    register,
+    handleSubmit: handlePaymentFormSubmit,
+    setValue,
+    reset: resetPaymentForm,
+    control: paymentControl,
+    formState: { errors: paymentErrors },
+  } = useForm({
+    mode: "onTouched",
+    resolver: yupResolver(installmentPaymentSchema),
+    defaultValues: { paymentMethod: "gcash", referenceNumber: "" },
+  });
+
+  const paymentForm = useWatch({ control: paymentControl });
 
   useEffect(() => {
     dispatch(getMyOrders());
@@ -114,19 +130,20 @@ export const Orders = () => {
 
   const handleOpenPayment = (app) => {
     setPayingApp(app);
-    setPayMethod("gcash");
-    setRefNumber(generatePaymentRef());
+    resetPaymentForm({
+      paymentMethod: "gcash",
+      referenceNumber: generatePaymentRef(),
+    });
   };
 
-  const handleConfirmInstallmentPayment = async (e) => {
-    e.preventDefault();
+  const handleConfirmInstallmentPayment = async (data) => {
     if (!payingApp) return;
 
     setSubmittingPay(true);
     const res = await dispatch(
       payInstallmentAmortization(payingApp._id, {
-        paymentMethod: payMethod,
-        referenceNumber: refNumber,
+        paymentMethod: data.paymentMethod,
+        referenceNumber: data.referenceNumber,
       })
     );
     setSubmittingPay(false);
@@ -791,7 +808,11 @@ export const Orders = () => {
               </div>
             </div>
 
-            <form onSubmit={handleConfirmInstallmentPayment} className="space-y-4">
+            <form
+              onSubmit={handlePaymentFormSubmit(handleConfirmInstallmentPayment)}
+              noValidate
+              className="space-y-4"
+            >
               <div>
                 <label className="text-xs font-bold text-zinc-800 block mb-1.5 uppercase tracking-wide">
                   Select Payment Channel:
@@ -806,8 +827,12 @@ export const Orders = () => {
                     <button
                       key={ch.id}
                       type="button"
-                      onClick={() => setPayMethod(ch.id)}
-                      className={`p-2.5 rounded-xl border text-left flex items-center gap-2 transition-all cursor-pointer ${payMethod === ch.id
+                      onClick={() =>
+                        setValue("paymentMethod", ch.id, {
+                          shouldValidate: true,
+                        })
+                      }
+                      className={`p-2.5 rounded-xl border text-left flex items-center gap-2 transition-all cursor-pointer ${paymentForm.paymentMethod === ch.id
                           ? "border-emerald-600 bg-emerald-50/40 text-emerald-900 font-bold ring-1 ring-emerald-600"
                           : "border-zinc-200 bg-white hover:border-zinc-300 text-zinc-700"
                         }`}
@@ -825,12 +850,19 @@ export const Orders = () => {
                 </label>
                 <input
                   type="text"
-                  required
-                  value={refNumber}
-                  onChange={(e) => setRefNumber(e.target.value)}
+                  {...register("referenceNumber")}
                   placeholder="e.g. GCash Ref No: 10029384729"
-                  className="w-full h-11 px-3.5 border border-zinc-300 rounded-xl text-xs text-zinc-900 font-mono focus:outline-none focus:border-zinc-900"
+                  className={`w-full h-11 px-3.5 border rounded-xl text-xs text-zinc-900 font-mono focus:outline-none ${
+                    paymentErrors.referenceNumber
+                      ? "border-red-500"
+                      : "border-zinc-300 focus:border-zinc-900"
+                  }`}
                 />
+                {paymentErrors.referenceNumber && (
+                  <p className="text-[11px] text-red-600 mt-1">
+                    {paymentErrors.referenceNumber.message}
+                  </p>
+                )}
               </div>
 
               <div className="flex items-center justify-end gap-2 pt-2">

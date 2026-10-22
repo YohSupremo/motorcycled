@@ -36,8 +36,8 @@ const reviewSchema = new mongoose.Schema(
     },
     comment: {
       type: String,
-      required: [true, "Please provide a review comment"],
       trim: true,
+      default: "",
     },
     // Derived from a completed/delivered order (PDF §4.6)
     isVerifiedPurchase: {

@@ -88,10 +88,7 @@ const validateReviewInput = (rating, comment) => {
   if (!numericRating || numericRating < 1 || numericRating > 5) {
     return { error: "Rating must be between 1 and 5" };
   }
-  if (!comment || !comment.trim()) {
-    return { error: "Please write a short review comment" };
-  }
-  return { rating: numericRating, comment: comment.trim() };
+  return { rating: numericRating, comment: (comment || "").trim() };
 };
 
 // ─── PUBLIC: LIST REVIEWS FOR A PRODUCT ───────────────────────────────────────

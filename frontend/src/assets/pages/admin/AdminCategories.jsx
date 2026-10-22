@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
 import { useDispatch, useSelector } from "react-redux";
@@ -23,9 +23,33 @@ import {
 } from "../../../constants/productConstants.js";
 import { adminDataGridSx } from "../../../utils/adminDataGridTheme";
 
-const categorySchema = yup.object({
-  name: yup.string().trim().required("Category name is required"),
-  description: yup.string().default(""),
+const buildCategorySchema = (categories, editingCategory) =>
+  yup.object({
+    name: yup
+      .string()
+      .trim()
+      .required("Category name is required")
+      .test(
+        "unique-name",
+        "A category with this name already exists",
+        (value) =>
+          !value ||
+          !categories.some(
+            (category) =>
+              !category.isArchived &&
+              category._id !== editingCategory?._id &&
+              String(category.name || "").trim().toLowerCase() ===
+                value.toLowerCase(),
+          ),
+      ),
+    description: yup.string().default(""),
+  });
+
+const reassignSchema = yup.object({
+  targetCategoryId: yup
+    .string()
+    .trim()
+    .required("Select a category to move the products to"),
 });
 
 export const AdminCategories = () => {
@@ -49,6 +73,11 @@ export const AdminCategories = () => {
   const [editingCategory, setEditingCategory] = useState(null);
 
   // Form handling via React Hook Form + Yup
+  const categorySchema = useMemo(
+    () => buildCategorySchema(categories, editingCategory),
+    [categories, editingCategory],
+  );
+
   const {
     register,
     handleSubmit,
@@ -65,9 +94,24 @@ export const AdminCategories = () => {
   const [reassignState, setReassignState] = useState({
     isOpen: false,
     sourceCategory: null,
-    targetCategoryId: "",
     productCount: 0,
     products: [],
+  });
+
+  const {
+    register: registerReassign,
+    handleSubmit: handleReassignFormSubmit,
+    reset: resetReassign,
+    control: reassignControl,
+    formState: { errors: reassignErrors },
+  } = useForm({
+    resolver: yupResolver(reassignSchema),
+    defaultValues: { targetCategoryId: "" },
+  });
+
+  const reassignTargetId = useWatch({
+    control: reassignControl,
+    name: "targetCategoryId",
   });
 
   // Initial fetch (fetch all so admin can filter active & soft-deleted)
@@ -159,10 +203,10 @@ export const AdminCategories = () => {
 
     // If products exist, backend returns a 409 Conflict with the product count & products
     if (res?.conflict) {
+      resetReassign({ targetCategoryId: "" });
       setReassignState({
         isOpen: true,
         sourceCategory: category,
-        targetCategoryId: "",
         productCount: res.productCount,
         products: res.products || [],
       });
@@ -199,29 +243,29 @@ export const AdminCategories = () => {
     }
   };
 
-  // Handle reassigning products and soft-deleting category
-  const handleReassignSubmit = async (e) => {
-    e.preventDefault();
-    if (!reassignState.targetCategoryId) {
-      toast.warn("Select a category to move the products to.");
-      return;
-    }
+  // Close reassign modal and clear its form
+  const closeReassignModal = () => {
+    setReassignState({
+      isOpen: false,
+      sourceCategory: null,
+      productCount: 0,
+      products: [],
+    });
+    resetReassign({ targetCategoryId: "" });
+  };
 
+  // Handle reassigning products and soft-deleting category
+  const handleReassignSubmit = async (data) => {
     const res = await dispatch(
       reassignCategoryAndDelete(
         reassignState.sourceCategory._id,
-        reassignState.targetCategoryId,
+        data.targetCategoryId,
       ),
     );
 
     if (res?.success) {
       toast.success(res.data?.message || "Products moved and category archived.");
-      setReassignState({
-        isOpen: false,
-        sourceCategory: null,
-        targetCategoryId: "",
-        productCount: 0,
-      });
+      closeReassignModal();
       dispatch(getCategories({ all: "true" }));
     }
   };
@@ -801,14 +845,7 @@ export const AdminCategories = () => {
               </div>
               <button
                 type="button"
-                onClick={() =>
-                  setReassignState({
-                    isOpen: false,
-                    sourceCategory: null,
-                    targetCategoryId: "",
-                    productCount: 0,
-                  })
-                }
+                onClick={closeReassignModal}
                 aria-label="Close"
                 className="w-8 h-8 rounded flex items-center justify-center text-zinc-400 hover:text-zinc-700 hover:bg-zinc-200/60 transition-colors cursor-pointer shrink-0"
               >
@@ -827,7 +864,11 @@ export const AdminCategories = () => {
               </button>
             </div>
 
-            <form onSubmit={handleReassignSubmit} className="p-4 space-y-4 text-xs">
+            <form
+              onSubmit={handleReassignFormSubmit(handleReassignSubmit)}
+              noValidate
+              className="p-4 space-y-4 text-xs"
+            >
               <div className="p-4 bg-amber-50 border border-amber-200 rounded text-amber-900 space-y-1">
                 <p className="font-semibold text-xs">
                   This category has{" "}
@@ -903,15 +944,12 @@ export const AdminCategories = () => {
                 </label>
                 <select
                   id="reassign-target"
-                  required
-                  value={reassignState.targetCategoryId}
-                  onChange={(e) =>
-                    setReassignState({
-                      ...reassignState,
-                      targetCategoryId: e.target.value,
-                    })
-                  }
-                  className="w-full h-9 px-3 border border-zinc-300 rounded transition-colors font-medium text-zinc-800 bg-white focus:border-emerald-700 focus:outline-2 focus:outline-offset-1 focus:outline-emerald-700"
+                  {...registerReassign("targetCategoryId")}
+                  className={`w-full h-9 px-3 border rounded transition-colors font-medium text-zinc-800 bg-white focus:outline-2 focus:outline-offset-1 ${
+                    reassignErrors.targetCategoryId
+                      ? "border-red-500 focus:outline-red-600"
+                      : "border-zinc-300 focus:border-emerald-700 focus:outline-emerald-700"
+                  }`}
                 >
                   <option value="">Choose a category</option>
                   {categories
@@ -926,26 +964,24 @@ export const AdminCategories = () => {
                       </option>
                     ))}
                 </select>
+                {reassignErrors.targetCategoryId && (
+                  <p className="text-[11px] text-red-600">
+                    {reassignErrors.targetCategoryId.message}
+                  </p>
+                )}
               </div>
 
               <div className="pt-4 border-t border-zinc-200 flex items-center justify-end gap-2">
                 <button
                   type="button"
-                  onClick={() =>
-                    setReassignState({
-                      isOpen: false,
-                      sourceCategory: null,
-                      targetCategoryId: "",
-                      productCount: 0,
-                    })
-                  }
+                  onClick={closeReassignModal}
                   className="h-8 px-3 rounded border border-zinc-200 text-zinc-700 hover:bg-zinc-50 font-medium transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  disabled={actionLoading || !reassignState.targetCategoryId}
+                  disabled={actionLoading || !reassignTargetId}
                   className="h-8 px-4 rounded bg-amber-600 hover:bg-amber-700 text-white font-semibold disabled:opacity-50 transition-colors inline-flex items-center gap-2 cursor-pointer"
                 >
                   {actionLoading ? (

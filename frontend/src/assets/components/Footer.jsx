@@ -1,6 +1,43 @@
+import { useCallback, useState } from "react";
 import { Link } from "react-router-dom";
+import { LegalModal } from "./LegalModal";
 
-export const Footer = ({ onNavigate }) => {
+const CATALOG_LINKS = [
+  { label: "Motorcycles and Scooters", category: "Motorcycles" },
+  { label: "Engine and Transmission Parts", category: "Engine Parts" },
+  { label: "Brakes and Suspensions", category: "Brakes" },
+  { label: "Helmets", category: "Helmets" },
+  { label: "Riding Gear", category: "Riding Gear" },
+  { label: "Tires, Wheels and Rims", category: "Tires and Wheels" },
+  { label: "Oils and Lubricants", category: "Lubricants" },
+];
+
+const FINANCING_LINKS = [
+  { label: "12, 24 and 36-Month Plans", to: "/#financing" },
+  { label: "Installment Terms and Fees", to: "/about#faq" },
+  { label: "Loan Requirements (ID and Income)", to: "/profile/verification" },
+  { label: "Monthly Dues and Payment History", to: "/orders" },
+  { label: "Payment Channels (GCash, Maya, Bank)", to: "/about#faq" },
+  { label: "Early Payoff and Settlement", to: "/about#faq" },
+];
+
+const SUPPORT_LINKS = [
+  { label: "Order Tracking and Delivery", to: "/orders" },
+  { label: "Warranty and Maintenance Policy", document: "warranty" },
+  { label: "Cancellations and Refunds", document: "refunds" },
+  { label: "Frequently Asked Questions", to: "/about#faq" },
+  { label: "Privacy Policy", document: "privacy" },
+  { label: "Terms and Conditions", document: "terms" },
+];
+
+const LINK_CLASS =
+  "hover:text-emerald-700 transition-colors text-left cursor-pointer";
+
+export const Footer = () => {
+  const [legalDocument, setLegalDocument] = useState(null);
+
+  const closeLegal = useCallback(() => setLegalDocument(null), []);
+
   return (
     <footer className="border-t border-zinc-200 bg-white text-zinc-600 text-xs mt-12">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-12">
@@ -8,7 +45,7 @@ export const Footer = ({ onNavigate }) => {
           
           {/* Brand Column */}
           <div className="lg:col-span-2 space-y-3">
-            <div className="flex items-center gap-2.5">
+            <Link to="/" className="flex items-center gap-2.5 w-fit">
               <img
                 src="/motorcycled-logo.png"
                 alt="Motorcycled Logo"
@@ -17,16 +54,22 @@ export const Footer = ({ onNavigate }) => {
               <span className="text-sm font-bold tracking-wider text-zinc-900 uppercase">
                 Motorcycled
               </span>
-            </div>
+            </Link>
             <p className="text-zinc-500 leading-relaxed max-w-sm text-xs">
               Authorized dealership and online portal for certified motorcycles, OEM replacement parts, riding gear, and flexible installment financing across the Philippines.
             </p>
             <div className="pt-1 space-y-1 text-zinc-500 text-[11px]">
               <p className="flex items-center gap-2">
-                <span className="font-medium text-zinc-700">Location:</span> Metro Manila, Philippines
+                <span className="font-medium text-zinc-700">Location:</span>
+                <Link to="/about#contact" className={LINK_CLASS}>
+                  Ortigas Avenue Extension, Pasig City
+                </Link>
               </p>
               <p className="flex items-center gap-2">
-                <span className="font-medium text-zinc-700">Customer Hotline:</span> (02) 8921-5500
+                <span className="font-medium text-zinc-700">Customer Hotline:</span>
+                <a href="tel:+63289215500" className={LINK_CLASS}>
+                  (02) 8921-5500
+                </a>
               </p>
               <p className="flex items-center gap-2">
                 <span className="font-medium text-zinc-700">Support Hours:</span> Monday to Saturday, 8:00 AM to 6:00 PM
@@ -40,68 +83,20 @@ export const Footer = ({ onNavigate }) => {
               Products and Catalog
             </h4>
             <ul className="space-y-2 text-zinc-500">
+              {CATALOG_LINKS.map((item) => (
+                <li key={item.label}>
+                  <Link
+                    to={`/shop?category=${encodeURIComponent(item.category)}`}
+                    className={LINK_CLASS}
+                  >
+                    {item.label}
+                  </Link>
+                </li>
+              ))}
               <li>
-                <button
-                  type="button"
-                  onClick={() => onNavigate ? onNavigate("shop") : null}
-                  className="hover:text-emerald-700 transition-colors text-left cursor-pointer"
-                >
-                  Motorcycles and Scooters
-                </button>
-              </li>
-              <li>
-                <button
-                  type="button"
-                  onClick={() => onNavigate ? onNavigate("shop") : null}
-                  className="hover:text-emerald-700 transition-colors text-left cursor-pointer"
-                >
-                  Engine and Transmission Parts
-                </button>
-              </li>
-              <li>
-                <button
-                  type="button"
-                  onClick={() => onNavigate ? onNavigate("shop") : null}
-                  className="hover:text-emerald-700 transition-colors text-left cursor-pointer"
-                >
-                  Brakes and Suspensions
-                </button>
-              </li>
-              <li>
-                <button
-                  type="button"
-                  onClick={() => onNavigate ? onNavigate("shop") : null}
-                  className="hover:text-emerald-700 transition-colors text-left cursor-pointer"
-                >
-                  Helmets and Riding Gear
-                </button>
-              </li>
-              <li>
-                <button
-                  type="button"
-                  onClick={() => onNavigate ? onNavigate("shop") : null}
-                  className="hover:text-emerald-700 transition-colors text-left cursor-pointer"
-                >
-                  Tires, Wheels and Rims
-                </button>
-              </li>
-              <li>
-                <button
-                  type="button"
-                  onClick={() => onNavigate ? onNavigate("shop") : null}
-                  className="hover:text-emerald-700 transition-colors text-left cursor-pointer"
-                >
-                  Oils and Lubricants
-                </button>
-              </li>
-              <li>
-                <button
-                  type="button"
-                  onClick={() => onNavigate ? onNavigate("shop") : null}
-                  className="hover:text-emerald-700 transition-colors text-left cursor-pointer"
-                >
+                <Link to="/#brands" className={LINK_CLASS}>
                   Authorized Brands
-                </button>
+                </Link>
               </li>
             </ul>
           </div>
@@ -112,60 +107,13 @@ export const Footer = ({ onNavigate }) => {
               Financing and Plans
             </h4>
             <ul className="space-y-2 text-zinc-500">
-              <li>
-                <button
-                  type="button"
-                  onClick={() => onNavigate ? onNavigate("orders") : null}
-                  className="hover:text-emerald-700 transition-colors text-left cursor-pointer"
-                >
-                  12, 24 and 36-Month Plans
-                </button>
-              </li>
-              <li>
-                <button
-                  type="button"
-                  onClick={() => onNavigate ? onNavigate("shop") : null}
-                  className="hover:text-emerald-700 transition-colors text-left cursor-pointer"
-                >
-                  Downpayment Calculator
-                </button>
-              </li>
-              <li>
-                <button
-                  type="button"
-                  onClick={() => onNavigate ? onNavigate("profile") : null}
-                  className="hover:text-emerald-700 transition-colors text-left cursor-pointer"
-                >
-                  Loan Requirements (ID and Income)
-                </button>
-              </li>
-              <li>
-                <button
-                  type="button"
-                  onClick={() => onNavigate ? onNavigate("orders") : null}
-                  className="hover:text-emerald-700 transition-colors text-left cursor-pointer"
-                >
-                  Monthly Dues and Schedules
-                </button>
-              </li>
-              <li>
-                <button
-                  type="button"
-                  onClick={() => onNavigate ? onNavigate("orders") : null}
-                  className="hover:text-emerald-700 transition-colors text-left cursor-pointer"
-                >
-                  Payment Channels (GCash, Maya, Bank)
-                </button>
-              </li>
-              <li>
-                <button
-                  type="button"
-                  onClick={() => onNavigate ? onNavigate("orders") : null}
-                  className="hover:text-emerald-700 transition-colors text-left cursor-pointer"
-                >
-                  Early Payoff Policy
-                </button>
-              </li>
+              {FINANCING_LINKS.map((item) => (
+                <li key={item.label}>
+                  <Link to={item.to} className={LINK_CLASS}>
+                    {item.label}
+                  </Link>
+                </li>
+              ))}
             </ul>
           </div>
 
@@ -175,42 +123,26 @@ export const Footer = ({ onNavigate }) => {
               Customer Support
             </h4>
             <ul className="space-y-2 text-zinc-500">
+              {SUPPORT_LINKS.map((item) => (
+                <li key={item.label}>
+                  {item.document ? (
+                    <button
+                      type="button"
+                      onClick={() => setLegalDocument(item.document)}
+                      aria-haspopup="dialog"
+                      className={LINK_CLASS}
+                    >
+                      {item.label}
+                    </button>
+                  ) : (
+                    <Link to={item.to} className={LINK_CLASS}>
+                      {item.label}
+                    </Link>
+                  )}
+                </li>
+              ))}
               <li>
-                <button
-                  type="button"
-                  onClick={() => onNavigate ? onNavigate("orders") : null}
-                  className="hover:text-emerald-700 transition-colors text-left cursor-pointer"
-                >
-                  Order Tracking and Delivery
-                </button>
-              </li>
-              <li>
-                <a href="#warranty" className="hover:text-emerald-700 transition-colors">
-                  Warranty and Maintenance Policy
-                </a>
-              </li>
-              <li>
-                <a href="#cancellation" className="hover:text-emerald-700 transition-colors">
-                  Cancellations and Refunds
-                </a>
-              </li>
-              <li>
-                <Link to="/about" className="hover:text-emerald-700 transition-colors">
-                  Frequently Asked Questions
-                </Link>
-              </li>
-              <li>
-                <a href="#privacy" className="hover:text-emerald-700 transition-colors">
-                  Privacy Policy
-                </a>
-              </li>
-              <li>
-                <a href="#terms" className="hover:text-emerald-700 transition-colors">
-                  Terms and Conditions
-                </a>
-              </li>
-              <li>
-                <a href="#help" className="hover:text-emerald-700 transition-colors">
+                <a href="mailto:inquiries@motorcycled.ph" className={LINK_CLASS}>
                   Contact Service Desk
                 </a>
               </li>
@@ -224,12 +156,35 @@ export const Footer = ({ onNavigate }) => {
           <span>© 2026 Motorcycled. All rights reserved.</span>
 
           <div className="flex items-center gap-4 text-zinc-500">
-            <a href="#terms" className="hover:text-zinc-700 transition-colors">Terms</a>
-            <a href="#privacy" className="hover:text-zinc-700 transition-colors">Privacy</a>
-            <a href="#cookies" className="hover:text-zinc-700 transition-colors">Security</a>
+            <button
+              type="button"
+              onClick={() => setLegalDocument("terms")}
+              aria-haspopup="dialog"
+              className={LINK_CLASS}
+            >
+              Terms
+            </button>
+            <button
+              type="button"
+              onClick={() => setLegalDocument("privacy")}
+              aria-haspopup="dialog"
+              className={LINK_CLASS}
+            >
+              Privacy
+            </button>
+            <button
+              type="button"
+              onClick={() => setLegalDocument("warranty")}
+              aria-haspopup="dialog"
+              className={LINK_CLASS}
+            >
+              Warranty
+            </button>
           </div>
         </div>
       </div>
+
+      <LegalModal documentKey={legalDocument} onClose={closeLegal} />
     </footer>
   );
 };

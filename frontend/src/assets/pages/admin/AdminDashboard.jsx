@@ -1,6 +1,9 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { Link } from "react-router-dom";
 import axios from "axios";
+import { useForm } from "react-hook-form";
+import { yupResolver } from "@hookform/resolvers/yup";
+import * as yup from "yup";
 import { DataGrid } from "@mui/x-data-grid";
 import {
   ResponsiveContainer,
@@ -18,6 +21,21 @@ import {
 import { adminDataGridSx } from "../../../utils/adminDataGridTheme";
 
 const API = import.meta.env.VITE_API;
+
+const customRangeSchema = yup.object({
+  startDate: yup.string().required("Start date is required"),
+  endDate: yup
+    .string()
+    .required("End date is required")
+    .test(
+      "on-or-after-start",
+      "End date cannot be before the start date",
+      function (value) {
+        const { startDate } = this.parent;
+        return !value || !startDate || new Date(value) >= new Date(startDate);
+      },
+    ),
+});
 
 const fmtCurrency = (n) =>
   `₱${Number(n || 0).toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
@@ -55,10 +73,18 @@ export const AdminDashboard = ({ onSelectOrder }) => {
 
   // Quiz 2: date range filter and chart configuration state
   const [preset, setPreset] = useState("30d");
-  const [customStart, setCustomStart] = useState("");
-  const [customEnd, setCustomEnd] = useState("");
   const [chartType, setChartType] = useState("area"); // area, bar, or line
   const [metricMode, setMetricMode] = useState("sales"); // sales, orders, or units
+
+  const {
+    register,
+    handleSubmit,
+    getValues,
+    formState: { errors },
+  } = useForm({
+    resolver: yupResolver(customRangeSchema),
+    defaultValues: { startDate: "", endDate: "" },
+  });
 
   const fetchStats = useCallback(async (activePreset, start, end, isManualRefresh = false) => {
     if (isManualRefresh) setRefreshing(true);
@@ -87,18 +113,18 @@ export const AdminDashboard = ({ onSelectOrder }) => {
   }, []);
 
   useEffect(() => {
-    fetchStats(preset, customStart, customEnd);
-  }, [fetchStats, preset]);
+    const { startDate, endDate } = getValues();
+    fetchStats(preset, startDate, endDate);
+  }, [fetchStats, preset, getValues]);
 
-  const handleApplyCustomRange = (e) => {
-    e.preventDefault();
-    if (!customStart || !customEnd) return;
-    if (new Date(customStart) > new Date(customEnd)) {
-      alert("Start date cannot be after end date.");
-      return;
-    }
+  const handleApplyCustomRange = (data) => {
     setPreset("custom");
-    fetchStats("custom", customStart, customEnd);
+    fetchStats("custom", data.startDate, data.endDate);
+  };
+
+  const refreshStats = (isManualRefresh = false) => {
+    const { startDate, endDate } = getValues();
+    fetchStats(preset, startDate, endDate, isManualRefresh);
   };
 
   const { metrics, rangeSummary, salesTimeline, categorySales, pendingApprovals, recentOrders, lowStockProducts } =
@@ -335,7 +361,7 @@ export const AdminDashboard = ({ onSelectOrder }) => {
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
-            onClick={() => fetchStats(preset, customStart, customEnd, true)}
+            onClick={() => refreshStats(true)}
             disabled={refreshing}
             className="inline-flex items-center gap-1.5 !h-8 px-3 rounded border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-700 text-xs font-medium transition-colors cursor-pointer whitespace-nowrap disabled:opacity-50"
             title="Refresh dashboard data"
@@ -373,7 +399,7 @@ export const AdminDashboard = ({ onSelectOrder }) => {
       {error && (
         <div className="border border-red-200 bg-red-50 text-red-700 text-xs p-3 rounded flex items-center justify-between">
           <span>{error}</span>
-          <button type="button" onClick={() => fetchStats(preset, customStart, customEnd)} className="underline font-semibold cursor-pointer">
+          <button type="button" onClick={() => refreshStats()} className="underline font-semibold cursor-pointer">
             Retry
           </button>
         </div>
@@ -548,37 +574,58 @@ export const AdminDashboard = ({ onSelectOrder }) => {
             </div>
 
             {preset === "custom" && (
-              <form
-                onSubmit={handleApplyCustomRange}
-                className="flex items-center gap-2 bg-zinc-50 p-2 rounded border border-zinc-200 self-start md:self-auto"
-              >
-                <div className="flex items-center gap-1 text-xs">
-                  <span className="text-zinc-500 font-mono text-[10px]">From</span>
-                  <input
-                    type="date"
-                    value={customStart}
-                    onChange={(e) => setCustomStart(e.target.value)}
-                    required
-                    className="h-7 px-2 text-xs bg-white border border-zinc-300 rounded focus:border-emerald-700 focus:outline-2 focus:outline-emerald-700 focus:outline-offset-1 font-mono"
-                  />
-                </div>
-                <div className="flex items-center gap-1 text-xs">
-                  <span className="text-zinc-500 font-mono text-[10px]">To</span>
-                  <input
-                    type="date"
-                    value={customEnd}
-                    onChange={(e) => setCustomEnd(e.target.value)}
-                    required
-                    className="h-7 px-2 text-xs bg-white border border-zinc-300 rounded focus:border-emerald-700 focus:outline-2 focus:outline-emerald-700 focus:outline-offset-1 font-mono"
-                  />
-                </div>
-                <button
-                  type="submit"
-                  className="h-7 px-3 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold rounded cursor-pointer transition-colors"
+              <div className="flex flex-col gap-1 self-start md:self-auto">
+                <form
+                  onSubmit={handleSubmit(handleApplyCustomRange)}
+                  noValidate
+                  className="flex items-start gap-2 bg-zinc-50 p-2 rounded border border-zinc-200"
                 >
-                  Apply
-                </button>
-              </form>
+                  <div className="flex flex-col gap-1 text-xs">
+                    <div className="flex items-center gap-1">
+                      <span className="text-zinc-500 font-mono text-[10px]">From</span>
+                      <input
+                        type="date"
+                        {...register("startDate")}
+                        className={`h-7 px-2 text-xs bg-white border rounded focus:outline-2 focus:outline-offset-1 font-mono ${
+                          errors.startDate
+                            ? "border-red-500 focus:outline-red-600"
+                            : "border-zinc-300 focus:border-emerald-700 focus:outline-emerald-700"
+                        }`}
+                      />
+                    </div>
+                    {errors.startDate && (
+                      <span className="text-[10px] text-red-600">
+                        {errors.startDate.message}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex flex-col gap-1 text-xs">
+                    <div className="flex items-center gap-1">
+                      <span className="text-zinc-500 font-mono text-[10px]">To</span>
+                      <input
+                        type="date"
+                        {...register("endDate")}
+                        className={`h-7 px-2 text-xs bg-white border rounded focus:outline-2 focus:outline-offset-1 font-mono ${
+                          errors.endDate
+                            ? "border-red-500 focus:outline-red-600"
+                            : "border-zinc-300 focus:border-emerald-700 focus:outline-emerald-700"
+                        }`}
+                      />
+                    </div>
+                    {errors.endDate && (
+                      <span className="text-[10px] text-red-600">
+                        {errors.endDate.message}
+                      </span>
+                    )}
+                  </div>
+                  <button
+                    type="submit"
+                    className="h-7 px-3 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold rounded cursor-pointer transition-colors"
+                  >
+                    Apply
+                  </button>
+                </form>
+              </div>
             )}
           </div>
         </div>

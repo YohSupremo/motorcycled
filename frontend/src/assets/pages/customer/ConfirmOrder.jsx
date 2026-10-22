@@ -1,10 +1,13 @@
 import { useMemo, useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
+import { useForm, useWatch } from "react-hook-form";
+import { yupResolver } from "@hookform/resolvers/yup";
 import { submitCheckout, resetCheckout } from "../../../actions/orderActions";
 import { clearSuccessfulItems } from "../../../actions/cartActions";
 import { ProductImagePlaceholder } from "../../components/ProductImagePlaceholder";
 import { CheckoutStepper } from "../../components/CheckoutStepper";
+import { buildPaymentSchema } from "../../schema/paymentSchema.js";
 import { toast } from "react-toastify";
 
 const generateSessionId = () =>
@@ -64,15 +67,32 @@ export const ConfirmOrder = () => {
   const hasNotifiedRef = useRef(false);
 
   // Online Payment Input Fields
-  const [paymentForm, setPaymentForm] = useState(() => ({
-    accountName:
-      shippingInfo?.recipientName ||
-      (user ? `${user.firstName || ""} ${user.lastName || ""}`.trim() : ""),
-    accountNumber: shippingInfo?.contactNumber || user?.contactNumber || "",
-    referenceNumber: "",
-    bankName: "BDO",
-  }));
-  const [paymentErrors, setPaymentErrors] = useState({});
+  const paymentSchema = useMemo(
+    () => buildPaymentSchema(paymentMethod),
+    [paymentMethod],
+  );
+
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    clearErrors,
+    control: paymentControl,
+    formState: { errors: paymentErrors },
+  } = useForm({
+    mode: "onTouched",
+    resolver: yupResolver(paymentSchema),
+    defaultValues: {
+      accountName:
+        shippingInfo?.recipientName ||
+        (user ? `${user.firstName || ""} ${user.lastName || ""}`.trim() : ""),
+      accountNumber: shippingInfo?.contactNumber || user?.contactNumber || "",
+      referenceNumber: "",
+      bankName: "BDO",
+    },
+  });
+
+  const paymentForm = useWatch({ control: paymentControl });
 
   const [sessionId] = useState(() => {
     const saved = sessionStorage.getItem("mcCheckoutSessionId");
@@ -138,57 +158,7 @@ export const ConfirmOrder = () => {
   const grandTotal =
     partsCashTotal + motoCashTotal + installmentDownpaymentsTotal + shippingFee;
 
-  const handlePaymentChange = (field, val) => {
-    setPaymentForm((prev) => ({ ...prev, [field]: val }));
-    if (paymentErrors[field]) {
-      setPaymentErrors((prev) => ({ ...prev, [field]: "" }));
-    }
-  };
-
-  const validatePayment = () => {
-    const errs = {};
-    if (paymentMethod === "gcash") {
-      if (!paymentForm.accountName.trim()) {
-        errs.accountName = "GCash account name is required";
-      }
-      if (!paymentForm.accountNumber.trim()) {
-        errs.accountNumber = "GCash mobile number is required";
-      } else if (!/^09\d{9}$/.test(paymentForm.accountNumber.replace(/[\s-]/g, ""))) {
-        errs.accountNumber = "Enter an 11-digit GCash mobile number (09XXXXXXXXX)";
-      }
-    } else if (paymentMethod === "maya") {
-      if (!paymentForm.accountName.trim()) {
-        errs.accountName = "Maya registered account name is required";
-      }
-      if (!paymentForm.accountNumber.trim()) {
-        errs.accountNumber = "Maya mobile number is required";
-      } else if (!/^09\d{9}$/.test(paymentForm.accountNumber.replace(/[\s-]/g, ""))) {
-        errs.accountNumber = "Enter an 11-digit Maya mobile number";
-      }
-    } else if (paymentMethod === "bank_deposit") {
-      if (!paymentForm.accountName.trim()) {
-        errs.accountName = "Account holder name is required";
-      }
-      if (!paymentForm.accountNumber.trim()) {
-        errs.accountNumber = "Bank account number is required";
-      }
-    }
-    return errs;
-  };
-
-  const handlePlaceOrder = () => {
-    hasNotifiedRef.current = false;
-
-    // Validate payment fields if online payment
-    if (paymentMethod !== "cash_on_releasing") {
-      const pErrs = validatePayment();
-      if (Object.keys(pErrs).length > 0) {
-        setPaymentErrors(pErrs);
-        toast.error("Please enter your payment details before placing order.");
-        return;
-      }
-    }
-
+  const placeOrder = (data) => {
     if (!agreedTerms) {
       toast.warning("Please acknowledge and agree to the checkout terms.", {
         toastId: "agree-terms-warning",
@@ -210,21 +180,28 @@ export const ConfirmOrder = () => {
         shippingInfo,
         paymentMethod,
         paymentDetails: {
-          accountName: paymentForm.accountName.trim(),
-          accountNumber: paymentForm.accountNumber.trim(),
+          accountName: (data.accountName || "").trim(),
+          accountNumber: (data.accountNumber || "").trim(),
           referenceNumber:
-            paymentForm.referenceNumber.trim() ||
+            (data.referenceNumber || "").trim() ||
             (paymentMethod === "gcash"
               ? `GC-${Date.now().toString().slice(-8)}`
               : paymentMethod === "maya"
               ? `MY-${Date.now().toString().slice(-8)}`
               : `BT-${Date.now().toString().slice(-8)}`),
-          bankName: paymentMethod === "bank_deposit" ? paymentForm.bankName : "",
+          bankName: paymentMethod === "bank_deposit" ? data.bankName : "",
         },
       })
     ).then(() => {
       sessionStorage.removeItem("mcCheckoutSessionId");
     });
+  };
+
+  const handlePlaceOrder = () => {
+    hasNotifiedRef.current = false;
+    handleSubmit(placeOrder, () =>
+      toast.error("Please enter your payment details before placing order.")
+    )();
   };
 
   useEffect(() => {
@@ -504,7 +481,10 @@ export const ConfirmOrder = () => {
                         name="paymentMethod"
                         value={pm.value}
                         checked={isSelected}
-                        onChange={() => setPaymentMethod(pm.value)}
+                        onChange={() => {
+                          setPaymentMethod(pm.value);
+                          clearErrors();
+                        }}
                         className="mt-1 accent-zinc-900 cursor-pointer"
                       />
                       <div className="flex-1 text-xs">
@@ -544,15 +524,14 @@ export const ConfirmOrder = () => {
                       </label>
                       <input
                         type="text"
-                        value={paymentForm.accountName}
-                        onChange={(e) => handlePaymentChange("accountName", e.target.value)}
+                        {...register("accountName")}
                         placeholder="e.g. Juan Dela Cruz"
                         className={`w-full px-3 py-2 text-sm bg-white border rounded-lg focus:outline-none focus:ring-1 ${
                           paymentErrors.accountName ? "border-red-500" : "border-zinc-300 focus:border-zinc-900"
                         }`}
                       />
                       {paymentErrors.accountName && (
-                        <p className="text-[11px] text-red-600 mt-1">{paymentErrors.accountName}</p>
+                        <p className="text-[11px] text-red-600 mt-1">{paymentErrors.accountName.message}</p>
                       )}
                     </div>
 
@@ -562,15 +541,14 @@ export const ConfirmOrder = () => {
                       </label>
                       <input
                         type="tel"
-                        value={paymentForm.accountNumber}
-                        onChange={(e) => handlePaymentChange("accountNumber", e.target.value)}
+                        {...register("accountNumber")}
                         placeholder="0917 123 4567"
                         className={`w-full px-3 py-2 text-sm bg-white border rounded-lg focus:outline-none focus:ring-1 ${
                           paymentErrors.accountNumber ? "border-red-500" : "border-zinc-300 focus:border-zinc-900"
                         }`}
                       />
                       {paymentErrors.accountNumber && (
-                        <p className="text-[11px] text-red-600 mt-1">{paymentErrors.accountNumber}</p>
+                        <p className="text-[11px] text-red-600 mt-1">{paymentErrors.accountNumber.message}</p>
                       )}
                     </div>
                   </div>
@@ -595,15 +573,14 @@ export const ConfirmOrder = () => {
                       </label>
                       <input
                         type="text"
-                        value={paymentForm.accountName}
-                        onChange={(e) => handlePaymentChange("accountName", e.target.value)}
+                        {...register("accountName")}
                         placeholder="e.g. Juan Dela Cruz"
                         className={`w-full px-3 py-2 text-sm bg-white border rounded-lg focus:outline-none focus:ring-1 ${
                           paymentErrors.accountName ? "border-red-500" : "border-zinc-300 focus:border-zinc-900"
                         }`}
                       />
                       {paymentErrors.accountName && (
-                        <p className="text-[11px] text-red-600 mt-1">{paymentErrors.accountName}</p>
+                        <p className="text-[11px] text-red-600 mt-1">{paymentErrors.accountName.message}</p>
                       )}
                     </div>
 
@@ -613,15 +590,14 @@ export const ConfirmOrder = () => {
                       </label>
                       <input
                         type="tel"
-                        value={paymentForm.accountNumber}
-                        onChange={(e) => handlePaymentChange("accountNumber", e.target.value)}
+                        {...register("accountNumber")}
                         placeholder="0918 902 1145"
                         className={`w-full px-3 py-2 text-sm bg-white border rounded-lg focus:outline-none focus:ring-1 ${
                           paymentErrors.accountNumber ? "border-red-500" : "border-zinc-300 focus:border-zinc-900"
                         }`}
                       />
                       {paymentErrors.accountNumber && (
-                        <p className="text-[11px] text-red-600 mt-1">{paymentErrors.accountNumber}</p>
+                        <p className="text-[11px] text-red-600 mt-1">{paymentErrors.accountNumber.message}</p>
                       )}
                     </div>
                   </div>
@@ -648,7 +624,7 @@ export const ConfirmOrder = () => {
                         <button
                           type="button"
                           key={bk.code}
-                          onClick={() => handlePaymentChange("bankName", bk.code)}
+                          onClick={() => setValue("bankName", bk.code, { shouldValidate: true })}
                           className={`p-2.5 rounded-lg border text-center transition-all cursor-pointer ${
                             paymentForm.bankName === bk.code
                               ? "bg-white border-zinc-900 ring-1 ring-zinc-900 font-bold text-zinc-900 shadow-xs"
@@ -669,15 +645,14 @@ export const ConfirmOrder = () => {
                       </label>
                       <input
                         type="text"
-                        value={paymentForm.accountName}
-                        onChange={(e) => handlePaymentChange("accountName", e.target.value)}
+                        {...register("accountName")}
                         placeholder="Full name on bank account"
                         className={`w-full px-3 py-2 text-sm bg-white border rounded-lg focus:outline-none focus:ring-1 ${
                           paymentErrors.accountName ? "border-red-500" : "border-zinc-300 focus:border-zinc-900"
                         }`}
                       />
                       {paymentErrors.accountName && (
-                        <p className="text-[11px] text-red-600 mt-1">{paymentErrors.accountName}</p>
+                        <p className="text-[11px] text-red-600 mt-1">{paymentErrors.accountName.message}</p>
                       )}
                     </div>
 
@@ -687,15 +662,14 @@ export const ConfirmOrder = () => {
                       </label>
                       <input
                         type="text"
-                        value={paymentForm.accountNumber}
-                        onChange={(e) => handlePaymentChange("accountNumber", e.target.value)}
+                        {...register("accountNumber")}
                         placeholder="e.g. 0012 3456 7890"
                         className={`w-full px-3 py-2 text-sm bg-white border rounded-lg focus:outline-none focus:ring-1 font-mono ${
                           paymentErrors.accountNumber ? "border-red-500" : "border-zinc-300 focus:border-zinc-900"
                         }`}
                       />
                       {paymentErrors.accountNumber && (
-                        <p className="text-[11px] text-red-600 mt-1">{paymentErrors.accountNumber}</p>
+                        <p className="text-[11px] text-red-600 mt-1">{paymentErrors.accountNumber.message}</p>
                       )}
                     </div>
                   </div>

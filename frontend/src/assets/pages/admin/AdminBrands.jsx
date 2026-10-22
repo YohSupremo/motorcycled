@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
 import { useDispatch, useSelector } from "react-redux";
@@ -23,8 +23,32 @@ import {
 } from "../../../constants/productConstants.js";
 import { adminDataGridSx } from "../../../utils/adminDataGridTheme";
 
-const brandSchema = yup.object({
-  name: yup.string().trim().required("Brand name is required"),
+const buildBrandSchema = (brands, editingBrand) =>
+  yup.object({
+    name: yup
+      .string()
+      .trim()
+      .required("Brand name is required")
+      .test(
+        "unique-name",
+        "An active brand with this name already exists",
+        (value) =>
+          !value ||
+          !brands.some(
+            (brand) =>
+              !brand.isArchived &&
+              brand._id !== editingBrand?._id &&
+              String(brand.name || "").trim().toLowerCase() ===
+                value.toLowerCase(),
+          ),
+      ),
+  });
+
+const reassignSchema = yup.object({
+  targetBrandId: yup
+    .string()
+    .trim()
+    .required("Select a brand to move the products to"),
 });
 
 export const AdminBrands = () => {
@@ -49,6 +73,11 @@ export const AdminBrands = () => {
   const [editingBrand, setEditingBrand] = useState(null);
 
   // Form state via React Hook Form + Yup
+  const brandSchema = useMemo(
+    () => buildBrandSchema(brands, editingBrand),
+    [brands, editingBrand],
+  );
+
   const {
     register,
     handleSubmit,
@@ -66,9 +95,24 @@ export const AdminBrands = () => {
   const [reassignState, setReassignState] = useState({
     isOpen: false,
     sourceBrand: null,
-    targetBrandId: "",
     productCount: 0,
     products: [],
+  });
+
+  const {
+    register: registerReassign,
+    handleSubmit: handleReassignFormSubmit,
+    reset: resetReassign,
+    control: reassignControl,
+    formState: { errors: reassignErrors },
+  } = useForm({
+    resolver: yupResolver(reassignSchema),
+    defaultValues: { targetBrandId: "" },
+  });
+
+  const reassignTargetId = useWatch({
+    control: reassignControl,
+    name: "targetBrandId",
   });
 
   // Initial fetch (fetch all so admin can filter active & soft-deleted)
@@ -187,10 +231,10 @@ export const AdminBrands = () => {
 
     // If products exist, backend returns a conflict with the product count and products
     if (res?.conflict) {
+      resetReassign({ targetBrandId: "" });
       setReassignState({
         isOpen: true,
         sourceBrand: brand,
-        targetBrandId: "",
         productCount: res.productCount,
         products: res.products || [],
       });
@@ -227,29 +271,29 @@ export const AdminBrands = () => {
     }
   };
 
-  // Handle reassigning products and soft-deleting brand
-  const handleReassignSubmit = async (e) => {
-    e.preventDefault();
-    if (!reassignState.targetBrandId) {
-      toast.warn("Select a brand to move the products to.");
-      return;
-    }
+  // Close reassign modal and clear its form
+  const closeReassignModal = () => {
+    setReassignState({
+      isOpen: false,
+      sourceBrand: null,
+      productCount: 0,
+      products: [],
+    });
+    resetReassign({ targetBrandId: "" });
+  };
 
+  // Handle reassigning products and soft-deleting brand
+  const handleReassignSubmit = async (data) => {
     const res = await dispatch(
       reassignBrandAndDelete(
         reassignState.sourceBrand._id,
-        reassignState.targetBrandId,
+        data.targetBrandId,
       ),
     );
 
     if (res?.success) {
       toast.success(res.data?.message || "Products moved and brand archived.");
-      setReassignState({
-        isOpen: false,
-        sourceBrand: null,
-        targetBrandId: "",
-        productCount: 0,
-      });
+      closeReassignModal();
       dispatch(getBrands({ all: "true" }));
     }
   };
@@ -917,14 +961,7 @@ export const AdminBrands = () => {
               </div>
               <button
                 type="button"
-                onClick={() =>
-                  setReassignState({
-                    isOpen: false,
-                    sourceBrand: null,
-                    targetBrandId: "",
-                    productCount: 0,
-                  })
-                }
+                onClick={closeReassignModal}
                 aria-label="Close"
                 className="w-8 h-8 rounded flex items-center justify-center text-zinc-400 hover:text-zinc-700 hover:bg-zinc-200/60 transition-colors cursor-pointer shrink-0"
               >
@@ -943,7 +980,11 @@ export const AdminBrands = () => {
               </button>
             </div>
 
-            <form onSubmit={handleReassignSubmit} className="p-4 space-y-4 text-xs">
+            <form
+              onSubmit={handleReassignFormSubmit(handleReassignSubmit)}
+              noValidate
+              className="p-4 space-y-4 text-xs"
+            >
               <div className="p-4 bg-amber-50 border border-amber-200 rounded text-amber-900 space-y-1">
                 <p className="font-semibold text-xs">
                   This brand has{" "}
@@ -1019,15 +1060,12 @@ export const AdminBrands = () => {
                 </label>
                 <select
                   id="brand-reassign-target"
-                  required
-                  value={reassignState.targetBrandId}
-                  onChange={(e) =>
-                    setReassignState({
-                      ...reassignState,
-                      targetBrandId: e.target.value,
-                    })
-                  }
-                  className="w-full h-9 px-3 border border-zinc-300 rounded transition-colors font-medium text-zinc-800 bg-white focus:border-emerald-700 focus:outline-2 focus:outline-offset-1 focus:outline-emerald-700"
+                  {...registerReassign("targetBrandId")}
+                  className={`w-full h-9 px-3 border rounded transition-colors font-medium text-zinc-800 bg-white focus:outline-2 focus:outline-offset-1 ${
+                    reassignErrors.targetBrandId
+                      ? "border-red-500 focus:outline-red-600"
+                      : "border-zinc-300 focus:border-emerald-700 focus:outline-emerald-700"
+                  }`}
                 >
                   <option value="">Choose a brand</option>
                   {brands
@@ -1042,26 +1080,24 @@ export const AdminBrands = () => {
                       </option>
                     ))}
                 </select>
+                {reassignErrors.targetBrandId && (
+                  <p className="text-[11px] text-red-600">
+                    {reassignErrors.targetBrandId.message}
+                  </p>
+                )}
               </div>
 
               <div className="pt-4 border-t border-zinc-200 flex items-center justify-end gap-2">
                 <button
                   type="button"
-                  onClick={() =>
-                    setReassignState({
-                      isOpen: false,
-                      sourceBrand: null,
-                      targetBrandId: "",
-                      productCount: 0,
-                    })
-                  }
+                  onClick={closeReassignModal}
                   className="h-8 px-3 rounded border border-zinc-200 text-zinc-700 hover:bg-zinc-50 font-medium transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  disabled={actionLoading || !reassignState.targetBrandId}
+                  disabled={actionLoading || !reassignTargetId}
                   className="h-8 px-4 rounded bg-amber-600 hover:bg-amber-700 text-white font-semibold disabled:opacity-50 transition-colors inline-flex items-center gap-2 cursor-pointer"
                 >
                   {actionLoading ? (

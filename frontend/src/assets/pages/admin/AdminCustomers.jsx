@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import { DataGrid } from "@mui/x-data-grid";
+import { useForm } from "react-hook-form";
+import { yupResolver } from "@hookform/resolvers/yup";
+import * as yup from "yup";
 import { useSelector } from "react-redux";
 import { toast } from "react-toastify";
 import Swal from "sweetalert2";
@@ -16,6 +19,43 @@ const emptyForm = {
   role: "customer",
 };
 
+const buildCustomerSchema = (isEditing) =>
+  yup.object({
+    firstName: yup.string().trim().required("First name is required"),
+    lastName: yup.string().trim().required("Last name is required"),
+    email: yup
+      .string()
+      .trim()
+      .required("Email is required")
+      .email("Enter a valid email address"),
+    contactNumber: yup
+      .string()
+      .trim()
+      .test(
+        "valid-mobile",
+        "Enter an 11-digit mobile number (09XXXXXXXXX)",
+        (value) => !value || /^09\d{9}$/.test(value.replace(/[\s-]/g, "")),
+      ),
+    password: isEditing
+      ? yup
+          .string()
+          .trim()
+          .test(
+            "min-if-present",
+            "Password must be at least 8 characters",
+            (value) => !value || value.length >= 8,
+          )
+      : yup
+          .string()
+          .trim()
+          .required("Password is required")
+          .min(8, "Password must be at least 8 characters"),
+    role: yup
+      .string()
+      .oneOf(["customer", "admin"], "Select a valid role")
+      .required(),
+  });
+
 const getErrorMessage = (error) =>
   error?.response?.data?.message || error?.message || "Something went wrong";
 
@@ -28,7 +68,21 @@ export const AdminCustomers = () => {
   const [statusFilter, setStatusFilter] = useState("all");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState(null);
-  const [form, setForm] = useState(emptyForm);
+
+  const customerSchema = useMemo(
+    () => buildCustomerSchema(Boolean(editingCustomer)),
+    [editingCustomer],
+  );
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm({
+    resolver: yupResolver(customerSchema),
+    defaultValues: emptyForm,
+  });
 
   const loadCustomers = useCallback(async () => {
     setLoading(true);
@@ -55,39 +109,36 @@ export const AdminCustomers = () => {
 
   const openCreateModal = () => {
     setEditingCustomer(null);
-    setForm(emptyForm);
+    reset({ ...emptyForm });
     setIsModalOpen(true);
   };
 
-  const openEditModal = (customer) => {
-    setEditingCustomer(customer);
-    setForm({
-      firstName: customer.firstName || "",
-      lastName: customer.lastName || "",
-      email: customer.email || "",
-      contactNumber: customer.contactNumber || "",
-      password: "",
-      role: customer.role || "customer",
-    });
-    setIsModalOpen(true);
-  };
+  const openEditModal = useCallback(
+    (customer) => {
+      setEditingCustomer(customer);
+      reset({
+        firstName: customer.firstName || "",
+        lastName: customer.lastName || "",
+        email: customer.email || "",
+        contactNumber: customer.contactNumber || "",
+        password: "",
+        role: customer.role || "customer",
+      });
+      setIsModalOpen(true);
+    },
+    [reset],
+  );
 
   const closeModal = () => {
     setIsModalOpen(false);
     setEditingCustomer(null);
-    setForm(emptyForm);
+    reset({ ...emptyForm });
   };
 
-  const handleChange = (event) => {
-    const { name, value } = event.target;
-    setForm((current) => ({ ...current, [name]: value }));
-  };
-
-  const handleSubmit = async (event) => {
-    event.preventDefault();
+  const handleSaveCustomer = async (data) => {
     setActionLoading(true);
     try {
-      const payload = { ...form };
+      const payload = { ...data };
       if (editingCustomer && !payload.password) delete payload.password;
 
       if (editingCustomer) {
@@ -290,7 +341,7 @@ export const AdminCustomers = () => {
         ),
       },
     ],
-    [actionLoading, currentUser?._id, handleStatusChange],
+    [actionLoading, currentUser?._id, handleStatusChange, openEditModal],
   );
 
   return (
@@ -353,7 +404,11 @@ export const AdminCustomers = () => {
 
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-900/40 p-4">
-          <form onSubmit={handleSubmit} className="w-full max-w-lg rounded-lg border border-zinc-200 bg-white shadow-xl">
+          <form
+            onSubmit={handleSubmit(handleSaveCustomer)}
+            noValidate
+            className="w-full max-w-lg rounded-lg border border-zinc-200 bg-white shadow-xl"
+          >
             <div className="flex items-center justify-between border-b border-zinc-200 px-4 py-3">
               <div>
                 <h2 className="text-sm font-bold text-zinc-900">{editingCustomer ? "Edit User" : "Create User"}</h2>
@@ -365,48 +420,59 @@ export const AdminCustomers = () => {
             </div>
             <div className="grid grid-cols-1 gap-3 p-4 text-xs sm:grid-cols-2">
               {[
-                ["firstName", "First name", true],
-                ["lastName", "Last name", true],
-                ["email", "Email", true],
-                ["contactNumber", "Contact number", false],
-              ].map(([name, label, required]) => (
+                { name: "firstName", label: "First name", required: true },
+                { name: "lastName", label: "Last name", required: true },
+                { name: "email", label: "Email", required: true, type: "email" },
+                { name: "contactNumber", label: "Contact number", required: false },
+              ].map(({ name, label, required, type = "text" }) => (
                 <label key={name} className="space-y-1">
                   <span className="font-semibold text-zinc-800">{label}{required ? " *" : ""}</span>
                   <input
-                    name={name}
-                    type={name === "email" ? "email" : "text"}
-                    value={form[name]}
-                    onChange={handleChange}
-                    required={required}
-                    className="h-9 w-full rounded border border-zinc-300 px-2.5 focus:border-emerald-600 focus:outline-none"
+                    {...register(name)}
+                    type={type}
+                    className={`h-9 w-full rounded border px-2.5 focus:outline-none ${
+                      errors[name]
+                        ? "border-red-500"
+                        : "border-zinc-300 focus:border-emerald-600"
+                    }`}
                   />
+                  {errors[name] && (
+                    <p className="text-[11px] text-red-600">{errors[name].message}</p>
+                  )}
                 </label>
               ))}
               <label className="space-y-1 sm:col-span-2">
                 <span className="font-semibold text-zinc-800">Password {editingCustomer ? "(leave blank to keep current)" : "*"}</span>
                 <input
-                  name="password"
+                  {...register("password")}
                   type="password"
-                  value={form.password}
-                  onChange={handleChange}
-                  required={!editingCustomer}
-                  minLength={8}
-                  className="h-9 w-full rounded border border-zinc-300 px-2.5 focus:border-emerald-600 focus:outline-none"
+                  className={`h-9 w-full rounded border px-2.5 focus:outline-none ${
+                    errors.password
+                      ? "border-red-500"
+                      : "border-zinc-300 focus:border-emerald-600"
+                  }`}
                 />
+                {errors.password && (
+                  <p className="text-[11px] text-red-600">{errors.password.message}</p>
+                )}
               </label>
               <label className="space-y-1">
                 <span className="font-semibold text-zinc-800">Role *</span>
                 <select
-                  name="role"
-                  value={form.role}
-                  onChange={handleChange}
-                  required
+                  {...register("role")}
                   disabled={editingCustomer?._id === currentUser?._id}
-                  className="h-9 w-full rounded border border-zinc-300 bg-white px-2.5 focus:border-emerald-600 focus:outline-none disabled:cursor-not-allowed disabled:bg-zinc-100"
+                  className={`h-9 w-full rounded border bg-white px-2.5 focus:outline-none disabled:cursor-not-allowed disabled:bg-zinc-100 ${
+                    errors.role
+                      ? "border-red-500"
+                      : "border-zinc-300 focus:border-emerald-600"
+                  }`}
                 >
                   <option value="customer">Customer</option>
                   <option value="admin">Admin</option>
                 </select>
+                {errors.role && (
+                  <p className="text-[11px] text-red-600">{errors.role.message}</p>
+                )}
               </label>
             </div>
             <div className="flex justify-end gap-2 border-t border-zinc-200 bg-zinc-50 px-4 py-3">

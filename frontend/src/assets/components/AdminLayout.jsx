@@ -235,7 +235,7 @@ export const AdminLayout = ({ activeTab: propActiveTab }) => {
   ];
 
   return (
-    <div className="min-h-screen bg-zinc-100/60 text-zinc-900 flex antialiased font-sans">
+    <div className="admin-shell min-h-screen bg-zinc-100/60 text-zinc-900 flex antialiased font-sans">
       {/* Mobile Backdrop */}
       {isMobileOpen && (
         <div

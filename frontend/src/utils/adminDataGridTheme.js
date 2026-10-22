@@ -13,8 +13,8 @@ export const adminDataGridSx = {
     fontWeight: 600,
     fontSize: "0.6875rem",
     textTransform: "uppercase",
-    fontFamily: "ui-monospace, monospace",
-    letterSpacing: "0.05em",
+    fontFamily: "inherit",
+    letterSpacing: "0.04em",
   },
   "& .MuiDataGrid-columnSeparator": {
     display: "none !important",
