@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { auth, authorizeRoles } from "../middleware/authMiddleware.js";
 import {
+  bulkRestock,
   createRestock,
   getInventoryTransactions,
 } from "../controllers/inventoryController.js";
@@ -15,5 +16,12 @@ router.get(
 );
 
 router.post("/admin/inventory/restock", auth, authorizeRoles("admin"), createRestock);
+
+router.post(
+  "/admin/inventory/bulk-restock",
+  auth,
+  authorizeRoles("admin"),
+  bulkRestock,
+);
 
 export default router;

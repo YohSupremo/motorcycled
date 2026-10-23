@@ -37,6 +37,13 @@ const productSchema = new mongoose.Schema(
       required: [true, "Please enter product price"],
       min: [0, "Price cannot be negative"],
     },
+    // Latest acquisition cost, updated by restocking.
+    // Used for inventory valuation and COGS reporting (FR1.9).
+    costPrice: {
+      type: Number,
+      default: 0,
+      min: [0, "Cost price cannot be negative"],
+    },
     ratings: {
       type: Number,
       default: 0,

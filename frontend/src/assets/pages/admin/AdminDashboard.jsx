@@ -40,6 +40,29 @@ const customRangeSchema = yup.object({
 const fmtCurrency = (n) =>
   `₱${Number(n || 0).toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 
+const timeAgo = (value) => {
+  const date = value ? new Date(value) : null;
+  if (!date || Number.isNaN(date.getTime())) return "—";
+
+  const diff = Date.now() - date.getTime();
+  const minutes = Math.floor(diff / 60000);
+  if (minutes < 1) return "Just now";
+  if (minutes < 60) return `${minutes}m ago`;
+
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+
+  const days = Math.floor(hours / 24);
+  if (days === 1) return "Yesterday";
+  if (days < 7) return `${days}d ago`;
+
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+};
+
 export const AdminDashboard = ({ onSelectOrder }) => {
   // Telemetry and analytics state
   const [loading, setLoading] = useState(true);
@@ -48,7 +71,6 @@ export const AdminDashboard = ({ onSelectOrder }) => {
   const [dashboardData, setDashboardData] = useState({
     metrics: {
       totalRevenue: 0,
-      monthlyRevenue: 0,
       totalOrders: 0,
       activeInstallmentsCount: 0,
       activeInstallmentsValue: 0,
@@ -59,7 +81,14 @@ export const AdminDashboard = ({ onSelectOrder }) => {
       cashIn: 0,
       cashOut: 0,
       netCashFlow: 0,
-      initialCapital: 0,
+    },
+    financials: {
+      totalRestockSpent: 0,
+      inventoryValue: 0,
+      cogs: 0,
+      grossProfit: 0,
+      netCashRecovery: 0,
+      recoveryRate: 0,
     },
     rangeSummary: {
       startDate: "",
@@ -74,6 +103,7 @@ export const AdminDashboard = ({ onSelectOrder }) => {
     categorySales: [],
     pendingApprovals: [],
     recentOrders: [],
+    recentRestocks: [],
     lowStockProducts: [],
   });
 
@@ -81,6 +111,8 @@ export const AdminDashboard = ({ onSelectOrder }) => {
   const [preset, setPreset] = useState("30d");
   const [chartType, setChartType] = useState("area"); // area, bar, or line
   const [metricMode, setMetricMode] = useState("sales"); // sales, orders, or units
+  const [financialView, setFinancialView] = useState("profit"); // profit or cash
+  const [showAllRestocks, setShowAllRestocks] = useState(false);
 
   const {
     register,
@@ -120,6 +152,7 @@ export const AdminDashboard = ({ onSelectOrder }) => {
 
   useEffect(() => {
     const { startDate, endDate } = getValues();
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchStats(preset, startDate, endDate);
   }, [fetchStats, preset, getValues]);
 
@@ -135,12 +168,21 @@ export const AdminDashboard = ({ onSelectOrder }) => {
 
   const {
     metrics,
-    cashFlow = { cashIn: 0, cashOut: 0, netCashFlow: 0, initialCapital: 0 },
+    cashFlow = { cashIn: 0, cashOut: 0, netCashFlow: 0 },
+    financials = {
+      totalRestockSpent: 0,
+      inventoryValue: 0,
+      cogs: 0,
+      grossProfit: 0,
+      netCashRecovery: 0,
+      recoveryRate: 0,
+    },
     rangeSummary,
     salesTimeline,
     categorySales,
     pendingApprovals,
     recentOrders,
+    recentRestocks = [],
     lowStockProducts,
   } = dashboardData;
 
@@ -424,21 +466,15 @@ export const AdminDashboard = ({ onSelectOrder }) => {
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2 pb-2 border-b border-zinc-900">
           <div>
             <span className="text-[11px] font-medium text-emerald-700 block">
-              This month
+              All time
             </span>
             <h2 className="text-base sm:text-lg font-bold text-zinc-900 tracking-tight text-balance">
               Cash flow
             </h2>
           </div>
-          <Link
-            to="/admin/settings"
-            className="text-xs text-emerald-700 hover:text-emerald-800 font-semibold cursor-pointer"
-          >
-            Set initial capital
-          </Link>
         </div>
 
-        <div className="border-y border-zinc-200 bg-white grid grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-zinc-200 py-3">
+        <div className="border-y border-zinc-200 bg-white grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-zinc-200 py-3">
           <div className="px-4 py-2 space-y-1">
             <span className="block font-mono uppercase text-[10px] tracking-wider text-zinc-500">
               Total cash in
@@ -446,7 +482,7 @@ export const AdminDashboard = ({ onSelectOrder }) => {
             <p className="text-2xl font-bold tracking-tight text-emerald-700 font-mono">
               {loading ? "Loading..." : fmtCurrency(cashFlow.cashIn)}
             </p>
-            <p className="text-[11px] text-zinc-500">Money actually received this month</p>
+            <p className="text-[11px] text-zinc-500">Money actually received to date</p>
           </div>
 
           <div className="px-4 py-2 space-y-1">
@@ -456,7 +492,7 @@ export const AdminDashboard = ({ onSelectOrder }) => {
             <p className="text-2xl font-bold tracking-tight text-rose-700 font-mono">
               {loading ? "Loading..." : fmtCurrency(cashFlow.cashOut)}
             </p>
-            <p className="text-[11px] text-zinc-500">Supplier restocks this month</p>
+            <p className="text-[11px] text-zinc-500">Supplier restocks to date</p>
           </div>
 
           <div className="px-4 py-2 space-y-1">
@@ -470,17 +506,7 @@ export const AdminDashboard = ({ onSelectOrder }) => {
             >
               {loading ? "Loading..." : fmtCurrency(cashFlow.netCashFlow)}
             </p>
-            <p className="text-[11px] text-zinc-500">Cash in minus cash out</p>
-          </div>
-
-          <div className="px-4 py-2 space-y-1">
-            <span className="block font-mono uppercase text-[10px] tracking-wider text-zinc-500">
-              Initial capital
-            </span>
-            <p className="text-2xl font-bold tracking-tight text-zinc-900 font-mono">
-              {loading ? "Loading..." : fmtCurrency(cashFlow.initialCapital)}
-            </p>
-            <p className="text-[11px] text-zinc-500">Owner's original investment</p>
+            <p className="text-[11px] text-zinc-500">All-time cash in minus cash out</p>
           </div>
         </div>
       </section>
@@ -489,13 +515,15 @@ export const AdminDashboard = ({ onSelectOrder }) => {
       <div className="border-y border-zinc-200 bg-white grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-zinc-200 py-3">
         <div className="px-4 py-2 space-y-1">
           <span className="block font-mono uppercase text-[10px] tracking-wider text-zinc-500">
-            All-time revenue
+            Active installments
           </span>
           <p className="text-2xl font-bold tracking-tight text-zinc-900 font-mono">
-            {loading ? "Loading..." : fmtCurrency(metrics.totalRevenue)}
+            {loading ? "..." : `${metrics.activeInstallmentsCount} active`}
           </p>
           <p className="text-[11px] text-zinc-500">
-            Realized turnover across {metrics.totalOrders} orders
+            {loading
+              ? "Financed contracts in progress"
+              : `${fmtCurrency(metrics.activeInstallmentsValue)} financed`}
           </p>
         </div>
 
@@ -519,6 +547,173 @@ export const AdminDashboard = ({ onSelectOrder }) => {
           <p className="text-[11px] text-zinc-500">Items with 5 units or fewer in stock</p>
         </div>
       </div>
+
+      {/* Inventory and financials */}
+      <section className="space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 pb-2 border-b border-zinc-900">
+          <div>
+            <span className="text-[11px] font-medium text-emerald-700 block">
+              All time
+            </span>
+            <h2 className="text-base sm:text-lg font-bold text-zinc-900 tracking-tight text-balance">
+              Inventory and financials
+            </h2>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <div
+              role="group"
+              aria-label="Financial view"
+              className="flex items-center p-0.5 bg-zinc-100 rounded border border-zinc-200 text-[11px] font-semibold"
+            >
+              <button
+                type="button"
+                onClick={() => setFinancialView("profit")}
+                title="Sales revenue minus the cost of items already sold."
+                className={`px-3 py-1 rounded transition-colors cursor-pointer ${
+                  financialView === "profit"
+                    ? "bg-white text-emerald-700 font-bold"
+                    : "text-zinc-500 hover:text-zinc-900"
+                }`}
+              >
+                Profitability
+              </button>
+              <button
+                type="button"
+                onClick={() => setFinancialView("cash")}
+                title="Cash collected minus all restock spending, including stock still on hand."
+                className={`px-3 py-1 rounded transition-colors cursor-pointer ${
+                  financialView === "cash"
+                    ? "bg-white text-emerald-700 font-bold"
+                    : "text-zinc-500 hover:text-zinc-900"
+                }`}
+              >
+                Cash recovery
+              </button>
+            </div>
+
+            <Link
+              to="/admin/inventory"
+              className="text-xs text-emerald-700 hover:text-emerald-800 font-semibold cursor-pointer"
+            >
+              Manage inventory
+            </Link>
+          </div>
+        </div>
+
+        <div className="border border-zinc-200 bg-white rounded overflow-hidden">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-px bg-zinc-200">
+            {financialView === "profit" ? (
+              <>
+                <div className="bg-white px-4 py-3 space-y-1">
+                  <span className="block font-mono uppercase text-[10px] tracking-wider text-zinc-500">
+                    Inventory valuation
+                  </span>
+                  <p className="text-xl font-bold tracking-tight text-zinc-900 font-mono">
+                    {loading ? "Loading..." : fmtCurrency(financials.inventoryValue)}
+                  </p>
+                  <p className="text-[11px] text-zinc-500">
+                    Stock on hand at the recorded cost
+                  </p>
+                </div>
+
+                <div className="bg-white px-4 py-3 space-y-1">
+                  <span className="block font-mono uppercase text-[10px] tracking-wider text-zinc-500">
+                    Cost of goods sold
+                  </span>
+                  <p className="text-xl font-bold tracking-tight text-amber-700 font-mono">
+                    {loading ? "Loading..." : fmtCurrency(financials.cogs)}
+                  </p>
+                  <p className="text-[11px] text-zinc-500">Cost basis of paid order lines</p>
+                </div>
+
+                <div className="bg-white px-4 py-3 space-y-1">
+                  <span className="block font-mono uppercase text-[10px] tracking-wider text-zinc-500">
+                    Gross profit
+                  </span>
+                  <p
+                    className={`text-xl font-bold tracking-tight font-mono ${
+                      financials.grossProfit < 0 ? "text-rose-700" : "text-emerald-700"
+                    }`}
+                  >
+                    {loading ? "Loading..." : fmtCurrency(financials.grossProfit)}
+                  </p>
+                  <p className="text-[11px] text-zinc-500">Sales minus cost of goods sold</p>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="bg-white px-4 py-3 space-y-1">
+                  <span className="block font-mono uppercase text-[10px] tracking-wider text-zinc-500">
+                    Total restock outflow
+                  </span>
+                  <p className="text-xl font-bold tracking-tight text-rose-700 font-mono">
+                    {loading ? "Loading..." : fmtCurrency(financials.totalRestockSpent)}
+                  </p>
+                  <p className="text-[11px] text-zinc-500">All-time supplier purchases</p>
+                </div>
+
+                <div className="bg-white px-4 py-3 space-y-1">
+                  <span className="block font-mono uppercase text-[10px] tracking-wider text-zinc-500">
+                    Net cash recovery
+                  </span>
+                  <p
+                    className={`text-xl font-bold tracking-tight font-mono ${
+                      financials.netCashRecovery < 0 ? "text-rose-700" : "text-emerald-700"
+                    }`}
+                  >
+                    {loading ? "Loading..." : fmtCurrency(financials.netCashRecovery)}
+                  </p>
+                  <p className="text-[11px] text-zinc-500">Collected revenue minus restock spend</p>
+                </div>
+
+                <div className="bg-white px-4 py-3 space-y-1">
+                  <span className="block font-mono uppercase text-[10px] tracking-wider text-zinc-500">
+                    Capital recovery rate
+                  </span>
+                  <div className="flex items-center gap-3">
+                    <p
+                      className={`text-xl font-bold tracking-tight font-mono ${
+                        financials.netCashRecovery < 0 ? "text-rose-700" : "text-emerald-700"
+                      }`}
+                    >
+                      {loading ? "..." : `${Number(financials.recoveryRate || 0).toFixed(1)}%`}
+                    </p>
+                    <div className="h-2 flex-1 rounded-full bg-zinc-100 overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all ${
+                          financials.netCashRecovery < 0
+                            ? "bg-rose-500"
+                            : "bg-emerald-500"
+                        }`}
+                        style={{
+                          width: `${Math.min(
+                            100,
+                            Math.max(0, Number(financials.recoveryRate || 0)),
+                          )}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+                  <p className="text-[11px] text-zinc-500">
+                    {loading
+                      ? "Share of restock spend recovered"
+                      : financials.netCashRecovery >= 0
+                        ? `In profit — ${fmtCurrency(financials.netCashRecovery)} earned, ${fmtCurrency(financials.totalRestockSpent)} invested`
+                        : `You're ${fmtCurrency(Math.abs(financials.netCashRecovery))} in the negative — ${fmtCurrency(financials.totalRestockSpent)} invested, ${fmtCurrency(metrics.totalRevenue)} earned so far`}
+                  </p>
+                </div>
+              </>
+            )}
+          </div>
+
+          <p className="border-t border-zinc-200 px-4 py-2 text-[11px] text-zinc-500">
+            {financialView === "profit"
+              ? "Profit view counts only items already sold: sales minus their recorded cost. Unsold stock is not treated as an expense."
+              : "Cash view follows money in and out: collected revenue minus all supplier restocks. Stock still on the shelf counts as money already spent."}
+          </p>
+        </div>
+      </section>
 
       {/* Sales charts with date range filter */}
       <section className="border border-zinc-200 bg-white rounded overflow-hidden">
@@ -1019,6 +1214,105 @@ export const AdminDashboard = ({ onSelectOrder }) => {
           </div>
         </div>
       </div>
+
+      {/* Recent restocks */}
+      <section className="space-y-3 pt-2">
+        <div className="flex items-center justify-between pb-2 border-b border-zinc-900">
+          <h2 className="text-base font-bold text-zinc-900 tracking-tight flex items-center gap-2">
+            <span className="w-2 h-2 rounded-sm bg-emerald-600 shrink-0" />
+            <span className="text-balance">Recent restocks</span>
+          </h2>
+          <div className="flex items-center gap-3">
+            {recentRestocks.length > 6 && (
+              <button
+                type="button"
+                onClick={() => setShowAllRestocks((value) => !value)}
+                className="text-xs text-zinc-600 hover:text-zinc-900 font-semibold cursor-pointer transition-colors"
+              >
+                {showAllRestocks ? "Show less" : `Show all (${recentRestocks.length})`}
+              </button>
+            )}
+            <Link
+              to="/admin/inventory"
+              className="text-xs text-emerald-700 hover:text-emerald-800 font-semibold cursor-pointer"
+            >
+              View ledger
+            </Link>
+          </div>
+        </div>
+
+        <div className="border border-zinc-200 bg-white rounded divide-y divide-zinc-200 text-xs overflow-hidden">
+          {recentRestocks.length === 0 ? (
+            <div className="p-8 text-center text-xs text-zinc-500">
+              No restock activity yet. Add stock from the inventory page.
+            </div>
+          ) : (
+            recentRestocks
+              .slice(0, showAllRestocks ? 30 : 6)
+              .map((restock) => (
+              <div
+                key={
+                  restock._id ||
+                  restock.transactionRef ||
+                  `${restock.createdAt}-${restock.productId}`
+                }
+                className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-zinc-50 transition-colors"
+              >
+                <div className="min-w-0 flex items-start gap-3">
+                  <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded border border-emerald-200 bg-emerald-50 text-emerald-700">
+                    <svg
+                      className="h-3.5 w-3.5"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
+                      <path d="M10 17h4V5H2v12h3" />
+                      <path d="M20 17h2v-3.34a2 2 0 0 0-.59-1.42L18 9h-3v8h1" />
+                      <circle cx="7.5" cy="17.5" r="2.5" />
+                      <circle cx="17.5" cy="17.5" r="2.5" />
+                    </svg>
+                  </span>
+                  <div className="min-w-0 space-y-1">
+                    <p className="font-bold text-zinc-900 truncate">
+                      {restock.productName}
+                    </p>
+                    <div className="flex flex-wrap items-center gap-2 text-[11px] text-zinc-500">
+                      <span className="admin-table-badge gap-1 text-[10px] font-medium border border-zinc-200 bg-zinc-50 text-zinc-700">
+                        {restock.supplierName || "No supplier"}
+                      </span>
+                      <span className="font-mono">{restock.orderRef || "—"}</span>
+                      {restock.note ? (
+                        <span className="truncate">{restock.note}</span>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 shrink-0">
+                  <span className="font-mono text-xs font-bold px-2 py-0.5 rounded border bg-emerald-50 text-emerald-700 border-emerald-200">
+                    +{restock.quantityChange} units
+                  </span>
+                  <div className="text-right">
+                    <p className="font-mono text-[11px] text-zinc-500">
+                      {fmtCurrency(restock.unitCost)} / unit
+                    </p>
+                    <p className="font-mono text-xs font-bold text-zinc-900">
+                      Total: {fmtCurrency(restock.totalCost)}
+                    </p>
+                    <p className="text-[11px] text-zinc-500">
+                      {timeAgo(restock.createdAt)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </section>
     </div>
   );
 };

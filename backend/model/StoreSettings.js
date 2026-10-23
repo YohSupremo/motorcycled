@@ -8,11 +8,6 @@ const storeSettingsSchema = new mongoose.Schema(
       unique: true,
       default: "primary",
     },
-    initialCapital: {
-      type: Number,
-      default: 0,
-      min: [0, "Initial capital cannot be negative"],
-    },
   },
   { timestamps: true },
 );

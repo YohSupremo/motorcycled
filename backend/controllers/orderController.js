@@ -5,7 +5,6 @@ import InstallmentApplication from "../model/InstallmentApplication.js";
 import Category from "../model/Category.js";
 import User from "../model/User.js";
 import InventoryTransaction from "../model/InventoryTransaction.js";
-import StoreSettings from "../model/StoreSettings.js";
 import { cloudConf } from "../config/cloudinary.js";
 import { notifyOrderPlaced, notifyInstallmentUpdate, sendNotification } from "../services/notificationService.js";
 import { generateOrderInvoicePDF } from "../services/pdfService.js";
@@ -263,6 +262,7 @@ export const newCheckout = async (req, res) => {
             name: pi.product.name,
             quantity: pi.quantity,
             price: pi.product.price,
+            costPrice: Number(pi.product.costPrice || 0),
             image: pi.product.images?.[0]?.url || "",
             itemType: pi.itemType,
           });
@@ -331,6 +331,7 @@ export const newCheckout = async (req, res) => {
               name: mi.product.name,
               quantity: mi.quantity,
               price: mi.product.price,
+              costPrice: Number(mi.product.costPrice || 0),
               image: mi.product.images?.[0]?.url || "",
               itemType: mi.itemType,
             },
@@ -466,6 +467,7 @@ export const newOrder = async (req, res) => {
       name: item.name,
       quantity: item.quantity || 1,
       price: item.price,
+      costPrice: Number(item.costPrice || 0),
       image: item.image || "",
       itemType: item.itemType || "part",
     }));
@@ -970,6 +972,7 @@ export const confirmInstallmentOrder = async (req, res) => {
             name: application.productName,
             quantity: 1,
             price: application.productPrice,
+            costPrice: Number(updatedProduct.costPrice || 0),
             image: application.productImage || "",
             itemType: "motorcycle",
           },
@@ -1266,18 +1269,17 @@ export const getDashboardStats = async (req, res) => {
       }
     }
 
-    const currentMonthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
-
     const [
       allOrders,
       allApps,
       lowStockProducts,
-      monthlyRestocks,
-      storeSettings,
+      restockTotals,
+      inventoryTotals,
+      recentRestocksRaw,
     ] = await Promise.all([
       Order.find()
         .populate("user", "firstName lastName email contactNumber")
-        .populate("orderItems.product", "name category price images")
+        .populate("orderItems.product", "name category price images costPrice")
         .sort({ createdAt: -1 }),
       InstallmentApplication.find()
         .populate("user", "firstName lastName email contactNumber validId proofOfIncome")
@@ -1286,13 +1288,42 @@ export const getDashboardStats = async (req, res) => {
       Product.find({ stock: { $lte: 5 }, isArchived: false })
         .select("name price stock category brand images")
         .sort({ stock: 1 }),
-      InventoryTransaction.find({
-        type: "restock",
-        createdAt: { $gte: currentMonthStart },
-      })
-        .select("unitCost quantityChange")
+      InventoryTransaction.aggregate([
+        { $match: { type: "restock" } },
+        {
+          $group: {
+            _id: null,
+            totalSpent: {
+              $sum: { $multiply: [{ $abs: "$quantityChange" }, "$unitCost"] },
+            },
+          },
+        },
+      ]),
+      Product.aggregate([
+        { $match: { isArchived: { $ne: true } } },
+        {
+          $group: {
+            _id: null,
+            // Valuation uses only the cost stored in the database. Products
+            // without a recorded cost contribute zero until they are restocked.
+            totalValue: {
+              $sum: {
+                $multiply: [
+                  { $ifNull: ["$stock", 0] },
+                  { $ifNull: ["$costPrice", 0] },
+                ],
+              },
+            },
+          },
+        },
+      ]),
+      InventoryTransaction.find({ type: "restock" })
+        .sort({ createdAt: -1 })
+        .limit(30)
+        .select(
+          "product productName quantityChange unitCost supplierId supplierName orderRef note createdAt",
+        )
         .lean(),
-      StoreSettings.findOne({ key: "primary" }).lean(),
     ]);
 
     const pendingApps = allApps.filter((a) => a.applicationStatus === "pending");
@@ -1315,19 +1346,51 @@ export const getDashboardStats = async (req, res) => {
 
     const totalRevenue = totalOrderSales + downpaymentCollections + amortizationCollections;
 
-    // Monthly Collections (current month)
-    const monthlyOrders = completedOrders.filter(
-      (o) => new Date(o.createdAt) >= currentMonthStart
-    );
-    const monthlyRevenue = monthlyOrders.reduce((sum, o) => sum + (o.totalPrice || 0), 0);
-
-    const cashOut = monthlyRestocks.reduce(
-      (sum, transaction) =>
-        sum + (transaction.unitCost || 0) * Math.abs(transaction.quantityChange || 0),
+    // Inventory and profitability telemetry (FR1.9).
+    // COGS uses the cost snapshot taken at sale time; older orders fall back to
+    // the product's current recorded cost.
+    const totalRestockSpent = restockTotals[0]?.totalSpent || 0;
+    const inventoryValue = inventoryTotals[0]?.totalValue || 0;
+    const cogs = completedOrders.reduce(
+      (sum, order) =>
+        sum +
+        (order.orderItems || []).reduce((acc, item) => {
+          const cost =
+            Number(item.costPrice) > 0
+              ? Number(item.costPrice)
+              : Number(item.product?.costPrice || 0);
+          return acc + cost * Number(item.quantity || 0);
+        }, 0),
       0,
     );
-    const initialCapital = storeSettings?.initialCapital || 0;
-    const netCashFlow = monthlyRevenue - cashOut;
+    const grossProfit = totalOrderSales - cogs;
+    const netCashRecovery = totalRevenue - totalRestockSpent;
+    const recoveryRate =
+      totalRestockSpent > 0
+        ? Math.min(100, Math.max(0, (totalRevenue / totalRestockSpent) * 100))
+        : totalRevenue > 0
+          ? 100
+          : 0;
+
+    const recentRestocks = recentRestocksRaw.map((transaction) => {
+      const quantityChange = Number(transaction.quantityChange || 0);
+      const unitCost = Number(transaction.unitCost || 0);
+
+      return {
+        ...transaction,
+        productId: transaction.product ? String(transaction.product) : "",
+        quantityChange,
+        unitCost,
+        totalCost: Math.abs(quantityChange) * unitCost,
+      };
+    });
+
+    // Cash flow is all-time; the charts below handle the selected date range.
+    const cashFlow = {
+      cashIn: totalRevenue,
+      cashOut: totalRestockSpent,
+      netCashFlow: netCashRecovery,
+    };
 
     // Filtered range sales
     const rangeOrders = allOrders.filter((o) => {
@@ -1429,7 +1492,6 @@ export const getDashboardStats = async (req, res) => {
       data: {
         metrics: {
           totalRevenue,
-          monthlyRevenue,
           totalOrders: allOrders.length,
           activeInstallmentsCount: approvedApps.length,
           activeInstallmentsValue: approvedApps.reduce(
@@ -1439,11 +1501,14 @@ export const getDashboardStats = async (req, res) => {
           pendingScreeningCount: pendingApps.length,
           lowStockCount: lowStockProducts.length,
         },
-        cashFlow: {
-          cashIn: monthlyRevenue,
-          cashOut,
-          netCashFlow,
-          initialCapital,
+        cashFlow,
+        financials: {
+          totalRestockSpent,
+          inventoryValue,
+          cogs,
+          grossProfit,
+          netCashRecovery,
+          recoveryRate,
         },
         rangeSummary: {
           startDate: start.toISOString().split("T")[0],
@@ -1458,6 +1523,7 @@ export const getDashboardStats = async (req, res) => {
         categorySales,
         pendingApprovals: formattedPendingApprovals,
         recentOrders,
+        recentRestocks,
         lowStockProducts,
       },
     });
