@@ -3,6 +3,7 @@ import Product from "../model/Product.js";
 import Category from "../model/Category.js";
 import Brand from "../model/Brand.js";
 import { cloudConf } from "../config/cloudinary.js";
+import InventoryTransaction from "../model/InventoryTransaction.js";
 
 // Helper: Upload a single Base64 data URL to Cloudinary.
 // Reference: itcp318-s3a-2026/backend/controllers/product.js lines 31-35
@@ -136,6 +137,12 @@ export const updateProduct = async (req, res) => {
     return res.status(404).json({ success: false, message: "Product not found" });
   }
 
+  // Track stock changes for inventory adjustment logging
+  const oldStock = Number(product.stock || 0);
+  const incomingStock = req.body.stock !== undefined ? Number(req.body.stock) : oldStock;
+  const stockChanged = req.body.stock !== undefined && incomingStock !== oldStock;
+  const stockDiff = stockChanged ? incomingStock - oldStock : 0;
+
   // Process images if provided in request
   if (req.body.images !== undefined) {
     let rawImages = [];
@@ -197,6 +204,33 @@ export const updateProduct = async (req, res) => {
   })
     .populate("category", "name")
     .populate("brand", "name");
+
+  // Log inventory adjustment if stock changed
+  if (stockChanged && stockDiff !== 0) {
+    try {
+      const makeTransactionRef = () =>
+        `TXN-ADJ-${new mongoose.Types.ObjectId().toString().slice(-8).toUpperCase()}`;
+      const performedByName = (user) =>
+        [user?.firstName, user?.lastName].filter(Boolean).join(" ").trim() || "Admin";
+
+      await InventoryTransaction.create({
+        transactionRef: makeTransactionRef(),
+        product: product._id,
+        productName: product.name,
+        type: "adjustment",
+        quantityChange: stockDiff,
+        orderRef: req.body.adjustmentRef || "MANUAL-ADJ",
+        unitCost: Number(product.costPrice || 0),
+        performedBy: req.user?._id,
+        performedByName: performedByName(req.user),
+        note: req.body.adjustmentReason
+          ? req.body.adjustmentReason
+          : `Catalog stock adjustment (${oldStock} → ${incomingStock})`,
+      });
+    } catch (adjError) {
+      console.error("Failed to log inventory adjustment:", adjError);
+    }
+  }
 
   return res.status(200).json({ success: true, product });
 };

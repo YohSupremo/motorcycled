@@ -310,6 +310,8 @@ const ProductModal = ({
       installmentEligible: false,
       minInstallmentPrice: "",
       isFeatured: false,
+      adjustmentReason: "",
+      adjustmentReasonCustom: "",
     },
   });
 
@@ -330,6 +332,8 @@ const ProductModal = ({
         installmentEligible: false,
         minInstallmentPrice: "",
         isFeatured: false,
+        adjustmentReason: "",
+        adjustmentReasonCustom: "",
       });
       setImageList([]);
       return;
@@ -348,6 +352,8 @@ const ProductModal = ({
         installmentEligible: editingProduct.installmentEligible || false,
         minInstallmentPrice: editingProduct.minInstallmentPrice ?? "",
         isFeatured: Boolean(editingProduct.isFeatured),
+        adjustmentReason: "",
+        adjustmentReasonCustom: "",
       });
       const existing = (editingProduct.images || []).map((img, idx) => ({
         id: img.publicId || `existing-${idx}`,
@@ -369,6 +375,8 @@ const ProductModal = ({
         installmentEligible: false,
         minInstallmentPrice: "",
         isFeatured: false,
+        adjustmentReason: "",
+        adjustmentReasonCustom: "",
       });
       setImageList([]);
     }
@@ -436,6 +444,10 @@ const ProductModal = ({
   const onSubmitProduct = (data) => {
     if (isLoading || isSubmitting) return;
 
+    const adjustmentReason = data.adjustmentReason && data.adjustmentReason !== "Other" 
+      ? data.adjustmentReason 
+      : data.adjustmentReasonCustom || data.adjustmentReason;
+
     const payload = {
       name: data.name.trim(),
       description: data.description ? data.description.trim() : "",
@@ -456,6 +468,7 @@ const ProductModal = ({
       category: data.category,
       brand: data.brand,
       images: imageList.map((item) => item.data),
+      ...(isEdit && adjustmentReason ? { adjustmentReason } : {}),
     };
 
     if (isEdit) {
@@ -640,6 +653,25 @@ const ProductModal = ({
               />
               {errors.stock && (
                 <span className="text-[11px] text-rose-600 block">{errors.stock.message}</span>
+              )}
+              {isEdit && (
+                <div className="mt-2 space-y-1">
+                  <label htmlFor="product-adjustment-reason" className="text-[11px] text-zinc-600 font-medium">
+                    Adjustment reason (optional)
+                  </label>
+                  <select
+                    id="product-adjustment-reason"
+                    {...register("adjustmentReason")}
+                    className="w-full h-8 px-2 border border-zinc-300 rounded text-[11px] transition-colors focus:border-emerald-700 focus:outline-2 focus:outline-offset-1 focus:outline-emerald-700"
+                  >
+                    <option value="">Select reason</option>
+                    <option value="Physical audit count">Physical audit count</option>
+                    <option value="Damaged/expired goods">Damaged/expired goods</option>
+                    <option value="Display sample">Display sample</option>
+                    <option value="Correction">Correction</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
               )}
             </div>
             <div className="space-y-1">

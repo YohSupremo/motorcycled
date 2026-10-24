@@ -239,3 +239,17 @@ export const payInstallmentAmortization = (applicationId, paymentData) => async 
     return { success: false, message: getErrorMessage(error) };
   }
 };
+
+export const cancelOrder = (orderId) => async (dispatch) => {
+  try {
+    const { data } = await axios.put(
+      `${api}/order/${orderId}/cancel`,
+      {},
+      { withCredentials: true }
+    );
+    dispatch(getMyOrders());
+    return { success: true, data };
+  } catch (error) {
+    return { success: false, message: getErrorMessage(error) };
+  }
+};

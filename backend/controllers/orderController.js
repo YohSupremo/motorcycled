@@ -43,6 +43,12 @@ function computeFinancing(productPrice, termMonths) {
  * Check if the chosen payment method is cash on delivery / cash on releasing / COD.
  * Note: Digital wallets like 'gcash' contain the letters 'cash' but are NOT cash on delivery.
  */
+const makeTransactionRef = (prefix = "TXN") =>
+  `${prefix}-${new mongoose.Types.ObjectId().toString().slice(-8).toUpperCase()}`;
+
+const performedByName = (user) =>
+  [user?.firstName, user?.lastName].filter(Boolean).join(" ").trim() || "Customer";
+
 export const isCashOnDeliveryMethod = (method) => {
   if (!method) return false;
   const m = String(method).toLowerCase().trim();
@@ -291,7 +297,26 @@ export const newCheckout = async (req, res) => {
         await partsOrder.save({ session });
         orders.push(partsOrder);
 
+        const customerName = performedByName(req.user);
         for (const item of orderItems) {
+          await InventoryTransaction.create(
+            [
+              {
+                transactionRef: makeTransactionRef("TXN-SALE"),
+                product: item.product,
+                productName: item.name,
+                type: "sale",
+                quantityChange: -item.quantity,
+                orderRef: partsOrder.orderNumber,
+                unitCost: Number(item.costPrice || 0),
+                performedBy: req.user._id,
+                performedByName: customerName,
+                note: `Customer purchase via Order #${partsOrder.orderNumber}`,
+              },
+            ],
+            { session },
+          );
+
           transactionResults.push({
             productId: item.product.toString(),
             productName: item.name,
@@ -347,6 +372,25 @@ export const newCheckout = async (req, res) => {
         });
         await motoOrder.save({ session });
         orders.push(motoOrder);
+
+        const customerName = performedByName(req.user);
+        await InventoryTransaction.create(
+          [
+            {
+              transactionRef: makeTransactionRef("TXN-SALE"),
+              product: mi.product._id,
+              productName: mi.product.name,
+              type: "sale",
+              quantityChange: -mi.quantity,
+              orderRef: motoOrder.orderNumber,
+              unitCost: Number(mi.product.costPrice || 0),
+              performedBy: req.user._id,
+              performedByName: customerName,
+              note: `Motorcycle purchase via Order #${motoOrder.orderNumber}`,
+            },
+          ],
+          { session },
+        );
 
         transactionResults.push({
           productId: mi.product._id.toString(),
@@ -708,7 +752,33 @@ export const updateOrderStatus = async (req, res) => {
           message: `Cannot transition order from '${order.orderStatus}' to '${orderStatus}'`,
         });
       }
+      const previousStatus = order.orderStatus;
       order.orderStatus = orderStatus;
+
+      // When cancelling an order that was pending or processing, restore inventory stock
+      if (orderStatus === "canceled" && ["pending", "processing"].includes(previousStatus)) {
+        const adminName = performedByName(req.user);
+        for (const item of order.orderItems || []) {
+          if (item.product && item.quantity > 0) {
+            await Product.findByIdAndUpdate(item.product, {
+              $inc: { stock: item.quantity },
+            });
+
+            await InventoryTransaction.create({
+              transactionRef: makeTransactionRef("TXN-CNCL"),
+              product: item.product,
+              productName: item.name,
+              type: "cancellation",
+              quantityChange: item.quantity,
+              orderRef: order.orderNumber,
+              unitCost: Number(item.costPrice || 0),
+              performedBy: req.user._id,
+              performedByName: adminName,
+              note: `Restored stock from canceled order #${order.orderNumber}`,
+            });
+          }
+        }
+      }
     }
 
     if (paymentStatus) {
@@ -989,6 +1059,24 @@ export const confirmInstallmentOrder = async (req, res) => {
 
       application.linkedOrderId = order._id;
       await application.save({ session });
+
+      await InventoryTransaction.create(
+        [
+          {
+            transactionRef: makeTransactionRef("TXN-SALE"),
+            product: application.product,
+            productName: application.productName,
+            type: "sale",
+            quantityChange: -1,
+            orderRef: order.orderNumber,
+            unitCost: Number(updatedProduct.costPrice || 0),
+            performedBy: req.user._id,
+            performedByName: performedByName(req.user),
+            note: `Installment order confirmed (${application.applicationRef || "Financing"})`,
+          },
+        ],
+        { session },
+      );
 
       return { application, order };
     });
@@ -1317,11 +1405,11 @@ export const getDashboardStats = async (req, res) => {
           },
         },
       ]),
-      InventoryTransaction.find({ type: "restock" })
+      InventoryTransaction.find()
         .sort({ createdAt: -1 })
         .limit(30)
         .select(
-          "product productName quantityChange unitCost supplierId supplierName orderRef note createdAt",
+          "product productName type quantityChange unitCost supplierId supplierName orderRef note performedByName createdAt",
         )
         .lean(),
     ]);
@@ -1372,7 +1460,7 @@ export const getDashboardStats = async (req, res) => {
           ? 100
           : 0;
 
-    const recentRestocks = recentRestocksRaw.map((transaction) => {
+    const recentActivity = recentRestocksRaw.map((transaction) => {
       const quantityChange = Number(transaction.quantityChange || 0);
       const unitCost = Number(transaction.unitCost || 0);
 
@@ -1385,6 +1473,9 @@ export const getDashboardStats = async (req, res) => {
       };
     });
 
+    const recentRestocks = recentActivity.filter((t) => t.type === "restock");
+    const recentStockActivity = recentActivity;
+
     // Cash flow is all-time; the charts below handle the selected date range.
     const cashFlow = {
       cashIn: totalRevenue,
@@ -1392,22 +1483,32 @@ export const getDashboardStats = async (req, res) => {
       netCashFlow: netCashRecovery,
     };
 
+    const toYMD = (date) => {
+      const d = new Date(date);
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      return `${y}-${m}-${day}`;
+    };
+
+    const startKey = toYMD(start);
+    const endKey = toYMD(end);
+
     // Filtered range sales
     const rangeOrders = allOrders.filter((o) => {
-      const d = new Date(o.createdAt);
-      return (
-        d >= start &&
-        d <= end &&
-        o.orderStatus !== "canceled" &&
-        (o.orderStatus === "completed" || o.paymentStatus === "paid")
-      );
+      if (o.orderStatus === "canceled") return false;
+      const orderKey = toYMD(o.paidAt || o.updatedAt || o.createdAt);
+      return orderKey >= startKey && orderKey <= endKey;
     });
 
     // Generate continuous date map for smooth Line/Bar charting
     const dayMap = {};
     const iter = new Date(start);
-    while (iter <= end) {
-      const key = iter.toISOString().split("T")[0];
+    iter.setHours(0, 0, 0, 0);
+    const endIter = new Date(end);
+    endIter.setHours(0, 0, 0, 0);
+    while (iter <= endIter) {
+      const key = toYMD(iter);
       dayMap[key] = {
         date: key,
         displayDate: iter.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
@@ -1419,7 +1520,7 @@ export const getDashboardStats = async (req, res) => {
     }
 
     for (const o of rangeOrders) {
-      const key = new Date(o.createdAt).toISOString().split("T")[0];
+      const key = toYMD(o.paidAt || o.updatedAt || o.createdAt);
       if (dayMap[key]) {
         dayMap[key].sales += o.totalPrice || 0;
         dayMap[key].orders += 1;
@@ -1523,6 +1624,8 @@ export const getDashboardStats = async (req, res) => {
         categorySales,
         pendingApprovals: formattedPendingApprovals,
         recentOrders,
+        recentActivity,
+        recentStockActivity,
         recentRestocks,
         lowStockProducts,
       },
@@ -1530,6 +1633,70 @@ export const getDashboardStats = async (req, res) => {
   } catch (error) {
     console.error("getDashboardStats error:", error);
     return res.status(500).json({ success: false, message: "Server error generating dashboard telemetry" });
+  }
+};
+
+// ─── cancelMyOrder ─────────────────────────────────────────────────────────────
+
+/**
+ * PUT /api/v1/order/:id/cancel
+ * Allows a customer to cancel their own order if it's still pending or processing.
+ */
+export const cancelMyOrder = async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.id);
+
+    if (!order) {
+      return res.status(404).json({ success: false, message: "Order not found" });
+    }
+
+    const isOwner = order.user.toString() === req.user._id.toString();
+    if (!isOwner) {
+      return res.status(403).json({ success: false, message: "Access denied" });
+    }
+
+    if (!["pending", "processing"].includes(order.orderStatus)) {
+      return res.status(400).json({
+        success: false,
+        message: "Only orders that are pending or processing can be canceled",
+      });
+    }
+
+    const previousStatus = order.orderStatus;
+    order.orderStatus = "canceled";
+
+    const customerName = performedByName(req.user);
+    for (const item of order.orderItems || []) {
+      if (item.product && item.quantity > 0) {
+        await Product.findByIdAndUpdate(item.product, {
+          $inc: { stock: item.quantity },
+        });
+
+        await InventoryTransaction.create({
+          transactionRef: makeTransactionRef("TXN-CNCL"),
+          product: item.product,
+          productName: item.name,
+          type: "cancellation",
+          quantityChange: item.quantity,
+          orderRef: order.orderNumber,
+          unitCost: Number(item.costPrice || 0),
+          performedBy: req.user._id,
+          performedByName: customerName,
+          note: `Stock restored from canceled order #${order.orderNumber} (customer request, was ${previousStatus})`,
+        });
+      }
+    }
+
+    await order.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Order canceled successfully",
+      order,
+    });
+  } catch (error) {
+    console.error("cancelMyOrder error:", error);
+    return res.status(500).json({ success: false, message: "Server error canceling order" });
   }
 };
 

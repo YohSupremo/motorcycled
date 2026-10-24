@@ -103,6 +103,7 @@ export const AdminDashboard = ({ onSelectOrder }) => {
     categorySales: [],
     pendingApprovals: [],
     recentOrders: [],
+    recentActivity: [],
     recentRestocks: [],
     lowStockProducts: [],
   });
@@ -183,6 +184,8 @@ export const AdminDashboard = ({ onSelectOrder }) => {
     pendingApprovals,
     recentOrders,
     recentRestocks = [],
+    recentStockActivity = [],
+    recentActivity = [],
     lowStockProducts,
   } = dashboardData;
 
@@ -1215,21 +1218,21 @@ export const AdminDashboard = ({ onSelectOrder }) => {
         </div>
       </div>
 
-      {/* Recent restocks */}
+      {/* Recent stock activity */}
       <section className="space-y-3 pt-2">
         <div className="flex items-center justify-between pb-2 border-b border-zinc-900">
           <h2 className="text-base font-bold text-zinc-900 tracking-tight flex items-center gap-2">
             <span className="w-2 h-2 rounded-sm bg-emerald-600 shrink-0" />
-            <span className="text-balance">Recent restocks</span>
+            <span className="text-balance">Recent stock activity</span>
           </h2>
           <div className="flex items-center gap-3">
-            {recentRestocks.length > 6 && (
+            {(recentStockActivity.length || recentRestocks.length) > 6 && (
               <button
                 type="button"
                 onClick={() => setShowAllRestocks((value) => !value)}
                 className="text-xs text-zinc-600 hover:text-zinc-900 font-semibold cursor-pointer transition-colors"
               >
-                {showAllRestocks ? "Show less" : `Show all (${recentRestocks.length})`}
+                {showAllRestocks ? "Show less" : `Show all (${(recentStockActivity.length || recentRestocks.length)})`}
               </button>
             )}
             <Link
@@ -1242,14 +1245,24 @@ export const AdminDashboard = ({ onSelectOrder }) => {
         </div>
 
         <div className="border border-zinc-200 bg-white rounded divide-y divide-zinc-200 text-xs overflow-hidden">
-          {recentRestocks.length === 0 ? (
+          {(recentStockActivity.length ? recentStockActivity : recentRestocks).length === 0 ? (
             <div className="p-8 text-center text-xs text-zinc-500">
-              No restock activity yet. Add stock from the inventory page.
+              No stock activity yet.
             </div>
           ) : (
-            recentRestocks
+            (recentStockActivity.length ? recentStockActivity : recentRestocks)
               .slice(0, showAllRestocks ? 30 : 6)
-              .map((restock) => (
+              .map((restock) => {
+                const qty = Number(restock.quantityChange || 0);
+                const isPositive = qty > 0;
+                const type = restock.type || "restock";
+                const badgeStyles = {
+                  restock: "bg-emerald-50 text-emerald-700 border-emerald-200",
+                  sale: "bg-indigo-50 text-indigo-700 border-indigo-200",
+                  cancellation: "bg-amber-50 text-amber-700 border-amber-200",
+                  adjustment: "bg-purple-50 text-purple-700 border-purple-200",
+                };
+                return (
               <div
                 key={
                   restock._id ||
@@ -1259,7 +1272,7 @@ export const AdminDashboard = ({ onSelectOrder }) => {
                 className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-zinc-50 transition-colors"
               >
                 <div className="min-w-0 flex items-start gap-3">
-                  <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded border border-emerald-200 bg-emerald-50 text-emerald-700">
+                  <span className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded border ${badgeStyles[type] || badgeStyles.restock}`}>
                     <svg
                       className="h-3.5 w-3.5"
                       viewBox="0 0 24 24"
@@ -1281,10 +1294,20 @@ export const AdminDashboard = ({ onSelectOrder }) => {
                       {restock.productName}
                     </p>
                     <div className="flex flex-wrap items-center gap-2 text-[11px] text-zinc-500">
-                      <span className="admin-table-badge gap-1 text-[10px] font-medium border border-zinc-200 bg-zinc-50 text-zinc-700">
-                        {restock.supplierName || "No supplier"}
+                      <span className={`admin-table-badge gap-1 text-[10px] font-medium border ${badgeStyles[type] || badgeStyles.restock}`}>
+                        {type === 'restock' ? 'Restock' : type === 'sale' ? 'Sale' : type === 'cancellation' ? 'Cancellation' : type === 'adjustment' ? 'Adjustment' : type}
                       </span>
-                      <span className="font-mono">{restock.orderRef || "—"}</span>
+                      {restock.supplierName ? (
+                        <span className="admin-table-badge gap-1 text-[10px] font-medium border border-zinc-200 bg-zinc-50 text-zinc-700">
+                          {restock.supplierName}
+                        </span>
+                      ) : null}
+                      {restock.orderRef ? (
+                        <span className="font-mono">{restock.orderRef}</span>
+                      ) : null}
+                      {restock.performedByName && type !== 'restock' ? (
+                        <span>By: {restock.performedByName}</span>
+                      ) : null}
                       {restock.note ? (
                         <span className="truncate">{restock.note}</span>
                       ) : null}
@@ -1293,23 +1316,28 @@ export const AdminDashboard = ({ onSelectOrder }) => {
                 </div>
 
                 <div className="flex items-center gap-3 shrink-0">
-                  <span className="font-mono text-xs font-bold px-2 py-0.5 rounded border bg-emerald-50 text-emerald-700 border-emerald-200">
-                    +{restock.quantityChange} units
+                  <span className={`font-mono text-xs font-bold px-2 py-0.5 rounded border ${isPositive ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-zinc-100 text-zinc-700 border-zinc-200'}`}>
+                    {isPositive ? `+${qty}` : qty} units
                   </span>
                   <div className="text-right">
-                    <p className="font-mono text-[11px] text-zinc-500">
-                      {fmtCurrency(restock.unitCost)} / unit
-                    </p>
-                    <p className="font-mono text-xs font-bold text-zinc-900">
-                      Total: {fmtCurrency(restock.totalCost)}
-                    </p>
+                    {restock.unitCost > 0 ? (
+                      <>
+                        <p className="font-mono text-[11px] text-zinc-500">
+                          {fmtCurrency(restock.unitCost)} / unit
+                        </p>
+                        <p className="font-mono text-xs font-bold text-zinc-900">
+                          Total: {fmtCurrency(Math.abs(qty) * restock.unitCost)}
+                        </p>
+                      </>
+                    ) : null}
                     <p className="text-[11px] text-zinc-500">
                       {timeAgo(restock.createdAt)}
                     </p>
                   </div>
                 </div>
               </div>
-            ))
+                );
+              })
           )}
         </div>
       </section>

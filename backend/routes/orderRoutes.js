@@ -15,6 +15,7 @@ import {
   getOrderReceipt,
   payInstallment,
   getDashboardStats,
+  cancelMyOrder,
 } from "../controllers/orderController.js";
 
 const router = express.Router();
@@ -25,6 +26,7 @@ router.post("/order/new", auth, newOrder);
 router.get("/orders/me", auth, getMyOrders);
 router.get("/order/:id", auth, getOrderDetails);
 router.get("/order/:id/receipt", auth, getOrderReceipt);
+router.put("/order/:id/cancel", auth, cancelMyOrder);
 router.get("/application/:id", auth, getApplicationDetails);
 router.post("/application/:id/pay-installment", auth, payInstallment);
 

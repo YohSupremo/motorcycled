@@ -134,11 +134,11 @@ const fetchSuppliers = async (status = "all") => {
 
 const OPERATION_STYLES = {
   restock: "bg-emerald-50 text-emerald-800 border-emerald-200",
-  sale: "bg-zinc-100 text-zinc-700 border-zinc-200",
+  sale: "bg-indigo-50 text-indigo-800 border-indigo-200",
   reserve: "bg-amber-50 text-amber-800 border-amber-200",
   release: "bg-zinc-100 text-zinc-700 border-zinc-200",
-  cancellation: "bg-zinc-100 text-zinc-700 border-zinc-200",
-  adjustment: "bg-zinc-100 text-zinc-700 border-zinc-200",
+  cancellation: "bg-amber-50 text-amber-800 border-amber-200",
+  adjustment: "bg-purple-50 text-purple-800 border-purple-200",
 };
 
 const stockBadgeClass = (stock) => {
@@ -486,6 +486,7 @@ export const AdminInventory = () => {
     register: registerSupplier,
     handleSubmit: handleSupplierSubmit,
     reset: resetSupplierForm,
+    setError: setSupplierError,
     formState: {
       errors: supplierErrors,
       isSubmitting: supplierSubmitting,
@@ -617,9 +618,12 @@ export const AdminInventory = () => {
         });
       }
     } catch (error) {
-      toast.error(
-        error.response?.data?.message || "Could not save supplier",
-      );
+      const message = error.response?.data?.message || "Could not save supplier";
+      if (error.response?.status === 409) {
+        setSupplierError("name", { type: "server", message });
+      } else {
+        toast.error(message);
+      }
       return;
     }
 
@@ -696,7 +700,7 @@ export const AdminInventory = () => {
 
       if (!query) return true;
 
-      return [supplier.name, supplier.contactPerson, supplier.email, supplier.phone]
+      return [supplier.name, supplier.contactPerson, supplier.email, supplier.phone, supplier.address]
         .filter(Boolean)
         .some((value) => value.toLowerCase().includes(query));
     });

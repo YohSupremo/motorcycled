@@ -3,10 +3,11 @@ import { Link } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { useForm, useWatch } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
-import { getMyOrders, payInstallmentAmortization } from "../../../actions/orderActions";
+import { getMyOrders, payInstallmentAmortization, cancelOrder } from "../../../actions/orderActions";
 import { installmentPaymentSchema } from "../../schema/installmentPaymentSchema.js";
 import { ProductImagePlaceholder } from "../../components/ProductImagePlaceholder";
 import { toast } from "react-toastify";
+import Swal from "sweetalert2";
 
 const API = import.meta.env.VITE_API || "http://localhost:4001/api/v1";
 
@@ -155,6 +156,29 @@ export const Orders = () => {
       setPayingApp(null);
     } else {
       toast.error(res?.message || "Failed to process installment payment");
+    }
+  };
+
+  const handleCancelOrder = async (order) => {
+    const result = await Swal.fire({
+      title: "Cancel order?",
+      text: `Are you sure you want to cancel order ${order.orderNumber}? Items will be returned to stock if not yet shipped.`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#dc2626",
+      cancelButtonColor: "#6b7280",
+      confirmButtonText: "Yes, cancel order",
+      cancelButtonText: "Keep order",
+    });
+
+    if (!result.isConfirmed) return;
+
+    const res = await dispatch(cancelOrder(order._id));
+    if (res?.success) {
+      toast.success(res?.data?.message || "Order canceled successfully");
+      dispatch(getMyOrders());
+    } else {
+      toast.error(res?.message || "Failed to cancel order");
     }
   };
 
@@ -486,7 +510,16 @@ export const Orders = () => {
 
                         {/* Right: Totals & Receipt Action */}
                         <div className="flex items-center justify-between md:justify-end gap-3.5 shrink-0 pt-2 md:pt-0 border-t md:border-t-0 border-zinc-200/70">
-                          <div className="flex items-center gap-1.5">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            {(order.orderStatus === "pending" || order.orderStatus === "processing") && (
+                              <button
+                                type="button"
+                                onClick={() => handleCancelOrder(order)}
+                                className="h-8 px-2.5 rounded-lg border border-rose-300 hover:border-rose-400 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-semibold transition-colors shadow-2xs inline-flex items-center gap-1.5 cursor-pointer"
+                              >
+                                <span>Cancel Order</span>
+                              </button>
+                            )}
                             <a
                               href={`${API}/order/${order._id}/receipt`}
                               target="_blank"

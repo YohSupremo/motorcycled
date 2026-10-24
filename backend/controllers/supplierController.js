@@ -175,7 +175,8 @@ export const updateSupplier = async (req, res) => {
 };
 
 // DELETE /api/v1/admin/supplier/:id
-// Soft-deletes the supplier unless restock history exists (audit guard).
+// Soft-deletes the supplier so they no longer appear in new restock selections,
+// while past restock records and financial audits remain completely intact.
 export const deactivateSupplier = async (req, res) => {
   try {
     const supplier = await Supplier.findById(req.params.id);
@@ -191,20 +192,6 @@ export const deactivateSupplier = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: "Supplier is already deactivated",
-      });
-    }
-
-    const restockCount = await InventoryTransaction.countDocuments({
-      type: "restock",
-      supplierId: supplier._id.toString(),
-    });
-
-    if (restockCount > 0) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "This supplier has restock history and cannot be deactivated. Restock history must be preserved for auditing.",
-        restockCount,
       });
     }
 
