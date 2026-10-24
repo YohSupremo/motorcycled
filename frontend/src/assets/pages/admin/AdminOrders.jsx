@@ -163,6 +163,7 @@ export const AdminOrders = () => {
 
   const statusTabs = [
     "All",
+    "Pending",
     "For Approval",
     "Awaiting Downpayment",
     "Processing",
@@ -232,6 +233,9 @@ export const AdminOrders = () => {
     if (targetStatus === "Delivered") {
       payload.orderStatus = "completed";
       payload.paymentStatus = "paid";
+    }
+    if (targetStatus === "Cancelled") {
+      payload.orderStatus = "canceled";
     }
 
     await dispatch(updateOrderStatus(orderId, payload));
@@ -704,38 +708,41 @@ export const AdminOrders = () => {
               )}
 
               {/* Fulfillment step for cash orders */}
-              {!selectedOrder.isApplication && (selectedOrder.status === "Pending" || selectedOrder.status === "Processing" || selectedOrder.status === "Shipped") && (
+              {!selectedOrder.isApplication && selectedOrder.status !== "Delivered" && selectedOrder.status !== "Cancelled" && (
                 <div className="pt-3 border-t border-zinc-200 flex items-center justify-between gap-3">
                   <span className="font-medium text-zinc-700">Fulfillment status</span>
                   <div className="flex items-center gap-2">
-                    {selectedOrder.status === "Pending" && (
-                      <button
-                        type="button"
-                        onClick={() => handleUpdateStatus(selectedOrder._id, "Processing")}
-                        className="h-8 px-3 rounded bg-zinc-900 text-white font-medium hover:bg-zinc-800 cursor-pointer transition-colors"
-                      >
-                        Mark as processing
-                      </button>
-                    )}
-                    {selectedOrder.status === "Processing" && (
-                      <button
-                        type="button"
-                        onClick={() => handleUpdateStatus(selectedOrder._id, "Shipped")}
-                        className="h-8 px-3 rounded bg-zinc-900 text-white font-medium hover:bg-zinc-800 cursor-pointer transition-colors"
-                      >
-                        Mark as shipped
-                      </button>
-                    )}
-                    {selectedOrder.status === "Shipped" && (
-                      <button
-                        type="button"
-                        onClick={() => handleUpdateStatus(selectedOrder._id, "Delivered")}
-                        className="h-8 px-3 rounded bg-emerald-700 text-white font-medium hover:bg-emerald-800 cursor-pointer transition-colors"
-                      >
-                        Mark as delivered
-                      </button>
-                    )}
+                    <select
+                      id="fulfillment-status"
+                      className="h-8 px-2 border border-zinc-300 rounded text-xs bg-white"
+                      defaultValue={selectedOrder.status}
+                    >
+                      {selectedOrder.status === "Pending" && <option value="Pending">Pending</option>}
+                      {(selectedOrder.status === "Pending" || selectedOrder.status === "Processing") && <option value="Processing">Processing</option>}
+                      {(selectedOrder.status === "Processing" || selectedOrder.status === "Shipped") && <option value="Shipped">Shipped</option>}
+                      {(selectedOrder.status === "Shipped" || selectedOrder.status === "Delivered") && <option value="Delivered">Delivered</option>}
+                      {(selectedOrder.status === "Pending" || selectedOrder.status === "Processing") && <option value="Cancelled">Cancelled</option>}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const select = document.getElementById("fulfillment-status");
+                        const val = select?.value;
+                        if (val && val !== selectedOrder.status) {
+                          handleUpdateStatus(selectedOrder._id, val);
+                        }
+                      }}
+                      className="h-8 px-3 rounded bg-zinc-900 text-white font-medium hover:bg-zinc-800 cursor-pointer transition-colors"
+                    >
+                      Update
+                    </button>
                   </div>
+                </div>
+              )}
+              {!selectedOrder.isApplication && (selectedOrder.status === "Delivered" || selectedOrder.status === "Cancelled") && (
+                <div className="pt-3 border-t border-zinc-200 flex items-center justify-between gap-3">
+                  <span className="font-medium text-zinc-700">Fulfillment status</span>
+                  <span className="text-xs text-zinc-500">Completed - no changes allowed</span>
                 </div>
               )}
             </div>
