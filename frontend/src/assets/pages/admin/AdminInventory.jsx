@@ -782,13 +782,28 @@ export const AdminInventory = () => {
         align: "left",
         renderCell: (params) => {
           const delta = params.row.quantityChange;
+          if (delta === "-" || delta === "—" || delta === 0 || delta === null || delta === undefined || delta === "") {
+            return (
+              <span className="font-mono font-bold text-xs text-rose-700">
+                {delta === "-" || delta === "—" ? delta : "—"}
+              </span>
+            );
+          }
+          const numDelta = Number(delta);
+          if (isNaN(numDelta)) {
+            return (
+              <span className="font-mono font-bold text-xs text-rose-700">
+                {delta}
+              </span>
+            );
+          }
           return (
             <span
               className={`font-mono font-bold text-xs ${
-                delta > 0 ? "text-emerald-700" : "text-zinc-800"
+                numDelta > 0 ? "text-emerald-700" : "text-rose-700"
               }`}
             >
-              {delta > 0 ? `+${delta}` : delta}
+              {numDelta > 0 ? `+${numDelta}` : numDelta}
             </span>
           );
         },
