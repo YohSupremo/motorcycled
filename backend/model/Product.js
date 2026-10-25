@@ -13,7 +13,8 @@ const productSchema = new mongoose.Schema(
     },
     description: {
       type: String,
-      required: [true, "Please enter product description"],
+      trim: true,
+      default: "",
     },
     // FK → categories (PDF §4.5)
     category: {

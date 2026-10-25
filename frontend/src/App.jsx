@@ -33,6 +33,7 @@ import { AdminBrands } from "./assets/pages/admin/AdminBrands";
 import { AdminReviews } from "./assets/pages/admin/AdminReviews";
 import { AdminSettings } from "./assets/pages/admin/AdminSettings";
 import { AdminCustomers } from "./assets/pages/admin/AdminCustomers";
+import { AdminReports } from "./assets/pages/admin/AdminReports";
 import ProtectedRoute from "./assets/components/ProtectedRoute";
 import { LOGOUT_SUCCESS } from "./constants/userConstants";
 
@@ -170,6 +171,7 @@ function App() {
           >
             <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
             <Route path="/admin/dashboard" element={<AdminDashboard />} />
+            <Route path="/admin/reports" element={<AdminReports />} />
             <Route path="/admin/inventory" element={<AdminInventory />} />
             <Route path="/admin/orders" element={<AdminOrders />} />
             <Route path="/admin/payments" element={<AdminPayments />} />

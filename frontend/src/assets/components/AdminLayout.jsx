@@ -57,6 +57,17 @@ export const AdminLayout = ({ activeTab: propActiveTab }) => {
       ),
     },
     {
+      id: "reports",
+      group: "Operations",
+      label: "Reports",
+      icon: (
+        <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M4 19V5M4 19h16" />
+          <path d="m7 15 3-4 3 2 5-7" />
+        </svg>
+      ),
+    },
+    {
       id: "products",
       group: "Catalog",
       label: "Catalog & Units",

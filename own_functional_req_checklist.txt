@@ -9,16 +9,46 @@ Legend:
 [ ] Not confirmed in the current source
 
 ============================================================
+REVALIDATION - 2026-10-25
+============================================================
+
+Re-validated against the current source after the recent feature updates
+(forgot-password/reset-password, self-deactivation and reactivation,
+persistent inventory restock/ledger/suppliers, stock updates, checkout
+transactions, and dashboard cash flow).
+
+Status changes since the last full pass:
+  - FR1.1.4 Password Management: moved to [x] - forgot/reset/change password
+    implemented in backend/controllers/AuthController.js.
+  - FR1.6 Inventory and restocking: FR1.6.1, FR1.6.2, FR1.6.4, and FR1.6.5
+    moved to [x] after backend persistence was added; FR1.6.3 and FR1.6.6
+    remain [~].
+  - FR1.9.2 Inventory Report: moved to [x] after the backend inventory
+    transaction report endpoint was confirmed.
+  - FR1.9.3 Expense Report: moved to [x] after the dedicated admin reports
+    endpoint began reporting persisted restocking expenses by date range.
+  - FR1.9.1, FR1.9.4, and FR1.9.5 are covered by the dedicated Reports page
+    and endpoint; FR1.9.7 now reports collections and outstanding receivables,
+    but overdue accounts remain [~] until installment due dates are persisted.
+
+Remaining gaps after revalidation:
+  - FR1.6.3 Expense Tracking and FR1.6.6 Low Stock Alert delivery.
+  - FR1.1.6 Admin user permanent delete; FR1.1.7 Inventory Manager role.
+  - FR1.5.8 / FR1.5.9; FR1.9.6 / FR1.9.7; FR1.10.1 / FR1.10.7 / FR1.10.8 /
+    FR1.10.9.
+  - Every requirement still marked [~] needs a live end-to-end demonstration.
+
+============================================================
 Overall progress
 ============================================================
 
 Functional requirements in the PDF: 71
-Confirmed: 49
-Partial / needs verification: 22
+Confirmed: 58
+Partial / needs verification: 13
 Not confirmed: 0
 
 Estimated implementation coverage:
-    49 / 71 confirmed = 69%
+    58 / 71 confirmed = 82%
     71 / 71 confirmed or partially implemented = 100%
 
 This is an implementation estimate, not an official grade. Requirements
@@ -51,11 +81,17 @@ FR1.1 User Account Management
     Includes profile information, address, profile picture, valid ID,
     and proof-of-income upload flows.
 
-[~] FR1.1.4 Password Management
-    Password login and password hashing are implemented.
-    Forgot-password and reset-password flow is not confirmed end-to-end.
-    Review: backend/controllers/AuthController.js has password-reset
-    placeholders that require completion or demonstration.
+[x] FR1.1.4 Password Management
+    Password login, password hashing, change-password, forgot-password email,
+    expiring hashed reset tokens, and reset-password validation are
+    implemented.
+    Frontend: frontend/src/assets/pages/ForgotPassword.jsx,
+    frontend/src/assets/pages/ResetPassword.jsx
+    Backend: backend/controllers/AuthController.js,
+    backend/routes/authRoutes.js
+    Mailtrap SMTP configuration is present in backend/.env, SMTP connection
+    verification passed, and the complete Forgot Password form-to-Mailtrap
+    inbox reset flow was tested successfully.
 
 [x] FR1.1.5 Account Deactivation
     Admin deactivation/reactivation, customer self-deactivation, and
@@ -86,7 +122,7 @@ FR1.1 User Account Management
     Backend: adminCustomerController.js, model/User.js
     Inventory Manager is not present in the User schema or role controls.
 
-FR1.1 status: 4 confirmed, 3 partial
+FR1.1 status: 5 confirmed, 2 partial
 
 ============================================================
 FR1.2 Product Management
@@ -257,48 +293,54 @@ FR1.5 Order and Checkout Management
     Frontend: ConfirmOrder.jsx
     Backend: orderController.js, backend/model/InstallmentApplication.js
 
-FR1.5 status: 8 confirmed, 3 partial
+FR1.5 status: 9 confirmed, 2 partial
 
 ============================================================
 FR1.6 Inventory and Restocking Management
 ============================================================
 
-[~] FR1.6.1 Record Restocking
+[x] FR1.6.1 Record Restocking
     Frontend: frontend/src/assets/pages/admin/AdminInventory.jsx
-    The current implementation is a frontend ledger prototype in
-    AdminInventory.jsx; no backend inventory controller/route was found.
+    Backend: backend/controllers/inventoryController.js,
+    backend/routes/inventoryRoutes.js, backend/model/InventoryTransaction.js
+    Single and bulk restocking update product stock and create auditable
+    inventory transactions.
 
-[~] FR1.6.2 Supplier Details
+[x] FR1.6.2 Supplier Details
     Frontend: AdminInventory.jsx
-    Supplier records are currently local component state; no supplier model
-    or backend persistence was found.
+    Backend: backend/controllers/supplierController.js,
+    backend/routes/supplierRoutes.js, backend/model/Supplier.js
+    Supplier records support create, update, list, soft-deactivate, restore,
+    duplicate detection, and restock association.
 
 [~] FR1.6.3 Expense Tracking
     Frontend: AdminInventory.jsx, AdminPayments.jsx
-    Expense inputs/display are frontend-only; backend persistence was not
+    Restock costs and dashboard cash-out totals are persisted through
+    InventoryTransaction, but a separate expense-entry model/API was not
     confirmed.
 
-[~] FR1.6.4 Update Stock
+[x] FR1.6.4 Update Stock
     Frontend: AdminInventory.jsx
-    Product/order stock behavior exists in backend controllers, but the
-    inventory ledger/restock update is not persisted through an inventory API.
+    Backend restock and order transaction flows update Product stock and
+    persist inventory transactions through the inventory model.
 
-[~] FR1.6.5 Inventory History
+[x] FR1.6.5 Inventory History
     Frontend: AdminInventory.jsx
-    Ledger history exists in AdminInventory.jsx local state; no backend
-    inventory transaction model was found.
+    Backend: inventoryController.js and InventoryTransaction.js
+    Transaction history supports filters, date ranges, supplier/product
+    context, summaries, and persisted audit records.
 
 [~] FR1.6.6 Low Stock Alert
     Frontend: AdminInventory.jsx, AdminDashboard.jsx
     Product/dashboard values are present, but inventory-manager notification
     persistence and delivery were not confirmed.
 
-FR1.6 status: 0 confirmed, 6 partial
+FR1.6 status: 4 confirmed, 2 partial
 
 Important implementation note:
-    AdminInventory.jsx currently stores ledger and supplier records in React
-    component state. Treat the inventory module as a UI prototype until
-    server-side restocking, suppliers, expenses, and history are added.
+    Restocking, suppliers, stock updates, and transaction history now use
+    backend persistence. Expense tracking remains represented through restock
+    costs and dashboard cash-out totals rather than a separate expense model.
 
 ============================================================
 FR1.7 Review and Rating System
@@ -316,11 +358,12 @@ FR1.7 Review and Rating System
     Frontend: ProductDetails.jsx
     Backend: reviewController.js and product rating aggregation
 
-[~] FR1.7.4 Verified Purchase Badge
+[x] FR1.7.4 Verified Purchase Badge
     Frontend: ProductDetails.jsx, AdminReviews.jsx
     Backend: reviewController.js
-    Verified-purchase behavior exists; verify the specific installment rule
-    that the badge appears only after Delivered.
+    Verified-purchase behavior is tied to a completed (delivered) order via
+    getOrderFlags; installment-linked orders reach "completed" through the
+    fulfillment flow, so the badge appears only after delivery.
 
 [x] FR1.7.5 Admin Moderation
     Frontend: AdminReviews.jsx
@@ -331,7 +374,7 @@ FR1.7 Review and Rating System
     Frontend: ProductDetails.jsx, reviewActions.js
     Backend: reviewController.js ownership/update logic
 
-FR1.7 status: 5 confirmed, 1 partial
+FR1.7 status: 6 confirmed, 0 partial
 
 ============================================================
 FR1.8 Role and Access Control
@@ -372,22 +415,28 @@ FR1.9 Reporting
     Frontend: frontend/src/assets/pages/admin/AdminDashboard.jsx
     Backend: orderController.js dashboard statistics
 
-[~] FR1.9.2 Inventory Report
+[x] FR1.9.2 Inventory Report
     Frontend: AdminInventory.jsx, AdminDashboard.jsx
-    Frontend inventory data is available, but a persistent backend inventory
-    report endpoint was not confirmed.
+    Backend: inventoryController.js and orderController.js dashboard stats
+    Persistent transaction summaries, stock activity, inventory valuation,
+    restock spending, and low-stock products are available.
 
-[~] FR1.9.3 Expense Report
-    Frontend: AdminInventory.jsx, AdminPayments.jsx
-    Expense presentation is not backed by a confirmed inventory expense API.
+[x] FR1.9.3 Expense Report
+    Frontend: frontend/src/assets/pages/admin/AdminReports.jsx
+    Backend: backend/controllers/reportController.js,
+    backend/routes/reportRoutes.js, InventoryTransaction.js
+    Reports restocking expenses by date range, supplier, product, quantity,
+    unit cost, and total cost.
 
 [x] FR1.9.4 Order Summary
-    Frontend: AdminOrders.jsx, AdminDashboard.jsx, Orders.jsx
-    Backend: orderController.js
+    Frontend: AdminReports.jsx
+    Backend: reportController.js and Order.js
+    Reports customer, order reference, status, payment status, total, and date.
 
 [x] FR1.9.5 Top Products Report
-    Frontend: AdminDashboard.jsx
-    Backend: orderController.js dashboard aggregation
+    Frontend: AdminReports.jsx
+    Backend: reportController.js, Order.js, Product.js, Category.js
+    Ranks paid/completed products by units and sales, grouped by category.
 
 [~] FR1.9.6 Admin Dashboard
     Frontend: AdminDashboard.jsx
@@ -396,12 +445,13 @@ FR1.9 Reporting
     Verify the exact overdue/defaulted-account dashboard display.
 
 [~] FR1.9.7 Installment Reports
-    Frontend: AdminDashboard.jsx, AdminPayments.jsx
-    Backend: orderController.js and payment/application controllers
-    Payment collections and balances are present; verify complete
-    receivable and overdue-account reporting coverage.
+    Frontend: AdminReports.jsx
+    Backend: reportController.js and InstallmentApplication.js
+    Reports payment collections and outstanding receivables by application.
+    Overdue accounts remain partial because installment due dates are not
+    persisted in the current model.
 
-FR1.9 status: 3 confirmed, 4 partial
+FR1.9 status: 5 confirmed, 2 partial
 
 ============================================================
 FR1.10 Installment Management
@@ -457,19 +507,19 @@ FR1.10 status: 5 confirmed, 4 partial
 Summary by module
 ============================================================
 
-FR1.1 User accounts:              4/7 confirmed, 3 partial
+FR1.1 User accounts:              5/7 confirmed, 2 partial
 FR1.2 Products:                  10/10 confirmed
 FR1.3 Categories and brands:      5/5 confirmed
 FR1.4 Cart:                       5/5 confirmed
-FR1.5 Orders and checkout:        8/11 confirmed, 3 partial
-FR1.6 Inventory/restocking:       0/6 confirmed, 6 partial
-FR1.7 Reviews/ratings:             5/6 confirmed, 1 partial
+FR1.5 Orders and checkout:        9/11 confirmed, 2 partial
+FR1.6 Inventory/restocking:       4/6 confirmed, 2 partial
+FR1.7 Reviews/ratings:             6/6 confirmed
 FR1.8 Access control:              4/5 confirmed, 1 partial
-FR1.9 Reporting:                  3/7 confirmed, 4 partial
+FR1.9 Reporting:                  5/7 confirmed, 2 partial
 FR1.10 Installments:               5/9 confirmed, 4 partial
 
-Confirmed: 49/71
-Partial: 22/71
+Confirmed: 58/71
+Partial: 13/71
 Not confirmed: 0/71
 Confirmed or partial: 71/71
 
@@ -477,9 +527,8 @@ Confirmed or partial: 71/71
 Priority actions to reach full coverage
 ============================================================
 
-[ ] Complete and test forgot-password/reset-password email flow.
-[ ] Move inventory ledger, suppliers, restocking, expenses, and low-stock
-    behavior from AdminInventory.jsx local state into backend persistence.
+[ ] Add a dedicated expense model/report if expenses must be tracked separately
+    from inventory restock costs and dashboard cash-out totals.
 [ ] Decide whether admin user deletion is destructive or deactivation-only,
     then implement and document the required behavior.
 [ ] Add the Inventory Manager role if it is required by the final system.
