@@ -251,7 +251,10 @@ export const Profile = ({ activeTab = "all" }) => {
   }
   return (
     <div className="min-h-screen bg-white text-zinc-900 antialiased flex flex-col font-sans selection:bg-emerald-100 selection:text-emerald-900">
-      <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 py-8 space-y-10">
+      <main
+        className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 py-8 space-y-10"
+        style={{ display: "flex", flexDirection: "column" }}
+      >
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-4 border-b border-zinc-900">
           <div>
@@ -323,7 +326,7 @@ export const Profile = ({ activeTab = "all" }) => {
 
         {/* Section 1: Customer Information - 2-Column Unboxed Settings Layout */}
         {(currentTab === "all" || currentTab === "profile") && (
-          <ScrollReveal threshold={0.08} duration={600}>
+          <ScrollReveal threshold={0.08} duration={600} style={{ order: 1 }}>
             <section className="grid grid-cols-1 md:grid-cols-12 gap-8 pb-10 border-b border-zinc-200">
               <div className="md:col-span-4 space-y-1">
                 <h2 className="text-sm font-bold text-zinc-900 uppercase tracking-wider">
@@ -535,7 +538,7 @@ export const Profile = ({ activeTab = "all" }) => {
 
         {/* Section 2: Registered Delivery Address - 2-Column Unboxed Settings Layout */}
         {(currentTab === "all" || currentTab === "address") && (
-          <ScrollReveal threshold={0.08} delay={50} duration={600}>
+          <ScrollReveal threshold={0.08} delay={50} duration={600} style={{ order: 3 }}>
             <section className="grid grid-cols-1 md:grid-cols-12 gap-8 pb-10 border-b border-zinc-200">
               <div className="md:col-span-4 space-y-1">
                 <h2 className="text-sm font-bold text-zinc-900 uppercase tracking-wider">
@@ -743,7 +746,7 @@ export const Profile = ({ activeTab = "all" }) => {
 
         {/* Section 3: Installment Verification Documents - 2-Column Unboxed Settings Layout */}
         {(currentTab === "all" || currentTab === "verification") && (
-          <ScrollReveal threshold={0.08} delay={70} duration={600}>
+          <ScrollReveal threshold={0.08} delay={70} duration={600} style={{ order: 4 }}>
             <section className="grid grid-cols-1 md:grid-cols-12 gap-8 pb-10">
               <div className="md:col-span-4 space-y-1">
                 <h2 className="text-sm font-bold text-zinc-900 uppercase tracking-wider">
@@ -813,8 +816,11 @@ export const Profile = ({ activeTab = "all" }) => {
 
         {/* Section 4: Security - Change Password & Deactivate Account */}
         {(currentTab === "all" || currentTab === "security") && (
-          <ScrollReveal threshold={0.08} delay={90} duration={600}>
-            <section className="grid grid-cols-1 md:grid-cols-12 gap-8 pb-10">
+          <ScrollReveal threshold={0.08} delay={90} duration={600} style={{ order: 2 }}>
+            <section
+              className="grid grid-cols-1 md:grid-cols-12 gap-8 pb-10"
+              style={{ order: 2 }}
+            >
               <div className="md:col-span-4 space-y-1">
                 <h2 className="text-sm font-bold text-zinc-900 uppercase tracking-wider">
                   Security

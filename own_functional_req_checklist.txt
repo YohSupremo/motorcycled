@@ -1,7 +1,7 @@
 Motorcycle Shop E-Commerce System
 Functional Requirements Progress Checklist
 Source: own_functional_req.pdf
-Assessment date: 2026-10-22
+Assessment date: 2026-10-25
 
 Legend:
 [x] Confirmed in the current source
@@ -13,12 +13,12 @@ Overall progress
 ============================================================
 
 Functional requirements in the PDF: 71
-Confirmed: 48
-Partial / needs verification: 23
+Confirmed: 49
+Partial / needs verification: 22
 Not confirmed: 0
 
 Estimated implementation coverage:
-    48 / 71 confirmed = 68%
+    49 / 71 confirmed = 69%
     71 / 71 confirmed or partially implemented = 100%
 
 This is an implementation estimate, not an official grade. Requirements
@@ -57,14 +57,20 @@ FR1.1 User Account Management
     Review: backend/controllers/AuthController.js has password-reset
     placeholders that require completion or demonstration.
 
-[~] FR1.1.5 Account Deactivation
-    Admin deactivation/reactivation and protected-request enforcement are
-    implemented.
+[x] FR1.1.5 Account Deactivation
+    Admin deactivation/reactivation, customer self-deactivation, and
+    protected-request enforcement are implemented.
+    Self-deactivated customers can reactivate from password login or verified
+    Firebase/Google login after confirming the reactivation prompt.
+    Accounts deactivated by an admin remain blocked from customer self-service
+    reactivation.
     Frontend: frontend/src/assets/pages/admin/AdminCustomers.jsx,
-    frontend/src/App.jsx
-    Backend: backend/controllers/adminCustomerController.js,
-    backend/middleware/authMiddleware.js
-    Customer self-service deactivation is not confirmed.
+    frontend/src/assets/pages/customer/Profile.jsx,
+    frontend/src/assets/pages/Login.jsx, frontend/src/App.jsx
+    Backend: backend/controllers/UserController.js,
+    backend/controllers/adminCustomerController.js,
+    backend/controllers/AuthController.js,
+    backend/middleware/authMiddleware.js, backend/model/User.js
 
 [~] FR1.1.6 Admin User Control
     Frontend: frontend/src/assets/pages/admin/AdminCustomers.jsx
@@ -80,7 +86,7 @@ FR1.1 User Account Management
     Backend: adminCustomerController.js, model/User.js
     Inventory Manager is not present in the User schema or role controls.
 
-FR1.1 status: 3 confirmed, 4 partial
+FR1.1 status: 4 confirmed, 3 partial
 
 ============================================================
 FR1.2 Product Management
@@ -451,7 +457,7 @@ FR1.10 status: 5 confirmed, 4 partial
 Summary by module
 ============================================================
 
-FR1.1 User accounts:              3/7 confirmed, 4 partial
+FR1.1 User accounts:              4/7 confirmed, 3 partial
 FR1.2 Products:                  10/10 confirmed
 FR1.3 Categories and brands:      5/5 confirmed
 FR1.4 Cart:                       5/5 confirmed
@@ -462,8 +468,8 @@ FR1.8 Access control:              4/5 confirmed, 1 partial
 FR1.9 Reporting:                  3/7 confirmed, 4 partial
 FR1.10 Installments:               5/9 confirmed, 4 partial
 
-Confirmed: 48/71
-Partial: 23/71
+Confirmed: 49/71
+Partial: 22/71
 Not confirmed: 0/71
 Confirmed or partial: 71/71
 

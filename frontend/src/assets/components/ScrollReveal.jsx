@@ -18,6 +18,7 @@ export function ScrollReveal({
   revealOnExit = false, // fade back out when the element leaves the viewport
   exitDuration = 600, // slower, deeper exit so it reads below the sticky header
   exitDistance = 40,
+  style = {},
 }) {
   const elementRef = useRef(null);
   const [hasEntered, setHasEntered] = useState(false);
@@ -80,6 +81,7 @@ export function ScrollReveal({
       ref={elementRef}
       className={className}
       style={{
+        ...style,
         opacity: isVisible ? 1 : 0,
         transform: transformStyle,
         transition: `opacity ${currentDuration}ms cubic-bezier(0.22, 0.61, 0.36, 1) ${currentDelay}ms, transform ${currentDuration}ms cubic-bezier(0.22, 0.61, 0.36, 1) ${currentDelay}ms`,
