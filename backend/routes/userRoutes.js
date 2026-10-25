@@ -9,6 +9,7 @@ import {
   setDefaultAddress,
   updateAddress,
   updateProfile,
+  deactivateOwnAccount,
 } from "../controllers/UserController.js";
 
 const router = Router();
@@ -16,6 +17,7 @@ const router = Router();
 router.use(auth);
 router.get("/", getProfile);
 router.put("/", upload.single("profilePicture"), updateProfile);
+router.patch("/deactivate", deactivateOwnAccount);
 router.get("/addresses", listAddresses);
 router.post("/addresses", addAddress);
 router.put("/addresses/:id", updateAddress);

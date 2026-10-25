@@ -130,7 +130,7 @@ const setCustomerActiveState = (isActive) => async (req, res) => {
 
   const customer = await User.findOneAndUpdate(
     { _id: req.params.id },
-    { $set: { isActive } },
+    { $set: { isActive, deactivationSource: isActive ? "none" : "admin" } },
     { new: true, runValidators: true },
   ).select(customerProjection).lean();
 

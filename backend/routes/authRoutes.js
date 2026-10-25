@@ -5,6 +5,10 @@ import {
   logout,
   getUserProfile,
   firebaseLogin,
+  forgotPassword,
+  resetPassword,
+  changePassword,
+  reactivateOwnAccount,
 } from "../controllers/AuthController.js";
 import upload from "../middleware/multer.js";
 import { auth } from "../middleware/authMiddleware.js";
@@ -22,7 +26,11 @@ router.post(
 );
 
 router.post("/login", login);
+router.post("/reactivate", reactivateOwnAccount);
 router.post("/firebase-login", firebaseLogin);
+router.post("/password/forgot", forgotPassword);
+router.put("/password/reset/:token", resetPassword);
+router.put("/password/change", auth, changePassword);
 router.get("/logout", logout);
 router.get("/me", auth, getUserProfile);
 

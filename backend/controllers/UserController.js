@@ -170,3 +170,45 @@ export const setDefaultAddress = async (req, res) => {
 
   return res.status(200).json({ success: true, address });
 };
+
+export const deactivateOwnAccount = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    if (user.role === "admin") {
+      return res.status(403).json({
+        success: false,
+        message: "Admin accounts cannot be self-deactivated",
+      });
+    }
+
+    user.isActive = false;
+    user.deactivationSource = "self";
+    await user.save();
+
+    res.cookie("token", null, {
+      expires: new Date(Date.now()),
+      httpOnly: true,
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+      secure: process.env.NODE_ENV === "production",
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Your account has been deactivated",
+    });
+  } catch (error) {
+    console.error("Deactivate own account error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal service error",
+    });
+  }
+};

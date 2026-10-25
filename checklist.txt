@@ -107,8 +107,8 @@ Term test lab (30 pts)
 
 Term test lab status: [x] 30/30 implementation points confirmed
 Manual verification:
-[~] Confirm SMTP credentials and demonstrate one real status-update email.
-[~] Confirm the received email contains the PDF attachment and correct totals.
+[X] Confirm SMTP credentials and demonstrate one real status-update email.
+[X] Confirm the received email contains the PDF attachment and correct totals.
 
 ============================================================
 Unit 1 (20 pts)

@@ -50,6 +50,11 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: true,
   },
+  deactivationSource: {
+    type: String,
+    enum: ["none", "self", "admin"],
+    default: "none",
+  },
   resetPasswordToken: {
     type: String,
   },

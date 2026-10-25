@@ -4,6 +4,8 @@ import axios from "axios";
 import Swal from "sweetalert2";
 import { Register } from "./assets/pages/Register";
 import { Login } from "./assets/pages/Login";
+import { ForgotPassword } from "./assets/pages/ForgotPassword";
+import { ResetPassword } from "./assets/pages/ResetPassword";
 import { isDeactivationError, loadUser } from "./actions/userActions";
 import { Homepage } from "./assets/pages/customer/Homepage";
 import { Shop } from "./assets/pages/customer/Shop";
@@ -116,6 +118,10 @@ function App() {
               element={<Profile activeTab="address" />}
             />
             <Route
+              path="/profile/security"
+              element={<Profile activeTab="security" />}
+            />
+            <Route
               path="/profile/verification"
               element={<Profile activeTab="verification" />}
             />
@@ -177,6 +183,8 @@ function App() {
 
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/password/forgot" element={<ForgotPassword />} />
+          <Route path="/password/reset/:token" element={<ResetPassword />} />
           <Route path="/dashboard" element={<DashboardRedirect />} />
         </Routes>
         <ToastContainer

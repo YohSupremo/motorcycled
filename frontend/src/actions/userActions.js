@@ -70,12 +70,39 @@ export const login = (email, password) => async (dispatch) => {
         address: data.address,
       },
     });
+    return { success: true };
   } catch (error) {
     clearSessionMarker();
+    if (error?.response?.data?.canReactivate) {
+      dispatch({
+        type: LOGIN_FAIL,
+        payload: null,
+      });
+      return { canReactivate: true, message: error.response.data.message };
+    }
     dispatch({
       type: LOGIN_FAIL,
       payload: getErrorMessage(error),
     });
+    return { success: false, message: getErrorMessage(error) };
+  }
+};
+
+export const reactivateOwnAccount = (email, password) => async (dispatch) => {
+  try {
+    const { data } = await axios.post(
+      `${api}/reactivate`,
+      { email, password },
+      { withCredentials: true },
+    );
+    markLoggedIn();
+    dispatch({
+      type: LOGIN_SUCCESS,
+      payload: { ...data.user, address: data.address },
+    });
+    return { success: true };
+  } catch (error) {
+    return { success: false, message: getErrorMessage(error) };
   }
 };
 

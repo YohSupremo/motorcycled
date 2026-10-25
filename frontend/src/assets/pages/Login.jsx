@@ -4,7 +4,7 @@ import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
-import { login, clearErrors } from "../../actions/userActions";
+import { login, reactivateOwnAccount, clearErrors } from "../../actions/userActions";
 import { LOGIN_SUCCESS, LOGIN_FAIL } from "../../constants/userConstants";
 import axios from "axios";
 import Swal from "sweetalert2";
@@ -106,6 +106,7 @@ export const Login = () => {
         popup: "rounded-xl border border-zinc-200 shadow-xl",
         title: "text-base font-bold text-zinc-900",
         htmlContainer: "text-sm text-zinc-600",
+        actions: "flex gap-4",
         confirmButton:
           "rounded-md bg-emerald-700 px-3.5 py-2 text-xs font-semibold text-white hover:bg-emerald-800",
       },
@@ -156,12 +157,46 @@ export const Login = () => {
         );
         data = response.data;
       } catch (apiErr) {
-        const msg =
-          apiErr?.response?.data?.message ||
-          apiErr?.message ||
-          "Server error during Google sign-in.";
-        setSocialError(msg);
-        return;
+        if (apiErr?.response?.data?.canReactivate) {
+          const confirmation = await Swal.fire({
+            icon: "question",
+            title: "Reactivate your account?",
+            text: "This account was deactivated by you. Reactivate it to continue with Google.",
+            showCancelButton: true,
+            confirmButtonText: "Reactivate account",
+            cancelButtonText: "Keep it deactivated",
+            buttonsStyling: false,
+            customClass: {
+              popup: "rounded-xl border border-zinc-200 shadow-xl",
+              title: "text-base font-bold text-zinc-900",
+              htmlContainer: "text-sm text-zinc-600",
+              confirmButton:
+                "rounded-md bg-emerald-700 px-3.5 py-2 text-xs font-semibold text-white hover:bg-emerald-800",
+              cancelButton:
+                "ml-2 rounded-md border border-zinc-300 bg-white px-3.5 py-2 text-xs font-medium text-zinc-700",
+            },
+          });
+
+          if (!confirmation.isConfirmed) return;
+
+          const reactivationResponse = await axios.post(
+            `${API}/firebase-login`,
+            { provider: "google", reactivate: true },
+            {
+              withCredentials: true,
+              skipDeactivationRedirect: true,
+              headers: { Authorization: `Bearer ${idToken}` },
+            },
+          );
+          data = reactivationResponse.data;
+        } else {
+          const msg =
+            apiErr?.response?.data?.message ||
+            apiErr?.message ||
+            "Server error during Google sign-in.";
+          setSocialError(msg);
+          return;
+        }
       }
 
       // 3a. Not registered → go to registration with their Google info pre-filled.
@@ -197,9 +232,41 @@ export const Login = () => {
     }
   };
 
-  const onLoginSubmit = (data) => {
+  const onLoginSubmit = async (data) => {
     if (error) dispatch(clearErrors());
-    dispatch(login(data.identifier, data.password));
+    const result = await dispatch(login(data.identifier, data.password));
+    if (!result?.canReactivate) return;
+
+    const confirmation = await Swal.fire({
+      icon: "question",
+      title: "Reactivate your account?",
+      text: "This account was deactivated by you. You can reactivate it and sign in now.",
+      showCancelButton: true,
+      confirmButtonText: "Reactivate account",
+      cancelButtonText: "Keep it deactivated",
+      buttonsStyling: false,
+      customClass: {
+        popup: "rounded-xl border border-zinc-200 shadow-xl",
+        title: "text-base font-bold text-zinc-900",
+        htmlContainer: "text-sm text-zinc-600",
+        actions: "flex gap-4",
+        confirmButton: "rounded-md bg-emerald-700 px-3.5 py-2 text-xs font-semibold text-white hover:bg-emerald-800",
+        cancelButton: "ml-2 rounded-md border border-zinc-300 bg-white px-3.5 py-2 text-xs font-medium text-zinc-700",
+      },
+    });
+
+    if (!confirmation.isConfirmed) return;
+    const reactivation = await dispatch(
+      reactivateOwnAccount(data.identifier, data.password),
+    );
+    if (!reactivation.success) {
+      await Swal.fire({
+        icon: "error",
+        title: "Unable to reactivate account",
+        text: reactivation.message,
+        confirmButtonText: "Close",
+      });
+    }
   };
 
   return (
@@ -339,12 +406,12 @@ export const Login = () => {
                   Remember me!
                 </label>
               </div>
-              <a
-                href="#forgot-password"
+              <Link
+                to="/password/forgot"
                 className="text-xs text-emerald-700 hover:text-emerald-800 hover:underline"
               >
                 Forgot password?
-              </a>
+              </Link>
             </div>
 
             {/* Action button */}

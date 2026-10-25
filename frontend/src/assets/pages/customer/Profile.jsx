@@ -5,6 +5,8 @@ import { ScrollReveal } from "../../components/ScrollReveal";
 import { Link } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { toast } from "react-toastify";
+import * as yup from "yup";
+import axios from "axios";
 import {
   profileAddressSchema,
   profileInfoSchema,
@@ -18,6 +20,8 @@ import {
   updateAddress,
   updateProfile,
 } from "../../../actions/profileActions";
+
+const API = import.meta.env.VITE_API;
 
 export const Profile = ({ activeTab = "all" }) => {
   const { user, isAuthenticated, loading } = useSelector((state) => state.auth);
@@ -35,10 +39,36 @@ export const Profile = ({ activeTab = "all" }) => {
   const [selectedAddressId, setSelectedAddressId] = useState(null);
   const [profilePhotoUrl, setProfilePhotoUrl] = useState(null);
   const [pendingProfilePhoto, setPendingProfilePhoto] = useState(null);
+  const [changingPassword, setChangingPassword] = useState(false);
+  const [showOldPassword, setShowOldPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmNewPassword, setShowConfirmNewPassword] = useState(false);
   const persistedProfilePhoto =
     profile?.profilePicture || user?.profilePicture || null;
   const displayedProfilePhoto =
     profilePhotoUrl === "" ? null : profilePhotoUrl || persistedProfilePhoto;
+
+  const changePasswordSchema = yup.object({
+    oldPassword: yup.string().required("Current password is required"),
+    newPassword: yup
+      .string()
+      .min(8, "Must be at least 8 characters")
+      .required("New password is required"),
+    confirmNewPassword: yup
+      .string()
+      .oneOf([yup.ref("newPassword")], "Passwords must match")
+      .required("Confirm your new password"),
+  });
+
+  const {
+    register: registerPassword,
+    handleSubmit: handleSubmitPassword,
+    reset: resetPassword,
+    formState: { errors: passwordErrors },
+  } = useForm({
+    mode: "onTouched",
+    resolver: yupResolver(changePasswordSchema),
+  });
 
   const {
     register: registerProfile,
@@ -185,6 +215,27 @@ export const Profile = ({ activeTab = "all" }) => {
     }
   };
 
+  const handleChangePassword = async (data) => {
+    setChangingPassword(true);
+    try {
+      const res = await axios.put(
+        `${API}/password/change`,
+        {
+          oldPassword: data.oldPassword,
+          newPassword: data.newPassword,
+          confirmNewPassword: data.confirmNewPassword,
+        },
+        { withCredentials: true },
+      );
+      toast.success(res.data.message || "Password changed successfully");
+      resetPassword();
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Unable to change password");
+    } finally {
+      setChangingPassword(false);
+    }
+  };
+
   const currentTab = activeTab || "all";
 
   if (!user || !isAuthenticated) {
@@ -235,6 +286,16 @@ export const Profile = ({ activeTab = "all" }) => {
                 }`}
               >
                 Personal Profile
+              </Link>
+              <Link
+                to="/profile/security"
+                className={`px-3 py-1.5 rounded-md whitespace-nowrap shrink-0 transition-colors cursor-pointer ${
+                  currentTab === "security"
+                    ? "bg-white text-zinc-900 font-semibold shadow-2xs"
+                    : "text-zinc-500 hover:text-zinc-900"
+                }`}
+              >
+                Security
               </Link>
               <Link
                 to="/profile/address"
@@ -447,7 +508,7 @@ export const Profile = ({ activeTab = "all" }) => {
                     </label>
                     <input
                       type="text"
-                      value="Customer / Verified Rider"
+                      value={user.role === "admin" ? "Admin" : "Customer"}
                       readOnly
                       className="h-9! w-full px-3 text-zinc-500 bg-zinc-100 border border-zinc-200 rounded-md cursor-not-allowed"
                     />
@@ -745,6 +806,205 @@ export const Profile = ({ activeTab = "all" }) => {
                   consult with your Motorcycled credit officer during the next
                   contract renewal.
                 </p>
+              </div>
+            </section>
+          </ScrollReveal>
+        )}
+
+        {/* Section 4: Security - Change Password & Deactivate Account */}
+        {(currentTab === "all" || currentTab === "security") && (
+          <ScrollReveal threshold={0.08} delay={90} duration={600}>
+            <section className="grid grid-cols-1 md:grid-cols-12 gap-8 pb-10">
+              <div className="md:col-span-4 space-y-1">
+                <h2 className="text-sm font-bold text-zinc-900 uppercase tracking-wider">
+                  Security
+                </h2>
+                <p className="text-xs text-zinc-500 leading-relaxed">
+                  Update your account password to keep your Motorcycled account secure or manage account access.
+                </p>
+              </div>
+
+              <div className="md:col-span-8 space-y-8">
+                <form
+                  onSubmit={handleSubmitPassword(handleChangePassword)}
+                  noValidate
+                  className="space-y-4 text-xs max-w-md"
+                >
+                  <div>
+                    <h3 className="text-xs font-bold text-zinc-900 uppercase tracking-wider mb-3">Change Password</h3>
+                  </div>
+                  <div>
+                    <label className="block text-zinc-700 font-semibold mb-1">
+                      Current Password
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showOldPassword ? "text" : "password"}
+                        {...registerPassword("oldPassword")}
+                        className={`h-9 w-full px-3 pr-9 text-zinc-900 bg-white border rounded-md focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 ${
+                          passwordErrors.oldPassword ? "border-red-500" : "border-zinc-300"
+                        }`}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowOldPassword(!showOldPassword)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
+                        aria-label={showOldPassword ? "Hide password" : "Show password"}
+                      >
+                        {showOldPassword ? (
+                          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24" />
+                            <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68" />
+                            <path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61" />
+                            <line x1="2" x2="22" y1="2" y2="22" />
+                          </svg>
+                        ) : (
+                          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+                            <circle cx="12" cy="12" r="3" />
+                          </svg>
+                        )}
+                      </button>
+                    </div>
+                    {passwordErrors.oldPassword && (
+                      <p className="mt-1 text-[11px] text-red-600">
+                        {passwordErrors.oldPassword.message}
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-zinc-700 font-semibold mb-1">
+                      New Password
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showNewPassword ? "text" : "password"}
+                        {...registerPassword("newPassword")}
+                        className={`h-9 w-full px-3 pr-9 text-zinc-900 bg-white border rounded-md focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 ${
+                          passwordErrors.newPassword ? "border-red-500" : "border-zinc-300"
+                        }`}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowNewPassword(!showNewPassword)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
+                        aria-label={showNewPassword ? "Hide password" : "Show password"}
+                      >
+                        {showNewPassword ? (
+                          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24" />
+                            <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68" />
+                            <path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61" />
+                            <line x1="2" x2="22" y1="2" y2="22" />
+                          </svg>
+                        ) : (
+                          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+                            <circle cx="12" cy="12" r="3" />
+                          </svg>
+                        )}
+                      </button>
+                    </div>
+                    {passwordErrors.newPassword && (
+                      <p className="mt-1 text-[11px] text-red-600">
+                        {passwordErrors.newPassword.message}
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-zinc-700 font-semibold mb-1">
+                      Confirm New Password
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showConfirmNewPassword ? "text" : "password"}
+                        {...registerPassword("confirmNewPassword")}
+                        className={`h-9 w-full px-3 pr-9 text-zinc-900 bg-white border rounded-md focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 ${
+                          passwordErrors.confirmNewPassword ? "border-red-500" : "border-zinc-300"
+                        }`}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmNewPassword(!showConfirmNewPassword)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
+                        aria-label={showConfirmNewPassword ? "Hide password" : "Show password"}
+                      >
+                        {showConfirmNewPassword ? (
+                          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24" />
+                            <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68" />
+                            <path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61" />
+                            <line x1="2" x2="22" y1="2" y2="22" />
+                          </svg>
+                        ) : (
+                          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+                            <circle cx="12" cy="12" r="3" />
+                          </svg>
+                        )}
+                      </button>
+                    </div>
+                    {passwordErrors.confirmNewPassword && (
+                      <p className="mt-1 text-[11px] text-red-600">
+                        {passwordErrors.confirmNewPassword.message}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="pt-2">
+                    <button
+                      type="submit"
+                      disabled={changingPassword}
+                      className="px-4 py-1.5 rounded bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                      {changingPassword ? "Changing..." : "Change Password"}
+                    </button>
+                  </div>
+                </form>
+
+                {user.role !== "admin" && (
+                  <div className="border-t border-zinc-200 pt-6 max-w-md">
+                    <h3 className="text-xs font-bold text-zinc-900 uppercase tracking-wider mb-2">Danger Zone</h3>
+                    <p className="text-xs text-zinc-500 mb-3">Deactivate your account. You won't be able to sign in after deactivation.</p>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const { value: confirmed } = await import("sweetalert2").then((m) => m.default.fire({
+                          icon: "warning",
+                          title: "Deactivate account?",
+                          text: "This action cannot be undone. You will be logged out immediately.",
+                          showCancelButton: true,
+                          confirmButtonText: "Yes, deactivate",
+                          cancelButtonText: "Cancel",
+                          buttonsStyling: false,
+                          customClass: {
+                            popup: "rounded-xl border border-zinc-200 shadow-xl",
+                            title: "text-base font-bold text-zinc-900",
+                            htmlContainer: "text-sm text-zinc-600",
+                            confirmButton: "rounded-md bg-rose-600 px-3.5 py-2 text-xs font-semibold text-white hover:bg-rose-700",
+                            cancelButton: "rounded-md border border-zinc-300 bg-white px-3.5 py-2 text-xs font-medium text-zinc-700 hover:bg-zinc-50",
+                            actions: "gap-2",
+                          },
+                        }));
+                        if (!confirmed) return;
+                        try {
+                          const res = await axios.patch(`${API}/profile/deactivate`, {}, { withCredentials: true });
+                          toast.success(res.data.message || "Account deactivated");
+                          setTimeout(() => {
+                            window.location.assign("/login");
+                          }, 1000);
+                        } catch (err) {
+                          toast.error(err?.response?.data?.message || "Unable to deactivate account");
+                        }
+                      }}
+                      className="px-4 py-1.5 rounded border border-rose-300 text-rose-700 hover:bg-rose-50 text-xs font-medium"
+                    >
+                      Deactivate My Account
+                    </button>
+                  </div>
+                )}
               </div>
             </section>
           </ScrollReveal>
