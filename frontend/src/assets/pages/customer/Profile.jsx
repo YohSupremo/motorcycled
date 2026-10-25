@@ -43,6 +43,12 @@ export const Profile = ({ activeTab = "all" }) => {
   const [showOldPassword, setShowOldPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmNewPassword, setShowConfirmNewPassword] = useState(false);
+  const [creditVerification, setCreditVerification] = useState(null);
+  const [creditFiles, setCreditFiles] = useState({
+    governmentId: null,
+    proofOfIncome: null,
+  });
+  const [creditSubmitting, setCreditSubmitting] = useState(false);
   const persistedProfilePhoto =
     profile?.profilePicture || user?.profilePicture || null;
   const displayedProfilePhoto =
@@ -106,8 +112,27 @@ export const Profile = ({ activeTab = "all" }) => {
     if (isAuthenticated) {
       dispatch(getProfile());
       dispatch(getAddresses());
+      if (user?.role === "customer") {
+        axios
+          .get(`${API}/credit-verification/me`, { withCredentials: true })
+          .then(({ data }) => setCreditVerification(data.verification))
+          .catch((error) => {
+            if (error?.response?.status === 404) {
+              setCreditVerification(null);
+              return;
+            }
+            if (error?.response?.status === 401) {
+              toast.error("Your session has expired. Please sign in again.");
+              return;
+            }
+            toast.error(
+              error?.response?.data?.message ||
+                "Unable to load credit verification status.",
+            );
+          });
+      }
     }
-  }, [dispatch, isAuthenticated]);
+  }, [dispatch, isAuthenticated, user?.role]);
 
   useEffect(() => {
     if (!profile || isEditingProfile) return;
@@ -233,6 +258,33 @@ export const Profile = ({ activeTab = "all" }) => {
       toast.error(err?.response?.data?.message || "Unable to change password");
     } finally {
       setChangingPassword(false);
+    }
+  };
+
+  const handleCreditVerificationSubmit = async (event) => {
+    event.preventDefault();
+    if (!creditFiles.governmentId || !creditFiles.proofOfIncome) {
+      toast.error("Select both a government ID and proof of income.");
+      return;
+    }
+
+    setCreditSubmitting(true);
+    try {
+      const formData = new FormData();
+      formData.append("governmentId", creditFiles.governmentId);
+      formData.append("proofOfIncome", creditFiles.proofOfIncome);
+      const { data } = await axios.post(`${API}/credit-verification`, formData, {
+        withCredentials: true,
+      });
+      setCreditVerification(data.verification);
+      setCreditFiles({ governmentId: null, proofOfIncome: null });
+      toast.success("Credit verification submitted for admin review.");
+    } catch (error) {
+      toast.error(
+        error?.response?.data?.message || "Unable to submit credit verification.",
+      );
+    } finally {
+      setCreditSubmitting(false);
     }
   };
 
@@ -744,71 +796,210 @@ export const Profile = ({ activeTab = "all" }) => {
           </ScrollReveal>
         )}
 
-        {/* Section 3: Installment Verification Documents - 2-Column Unboxed Settings Layout */}
+        {/* Section 3: Credit verification - 2-Column Unboxed Settings Layout */}
         {(currentTab === "all" || currentTab === "verification") && (
           <ScrollReveal threshold={0.08} delay={70} duration={600} style={{ order: 4 }}>
             <section className="grid grid-cols-1 md:grid-cols-12 gap-8 pb-10">
-              <div className="md:col-span-4 space-y-1">
+              {/* Left: label + status badge */}
+              <div className="md:col-span-4 space-y-2">
                 <h2 className="text-sm font-bold text-zinc-900 uppercase tracking-wider">
-                  Credit Verification Records
+                  Credit Verification
                 </h2>
                 <p className="text-xs text-zinc-500 leading-relaxed">
-                  Official identification and income screening documents
-                  submitted for digital installment eligibility.
+                  Required to qualify for installment financing. Submit a valid government-issued ID and a recent proof of income for admin review.
                 </p>
-                <div className="pt-2">
-                  <span className="inline-block text-[11px] font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">
-                    Financing Pre-Approved
-                  </span>
+
+                {/* Status pill */}
+                <div className="pt-1">
+                  {!creditVerification?.status && (
+                    <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-zinc-100 text-zinc-500 border border-zinc-200">
+                      <span className="w-1.5 h-1.5 rounded-full bg-zinc-400 inline-block" />
+                      Not submitted
+                    </span>
+                  )}
+                  {creditVerification?.status === "pending" && (
+                    <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block" />
+                      Under review
+                    </span>
+                  )}
+                  {creditVerification?.status === "approved" && (
+                    <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
+                      Approved
+                    </span>
+                  )}
+                  {creditVerification?.status === "rejected" && (
+                    <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-rose-50 text-rose-700 border border-rose-200">
+                      <span className="w-1.5 h-1.5 rounded-full bg-rose-500 inline-block" />
+                      Rejected
+                    </span>
+                  )}
                 </div>
               </div>
 
-              <div className="md:col-span-8 space-y-3">
-                <div className="border border-zinc-200 rounded-md divide-y divide-zinc-200 bg-white">
-                  <div className="p-4 flex items-center justify-between">
+              {/* Right: content area */}
+              <div className="md:col-span-8 space-y-4">
+
+                {/* Rejection reason banner */}
+                {creditVerification?.status === "rejected" && (
+                  <div className="flex gap-3 p-4 rounded-md border border-rose-200 bg-rose-50">
+                    <svg className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
+                    </svg>
                     <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-xs text-zinc-900">
-                          Valid Primary Government ID
-                        </span>
-                        <span className="text-[10px] font-bold tracking-wider text-emerald-800 bg-emerald-50 border border-emerald-200 px-1.5 py-0.2 rounded">
-                          VERIFIED
-                        </span>
-                      </div>
-                      <p className="text-xs text-zinc-500 mt-0.5">
-                        Philippine Passport (Exp: 2031) — Encrypted File Storage
+                      <p className="text-xs font-semibold text-rose-800 mb-0.5">Documents not accepted</p>
+                      <p className="text-xs text-rose-700 leading-relaxed">
+                        {creditVerification.rejectionReason || "Your documents did not meet the verification requirements. Please upload updated documents and resubmit."}
                       </p>
                     </div>
-                    <span className="text-xs text-zinc-400 font-semibold tracking-wider">
-                      ID-2026-PH
-                    </span>
                   </div>
+                )}
 
-                  <div className="p-4 flex items-center justify-between">
+                {/* Approved state */}
+                {creditVerification?.status === "approved" && (
+                  <div className="flex gap-3 p-4 rounded-md border border-emerald-200 bg-emerald-50">
+                    <svg className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" />
+                    </svg>
                     <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-xs text-zinc-900">
-                          Proof of Income & Employment
-                        </span>
-                        <span className="text-[10px] font-bold tracking-wider text-emerald-800 bg-emerald-50 border border-emerald-200 px-1.5 py-0.2 rounded">
-                          VERIFIED
-                        </span>
-                      </div>
-                      <p className="text-xs text-zinc-500 mt-0.5">
-                        Certificate of Employment & 3-Month Payslip Records
+                      <p className="text-xs font-semibold text-emerald-800 mb-0.5">Verification approved</p>
+                      <p className="text-xs text-emerald-700 leading-relaxed">
+                        Your identity and income have been verified. You are eligible for installment financing. Submitted documents have been securely purged.
                       </p>
                     </div>
-                    <span className="text-xs text-zinc-400 font-semibold tracking-wider">
-                      INC-REVIEW-OK
-                    </span>
                   </div>
-                </div>
+                )}
 
-                <p className="text-[11px] text-zinc-500 pt-1">
-                  To update expired documentation or change employment status,
-                  consult with your Motorcycled credit officer during the next
-                  contract renewal.
-                </p>
+                {/* Pending state */}
+                {creditVerification?.status === "pending" && (
+                  <div className="flex gap-3 p-4 rounded-md border border-amber-200 bg-amber-50">
+                    <svg className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
+                    </svg>
+                    <div>
+                      <p className="text-xs font-semibold text-amber-800 mb-0.5">Awaiting admin review</p>
+                      <p className="text-xs text-amber-700 leading-relaxed">
+                        Your documents have been received and are being reviewed. You will be notified once a decision is made.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Upload form — shown when not yet approved */}
+                {creditVerification?.status !== "approved" && (
+                  <form onSubmit={handleCreditVerificationSubmit} className="space-y-4" noValidate>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {[
+                        {
+                          key: "governmentId",
+                          label: "Government-issued ID",
+                          hint: "Passport, driver's licence, or national ID",
+                          icon: (
+                            <svg className="w-5 h-5 text-zinc-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                              <rect x="2" y="5" width="20" height="14" rx="2" /><line x1="2" y1="10" x2="22" y2="10" /><line x1="6" y1="15" x2="10" y2="15" />
+                            </svg>
+                          ),
+                        },
+                        {
+                          key: "proofOfIncome",
+                          label: "Proof of income",
+                          hint: "Payslip, COE, or bank statement",
+                          icon: (
+                            <svg className="w-5 h-5 text-zinc-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="8" y1="13" x2="16" y2="13" /><line x1="8" y1="17" x2="12" y2="17" />
+                            </svg>
+                          ),
+                        },
+                      ].map(({ key, label, hint, icon }) => (
+                        <div key={key}>
+                          <p className="text-xs font-semibold text-zinc-700 mb-1.5">{label}</p>
+                          <label
+                            className={`group relative flex flex-col items-center justify-center gap-2 w-full rounded-md border-2 border-dashed transition-colors cursor-pointer min-h-[120px] p-4 text-center ${
+                              creditFiles[key]
+                                ? "border-emerald-400 bg-emerald-50/60"
+                                : "border-zinc-300 bg-zinc-50 hover:border-zinc-400 hover:bg-zinc-100/60"
+                            }`}
+                          >
+                            <input
+                              type="file"
+                              accept="image/*,application/pdf"
+                              className="sr-only"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0] || null;
+                                if (file && file.size > 5 * 1024 * 1024) {
+                                  toast.error("File must be 5 MB or smaller.");
+                                  e.target.value = "";
+                                  return;
+                                }
+                                setCreditFiles((cur) => ({ ...cur, [key]: file }));
+                              }}
+                            />
+
+                            {creditFiles[key] ? (
+                              <>
+                                {/* File selected state */}
+                                <svg className="w-6 h-6 text-emerald-600 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
+                                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" />
+                                </svg>
+                                <span className="text-xs font-semibold text-emerald-700 truncate max-w-full px-1">
+                                  {creditFiles[key].name}
+                                </span>
+                                <span className="text-[11px] text-emerald-600">
+                                  {(creditFiles[key].size / 1024).toFixed(0)} KB
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    setCreditFiles((cur) => ({ ...cur, [key]: null }));
+                                  }}
+                                  className="absolute top-2 right-2 p-1 rounded text-zinc-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                                  aria-label="Remove file"
+                                >
+                                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                                  </svg>
+                                </button>
+                              </>
+                            ) : (
+                              <>
+                                {/* Empty state */}
+                                {icon}
+                                <span className="text-xs font-medium text-zinc-600">
+                                  Click to upload
+                                </span>
+                                <span className="text-[11px] text-zinc-400 leading-snug">{hint}</span>
+                                <span className="text-[11px] text-zinc-400">JPG, PNG or PDF · max 5 MB</span>
+                              </>
+                            )}
+                          </label>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="flex items-center justify-between pt-1">
+                      <p className="text-[11px] text-zinc-400 leading-relaxed max-w-xs">
+                        Documents are encrypted and only accessible to verified admins during the review period.
+                      </p>
+                      <button
+                        type="submit"
+                        disabled={creditSubmitting || (!creditFiles.governmentId && !creditFiles.proofOfIncome)}
+                        className="shrink-0 px-4 py-2 rounded-md bg-zinc-900 hover:bg-zinc-700 text-white text-xs font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                      >
+                        {creditSubmitting ? (
+                          <span className="flex items-center gap-1.5">
+                            <svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                            </svg>
+                            Submitting...
+                          </span>
+                        ) : "Submit for review"}
+                      </button>
+                    </div>
+                  </form>
+                )}
               </div>
             </section>
           </ScrollReveal>

@@ -690,13 +690,27 @@ export const Orders = () => {
                               )}
 
                               {!isFullyPaid && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleOpenPayment(app)}
-                                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-4 py-2 rounded-lg shadow-sm transition-colors cursor-pointer"
-                                >
-                                  Pay Installment ({fmt(app.monthlyPayment)}) →
-                                </button>
+                                app.downPaymentSettled === false ? (
+                                  /* Downpayment not yet settled — block amortization */
+                                  <div className="flex items-start gap-2 p-2.5 rounded-lg border border-amber-200 bg-amber-50 text-xs text-amber-900 max-w-xs">
+                                    <svg className="w-3.5 h-3.5 shrink-0 mt-0.5 text-amber-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                      <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
+                                    </svg>
+                                    <span className="leading-snug">
+                                      {!app.downPaymentMethod || app.downPaymentMethod === "cash_on_releasing"
+                                        ? `Please bring your downpayment (${fmt(app.downPayment)}) to the branch. Monthly installment payments will unlock once admin confirms receipt.`
+                                        : "Your online downpayment is being verified by the admin. Monthly installments will unlock once confirmed."}
+                                    </span>
+                                  </div>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenPayment(app)}
+                                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-4 py-2 rounded-lg shadow-sm transition-colors cursor-pointer"
+                                  >
+                                    Pay Installment ({fmt(app.monthlyPayment)}) →
+                                  </button>
+                                )
                               )}
                             </div>
                           </div>

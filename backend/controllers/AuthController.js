@@ -51,24 +51,10 @@ const sendToken = async (user, statusCode, res) => {
 export const register = async (req, res) => {
   try {
     const profilePicture = req.files?.profilePicture?.[0];
-    const validId = req.files?.validId?.[0];
-    const proofOfIncome = req.files?.proofOfIncome?.[0];
 
     let profilePictureUrl = null;
-    let validIdUrl = null;
-    let proofOfIncomeUrl = null;
     if (profilePicture) {
       profilePictureUrl = await uploadHandler(profilePicture.buffer, "profile");
-    }
-    if (validId) {
-      validIdUrl = await uploadHandler(validId.buffer, "validId");
-    }
-
-    if (proofOfIncome) {
-      proofOfIncomeUrl = await uploadHandler(
-        proofOfIncome.buffer,
-        "proofOfIncome",
-      );
     }
 
     const {
@@ -91,10 +77,11 @@ export const register = async (req, res) => {
       });
     }
 
+    const normalizedEmail = email?.trim().toLowerCase();
     const hashedpassword = await bcrypt.hash(password, 10);
 
     const isExisting = await User.findOne({
-      email,
+      email: normalizedEmail,
     });
 
     if (isExisting) {
@@ -109,9 +96,7 @@ export const register = async (req, res) => {
       firstName,
       lastName,
       contactNumber,
-      validId: validIdUrl,
-      proofOfIncome: proofOfIncomeUrl,
-      email,
+      email: normalizedEmail,
       password: hashedpassword,
     });
 
@@ -132,6 +117,19 @@ export const register = async (req, res) => {
       success: false,
     });
   }
+};
+
+export const checkEmailAvailability = async (req, res) => {
+  const email = req.query.email?.trim().toLowerCase();
+  if (!email) {
+    return res.status(200).json({ success: true, available: false });
+  }
+
+  const existingUser = await User.exists({ email });
+  return res.status(200).json({
+    success: true,
+    available: !existingUser,
+  });
 };
 
 export const login = async (req, res) => {

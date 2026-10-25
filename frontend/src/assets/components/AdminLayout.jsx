@@ -190,6 +190,17 @@ export const AdminLayout = ({ activeTab: propActiveTab }) => {
       ),
     },
     {
+      id: "credit-verifications",
+      group: "Customer & System",
+      label: "Credit Verification",
+      icon: (
+        <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M12 3 4 7v5c0 5 3.5 8.5 8 9 4.5-.5 8-4 8-9V7l-8-4Z" />
+          <path d="m9 12 2 2 4-4" />
+        </svg>
+      ),
+    },
+    {
       id: "settings",
       group: "Customer & System",
       label: "Dealership Settings",

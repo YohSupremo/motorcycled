@@ -5,6 +5,7 @@ import InstallmentApplication from "../model/InstallmentApplication.js";
 import Category from "../model/Category.js";
 import User from "../model/User.js";
 import InventoryTransaction from "../model/InventoryTransaction.js";
+import CreditVerification from "../model/CreditVerification.js";
 import { cloudConf } from "../config/cloudinary.js";
 import { notifyOrderPlaced, notifyInstallmentUpdate, sendNotification } from "../services/notificationService.js";
 import { generateOrderInvoicePDF } from "../services/pdfService.js";
@@ -93,6 +94,25 @@ export const newCheckout = async (req, res) => {
     }
     if (!paymentMethod) {
       return res.status(400).json({ success: false, message: "paymentMethod is required" });
+    }
+
+    // ── 1.5. Credit verification guard ──────────────────────────────────────
+    // Installment financing requires an approved credit verification on file.
+    const hasInstallmentItem = items.some((i) => i.purchaseMethod === "installment");
+    if (hasInstallmentItem) {
+      const creditVerification = await CreditVerification.findOne({ user: req.user._id }).select("status").lean();
+      if (!creditVerification || creditVerification.status !== "approved") {
+        const statusMsg = !creditVerification
+          ? "You have not submitted credit verification documents."
+          : creditVerification.status === "pending"
+          ? "Your credit verification is still under review."
+          : "Your credit verification was not approved.";
+        return res.status(403).json({
+          success: false,
+          message: `Installment financing requires approved credit verification. ${statusMsg} Please visit your profile to manage your verification status.`,
+          creditVerificationRequired: true,
+        });
+      }
     }
 
     // ── 2. Idempotency check ─────────────────────────────────────────────────
@@ -423,6 +443,9 @@ export const newCheckout = async (req, res) => {
           processingFee: PROCESSING_FEE,
           totalRepayment: financing.totalRepayment,
           shippingInfo: motorcycleShippingInfo,
+          downPaymentMethod: paymentMethod || "cash_on_releasing",
+          downPaymentSettled: !isCashOnDeliveryMethod(paymentMethod), // online = auto-settled
+          downPaymentSettledAt: !isCashOnDeliveryMethod(paymentMethod) ? new Date() : undefined,
           documentUploads: {
             verificationMethod,
             idCard: documentUploads.idCard || null,
@@ -879,7 +902,74 @@ export const approveApplication = async (req, res) => {
     application.approvedAt = new Date();
     application.confirmedTerms = confirmedTerms;
 
-    // Ephemeral document purge (DPA compliance)
+    // ── Auto-settle downpayment for online payment methods ───────────────────
+    // If the customer already paid the downpayment online (gcash/maya/bank),
+    // mark it settled immediately. Cash-on-releasing requires admin to physically
+    // collect and confirm the downpayment at the branch.
+    if (!isCashOnDeliveryMethod(application.downPaymentMethod) && !application.downPaymentSettled) {
+      application.downPaymentSettled = true;
+      application.downPaymentSettledAt = new Date();
+    }
+
+    await application.save();
+
+    // ── If downpayment is already settled, auto-create the linked order ───────
+    if (application.downPaymentSettled && !application.linkedOrderId) {
+      try {
+        const { order } = await runInTransaction(async (session) => {
+          const updatedProduct = await Product.findOneAndUpdate(
+            { _id: application.product, stock: { $gt: 0 } },
+            { $inc: { stock: -1 } },
+            { new: true, session },
+          );
+          if (!updatedProduct) throw new Error("Out of stock");
+
+          const terms = application.confirmedTerms || application;
+          const order = new Order({
+            checkoutSessionId: application.checkoutSessionId,
+            user: application.user,
+            orderItems: [{
+              product: application.product,
+              name: application.productName,
+              quantity: 1,
+              price: application.productPrice,
+              costPrice: Number(updatedProduct.costPrice || 0),
+              image: application.productImage || "",
+              itemType: "motorcycle",
+            }],
+            shippingInfo: application.shippingInfo,
+            paymentMethod: application.downPaymentMethod || "bank_deposit",
+            paymentStatus: "processing",
+            itemsPrice: application.productPrice,
+            shippingPrice: 0,
+            totalPrice: terms.totalRepayment || application.productPrice,
+            orderStatus: "pending",
+          });
+          await order.save({ session });
+
+          application.linkedOrderId = order._id;
+          await application.save({ session });
+
+          await InventoryTransaction.create([{
+            transactionRef: makeTransactionRef("TXN-SALE"),
+            product: application.product,
+            productName: application.productName,
+            type: "sale",
+            quantityChange: -1,
+            orderRef: order.orderNumber,
+            unitCost: Number(updatedProduct.costPrice || 0),
+            performedBy: req.user._id,
+            performedByName: performedByName(req.user),
+            note: `Installment order auto-confirmed (online downpayment, ${application.applicationRef})`,
+          }], { session });
+
+          return { order };
+        });
+      } catch (autoConfirmErr) {
+        console.error("Auto-confirm order error after approval:", autoConfirmErr.message);
+        // Non-fatal: application is still approved; admin can manually confirm
+      }
+    }
     if (application.documentUploads) {
       if (application.documentUploads.idCard?.publicId) {
         try {
@@ -1058,6 +1148,8 @@ export const confirmInstallmentOrder = async (req, res) => {
       await order.save({ session });
 
       application.linkedOrderId = order._id;
+      application.downPaymentSettled = true;
+      application.downPaymentSettledAt = new Date();
       await application.save({ session });
 
       await InventoryTransaction.create(
@@ -1276,6 +1368,15 @@ export const payInstallment = async (req, res) => {
 
     const currentPaid = application.installmentsPaid || 0;
     const termMonths = application.termMonths || 12;
+
+    // ── Guard: downpayment must be settled before amortization ───────────────
+    if (!application.downPaymentSettled) {
+      return res.status(400).json({
+        success: false,
+        message: "Downpayment has not been settled yet. Please pay or wait for admin confirmation of your downpayment before making monthly installment payments.",
+        downPaymentRequired: true,
+      });
+    }
 
     if (currentPaid >= termMonths) {
       return res.status(400).json({

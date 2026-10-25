@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useDispatch } from "react-redux";
 import { yupResolver } from "@hookform/resolvers/yup";
@@ -13,6 +13,7 @@ export const Register = () => {
   const [step, setStep] = useState(0);
   const [submitError, setSubmitError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [emailAvailability, setEmailAvailability] = useState("idle");
 
   const navigate = useNavigate();
   const dispatch = useDispatch();
@@ -29,6 +30,8 @@ export const Register = () => {
     trigger,
     getValues,
     setValue,
+    setError,
+    control,
     formState: { errors },
   } = useForm({
     resolver: yupResolver(registerSchema),
@@ -40,6 +43,41 @@ export const Register = () => {
     },
   });
 
+  const emailValue = useWatch({ control, name: "email" });
+
+  useEffect(() => {
+    const email = emailValue?.trim().toLowerCase();
+    if (fromGoogle || !email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      // Reset availability when the input is incomplete or not user-editable.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setEmailAvailability("idle");
+      return undefined;
+    }
+
+    setEmailAvailability("checking");
+    const timeoutId = setTimeout(async () => {
+      try {
+        const { data } = await axios.get(`${API}/register/email-availability`, {
+          params: { email },
+        });
+        if (data.available) {
+          setEmailAvailability("available");
+          clearErrors("email");
+        } else {
+          setEmailAvailability("unavailable");
+          setError("email", {
+            type: "manual",
+            message: "This email is already registered",
+          });
+        }
+      } catch {
+        setEmailAvailability("idle");
+      }
+    }, 450);
+
+    return () => clearTimeout(timeoutId);
+  }, [emailValue, fromGoogle, clearErrors, setError]);
+
   useEffect(() => {
     if (googleEmail) setValue("email", googleEmail);
     if (googleFirstName) setValue("firstName", googleFirstName);
@@ -47,6 +85,13 @@ export const Register = () => {
   }, [googleEmail, googleFirstName, googleLastName, setValue]);
 
   const onSubmit = async (data) => {
+    if (emailAvailability === "unavailable") {
+      setError("email", {
+        type: "manual",
+        message: "This email is already registered",
+      });
+      return;
+    }
     setSubmitError("");
     setIsSubmitting(true);
     try {
@@ -58,8 +103,6 @@ export const Register = () => {
       formData.append("firstName", data.firstName);
       formData.append("lastName", data.lastName);
       formData.append("contactNumber", data.contactNumber);
-      if (data.validId) formData.append("validId", getFile(data.validId));
-      if (data.proofOfIncome) formData.append("proofOfIncome", getFile(data.proofOfIncome));
       formData.append("street", data.street);
       formData.append("barangay", data.barangay);
       formData.append("city", data.city);
@@ -121,7 +164,7 @@ export const Register = () => {
 
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
+  const [submitted] = useState(false);
 
   async function increment() {
     const currentFields = stepFields[step];
@@ -132,7 +175,30 @@ export const Register = () => {
       }
     }
 
-    if (step < 4) {
+    if (step === 2) {
+      const email = getValues("email")?.trim().toLowerCase();
+      try {
+        const { data } = await axios.get(`${API}/register/email-availability`, {
+          params: { email },
+        });
+        if (!data.available) {
+          setEmailAvailability("unavailable");
+          setError("email", {
+            type: "manual",
+            message: "This email is already registered",
+          });
+          return;
+        }
+        setEmailAvailability("available");
+        setSubmitError("");
+      } catch {
+        setEmailAvailability("idle");
+        setSubmitError("Unable to verify email availability. Please try again.");
+        return;
+      }
+    }
+
+    if (step < 3) {
       setStep((prev) => prev + 1);
     }
   }
@@ -148,10 +214,6 @@ export const Register = () => {
       title: "Personal details",
       subtitle: "Enter your contact and profile information",
     },
-    {
-      title: "Verification",
-      subtitle: "Upload identification documents for verification",
-    },
     { title: "Address", subtitle: "Provide your primary residential address" },
     {
       title: "Account credentials",
@@ -165,9 +227,8 @@ export const Register = () => {
 
   const stepFields = {
     0: ["profilePicture", "firstName", "lastName", "contactNumber"],
-    1: ["validId", "proofOfIncome"],
-    2: ["street", "barangay", "city", "postalCode"],
-    3: ["email", "password", "confirmPassword"],
+    1: ["street", "barangay", "city", "postalCode"],
+    2: ["email", "password", "confirmPassword"],
   };
 
   return (
@@ -186,7 +247,7 @@ export const Register = () => {
             </span>
           </div>
           <span className="text-xs font-mono text-zinc-500">
-            {submitted ? "Completed" : `Step ${step + 1} of 5`}
+            {submitted ? "Completed" : `Step ${step + 1} of 4`}
           </span>
         </div>
 
@@ -263,10 +324,10 @@ export const Register = () => {
 
                 {/* Segmented Step Progress Bar */}
                 <div
-                  className="grid grid-cols-5 gap-1.5 mt-4"
+                  className="grid grid-cols-4 gap-1.5 mt-4"
                   aria-hidden="true"
                 >
-                  {[0, 1, 2, 3, 4].map((idx) => (
+                  {[0, 1, 2, 3].map((idx) => (
                     <div
                       key={idx}
                       className={`h-1 rounded-xs transition-colors duration-150 ${
@@ -286,7 +347,7 @@ export const Register = () => {
                         htmlFor="profile_pic"
                         className="block text-xs font-medium text-zinc-700 mb-1"
                       >
-                        Profile picture
+                        Profile picture <span className="text-zinc-400 font-normal">(Optional)</span>
                       </label>
                       <input
                         id="profile_pic"
@@ -376,71 +437,8 @@ export const Register = () => {
                   </>
                 )}
 
-                {/* STEP 1: Verification Documents */}
+                {/* STEP 1: Address */}
                 {step === 1 && (
-                  <>
-                    <div className="p-3 bg-zinc-50 border border-zinc-200 rounded-md text-xs text-zinc-600 leading-relaxed">
-                      Required for motorcycle installment plans and credit
-                      evaluation. Valid government ID and proof of income are
-                      verified by our loan team.
-                    </div>
-
-                    <div className="mb-0">
-                      <label
-                        htmlFor="valid_id"
-                        className="block text-xs font-medium text-zinc-700 mb-1"
-                      >
-                        Valid government ID <span className="text-zinc-400 font-normal">(Optional)</span>
-                      </label>
-                      <input
-                        id="valid_id"
-                        type="file"
-                        accept="image/*"
-                        {...register("validId", {
-                          onChange: () => clearErrors("validId"),
-                        })}
-                        className="block w-full text-xs text-zinc-600 border border-zinc-300 rounded-md cursor-pointer bg-zinc-50/50 p-2 file:mr-3 file:py-1 file:px-2.5 file:rounded-md file:border file:border-zinc-300 file:text-xs file:font-medium file:bg-white file:text-zinc-700 hover:file:bg-zinc-100 hover:file:border-zinc-400 focus:outline-none focus:ring-1 focus:ring-emerald-600 focus:border-emerald-600"
-                      />
-                      <span className="block text-[11px] text-zinc-400 mt-1">
-                        Driver’s license, Passport, UMID, or National ID
-                      </span>
-                    </div>
-                    {errors.validId && (
-                      <span className="text-red-500 text-sm mt-0">
-                        {errors.validId.message}
-                      </span>
-                    )}
-
-                    <div className="mb-0">
-                      <label
-                        htmlFor="proof_income"
-                        className="block text-xs font-medium text-zinc-700 mb-1"
-                      >
-                        Proof of income <span className="text-zinc-400 font-normal">(Optional)</span>
-                      </label>
-                      <input
-                        id="proof_income"
-                        type="file"
-                        accept="image/*"
-                        {...register("proofOfIncome", {
-                          onChange: () => clearErrors("proofOfIncome"),
-                        })}
-                        className="block w-full text-xs text-zinc-600 border border-zinc-300 rounded-md cursor-pointer bg-zinc-50/50 p-2 file:mr-3 file:py-1 file:px-2.5 file:rounded-md file:border file:border-zinc-300 file:text-xs file:font-medium file:bg-white file:text-zinc-700 hover:file:bg-zinc-100 hover:file:border-zinc-400 focus:outline-none focus:ring-1 focus:ring-emerald-600 focus:border-emerald-600"
-                      />
-                      <span className="block text-[11px] text-zinc-400 mt-1">
-                        Latest payslip, certificate of employment, or bank statement
-                      </span>
-                    </div>
-                    {errors.proofOfIncome && (
-                      <span className="text-red-500 text-sm mt-0">
-                        {errors.proofOfIncome.message}
-                      </span>
-                    )}
-                  </>
-                )}
-
-                {/* STEP 2: Address */}
-                {step === 2 && (
                   <>
                     <div className="mb-0">
                       <label
@@ -548,8 +546,8 @@ export const Register = () => {
                   </>
                 )}
 
-                {/* STEP 3: Email & Password Credentials */}
-                {step === 3 && (
+                {/* STEP 2: Email & Password Credentials */}
+                {step === 2 && (
                   <>
                     <div className="mb-0">
                       <div className="flex items-center justify-between mb-1">
@@ -569,7 +567,10 @@ export const Register = () => {
                         id="accountEmail"
                         type="email"
                         {...register("email", {
-                          onChange: () => clearErrors("email"),
+                          onChange: () => {
+                            clearErrors("email");
+                            setEmailAvailability("idle");
+                          },
                         })}
                         placeholder="rider@example.com"
                         readOnly={fromGoogle}
@@ -583,6 +584,16 @@ export const Register = () => {
                     {errors.email && (
                       <span className="text-red-500 text-sm mt-0">
                         {errors.email.message}
+                      </span>
+                    )}
+                    {!errors.email && emailAvailability === "checking" && (
+                      <span className="text-zinc-500 text-[11px]">
+                        Checking email availability...
+                      </span>
+                    )}
+                    {!errors.email && emailAvailability === "available" && (
+                      <span className="text-emerald-700 text-[11px]">
+                        Email is available.
                       </span>
                     )}
                     <div>
@@ -724,8 +735,8 @@ export const Register = () => {
                   </>
                 )}
 
-                {/* STEP 4: Review Step */}
-                {step === 4 && (
+                {/* STEP 3: Review Step */}
+                {step === 3 && (
                   <div className="space-y-4 text-xs">
                     {/* Personal Details Group */}
                     <div className="border border-zinc-200 rounded-md p-3.5 bg-zinc-50/50">
@@ -752,33 +763,7 @@ export const Register = () => {
                         </dd>
                         <dt className="text-zinc-500">Photo:</dt>
                         <dd className="col-span-2 truncate text-zinc-700">
-                          {getValues("profilePicture")?.[0]?.name}
-                        </dd>
-                      </dl>
-                    </div>
-
-                    {/* Verification Documents Group */}
-                    <div className="border border-zinc-200 rounded-md p-3.5 bg-zinc-50/50">
-                      <div className="flex items-center justify-between pb-2 mb-2 border-b border-zinc-200/80">
-                        <span className="font-semibold text-zinc-800 uppercase tracking-wider text-[11px]">
-                          Verification Documents
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => setStep(1)}
-                          className="text-emerald-700 hover:text-emerald-800 hover:underline font-medium"
-                        >
-                          Edit
-                        </button>
-                      </div>
-                      <dl className="grid grid-cols-3 gap-y-1.5 text-zinc-600">
-                        <dt className="text-zinc-500">Valid ID:</dt>
-                        <dd className="col-span-2 truncate text-zinc-700">
-                          {getValues("validId")?.[0]?.name || "Not provided"}
-                        </dd>
-                        <dt className="text-zinc-500">Income proof:</dt>
-                        <dd className="col-span-2 truncate text-zinc-700">
-                          {getValues("proofOfIncome")?.[0]?.name || "Not provided"}
+                          {getValues("profilePicture")?.[0]?.name || "Not provided"}
                         </dd>
                       </dl>
                     </div>
@@ -791,7 +776,7 @@ export const Register = () => {
                         </span>
                         <button
                           type="button"
-                          onClick={() => setStep(2)}
+                          onClick={() => setStep(1)}
                           className="text-emerald-700 hover:text-emerald-800 hover:underline font-medium"
                         >
                           Edit
@@ -821,7 +806,7 @@ export const Register = () => {
                         </span>
                         <button
                           type="button"
-                          onClick={() => setStep(3)}
+                          onClick={() => setStep(2)}
                           className="text-emerald-700 hover:text-emerald-800 hover:underline font-medium"
                         >
                           Edit
@@ -858,7 +843,7 @@ export const Register = () => {
                     </button>
                   )}
 
-                  {step < 4 ? (
+                  {step < 3 ? (
                     <button
                       type="button"
                       onClick={increment}

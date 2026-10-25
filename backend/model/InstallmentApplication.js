@@ -101,6 +101,13 @@ const installmentApplicationSchema = new mongoose.Schema(
       purgedAt: { type: Date },
     },
     installmentsPaid: { type: Number, default: 0 },
+    downPaymentMethod: {
+      type: String,
+      enum: ["cash_on_releasing", "gcash", "maya", "bank_deposit", null],
+      default: null,
+    },
+    downPaymentSettled: { type: Boolean, default: false },
+    downPaymentSettledAt: { type: Date },
     paymentHistory: [
       {
         paidAt: { type: Date, default: Date.now },

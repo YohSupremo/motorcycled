@@ -1,6 +1,7 @@
 import { Router } from "express";
 import {
   register,
+  checkEmailAvailability,
   login,
   logout,
   getUserProfile,
@@ -19,11 +20,10 @@ router.post(
   "/register",
   upload.fields([
     { name: "profilePicture", maxCount: 1 },
-    { name: "validId", maxCount: 1 },
-    { name: "proofOfIncome", maxCount: 1 },
   ]),
   register,
 );
+router.get("/register/email-availability", checkEmailAvailability);
 
 router.post("/login", login);
 router.post("/reactivate", reactivateOwnAccount);

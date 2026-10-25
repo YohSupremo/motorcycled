@@ -152,6 +152,8 @@ export const AdminOrders = () => {
           minDownpaymentPercent: 20,
           processingFee: app.processingFee || 1500,
           downpayment: app.downPayment,
+          downPaymentMethod: app.downPaymentMethod || "cash_on_releasing",
+          downPaymentSettled: app.downPaymentSettled || false,
           downpaymentConfirmedAt: app.linkedOrderId ? new Date(app.updatedAt).toLocaleDateString() : null,
           validId: app.user?.validId || "Government ID",
           proofOfIncome: app.user?.proofOfIncome || "Income statement or bank statement",
@@ -689,19 +691,28 @@ export const AdminOrders = () => {
                     </div>
                   )}
 
-                  {/* Confirm downpayment */}
-                  {selectedOrder.status === "Awaiting Downpayment" && (
-                    <div className="pt-2 border-t border-zinc-200 flex items-center justify-between gap-3">
-                      <p className="text-[11px] text-zinc-600">
-                        Verify the downpayment before confirming, to deduct stock and create the order.
-                      </p>
-                      <button
-                        type="button"
-                        onClick={() => handleConfirmDownpayment(selectedOrder._id)}
-                        className="h-8 px-4 rounded bg-emerald-700 hover:bg-emerald-800 active:bg-emerald-900 text-white font-semibold cursor-pointer transition-colors whitespace-nowrap"
-                      >
-                        Confirm downpayment
-                      </button>
+                  {/* Confirm downpayment — only for COD/cash-on-releasing, not for pre-paid online */}
+                  {selectedOrder.status === "Awaiting Downpayment" && !selectedOrder.installment?.downPaymentSettled && (
+                    <div className="pt-2 border-t border-zinc-200 space-y-2">
+                      {selectedOrder.installment?.downPaymentMethod && selectedOrder.installment.downPaymentMethod !== "cash_on_releasing" ? (
+                        <div className="flex items-center gap-2 p-2.5 rounded bg-emerald-50 border border-emerald-200 text-xs text-emerald-800">
+                          <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></svg>
+                          Downpayment paid via {selectedOrder.installment.downPaymentMethod.replace(/_/g, " ").toUpperCase()} — auto-confirmed.
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-between gap-3">
+                          <p className="text-[11px] text-zinc-600">
+                            Customer will pay the downpayment in cash at the branch. Collect and verify before confirming.
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => handleConfirmDownpayment(selectedOrder._id)}
+                            className="h-8 px-4 rounded bg-emerald-700 hover:bg-emerald-800 active:bg-emerald-900 text-white font-semibold cursor-pointer transition-colors whitespace-nowrap"
+                          >
+                            Confirm downpayment received
+                          </button>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

@@ -16,6 +16,7 @@ import inventoryRoutes from "./routes/inventoryRoutes.js";
 import supplierRoutes from "./routes/supplierRoutes.js";
 import settingsRoutes from "./routes/settingsRoutes.js";
 import reportRoutes from "./routes/reportRoutes.js";
+import creditVerificationRoutes from "./routes/creditVerificationRoutes.js";
 import { seedCatalogDefaults } from "./controllers/catalogController.js";
 
 const app = express();
@@ -50,6 +51,7 @@ app.use("/api/v1", inventoryRoutes);
 app.use("/api/v1", supplierRoutes);
 app.use("/api/v1", settingsRoutes);
 app.use("/api/v1", reportRoutes);
+app.use("/api/v1", creditVerificationRoutes);
 
 // Central error handler so multer/other middleware errors return a
 // readable JSON response instead of Express's default HTML 500.

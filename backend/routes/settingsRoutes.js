@@ -7,8 +7,7 @@ import { auth, authorizeRoles } from "../middleware/authMiddleware.js";
 
 const router = Router();
 
-router.use(auth, authorizeRoles("admin"));
-router.get("/admin/settings", getStoreSettings);
-router.put("/admin/settings", updateStoreSettings);
+router.get("/admin/settings", auth, authorizeRoles("admin"), getStoreSettings);
+router.put("/admin/settings", auth, authorizeRoles("admin"), updateStoreSettings);
 
 export default router;

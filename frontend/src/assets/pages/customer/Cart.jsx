@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
+import axios from "axios";
 import {
   Stepper,
   Step,
@@ -25,6 +26,8 @@ import {
 import { toast } from "react-toastify";
 import { ProductImagePlaceholder } from "../../components/ProductImagePlaceholder";
 import { ScrollReveal } from "../../components/ScrollReveal";
+
+const API = import.meta.env.VITE_API;
 
 const CHECKOUT_STEPS = ["Cart", "Fulfillment and verification", "Review and terms", "Complete"];
 
@@ -52,6 +55,16 @@ export const Cart = () => {
 
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const selectAllRef = useRef(null);
+
+  // Credit verification — only fetch when authenticated
+  const [creditStatus, setCreditStatus] = useState(null);
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    axios
+      .get(`${API}/credit-verification/me`, { withCredentials: true })
+      .then(({ data }) => setCreditStatus(data.verification?.status ?? "none"))
+      .catch(() => setCreditStatus("none"));
+  }, [isAuthenticated]);
 
   // Group cart items into vehicles vs parts
   const motorcycleItems = useMemo(
@@ -199,8 +212,15 @@ export const Cart = () => {
       toast.warning("Please select at least one item to proceed to checkout");
       return;
     }
+    if (hasInstallment && creditStatus !== "approved") {
+      toast.warning("Credit verification is required before proceeding with installment financing.");
+      return;
+    }
     navigate("/checkout/shipping");
   };
+
+  // True when checkout should be blocked due to unverified credit
+  const installmentBlocked = isAuthenticated && hasInstallment && creditStatus !== "approved";
 
   // Empty cart view
   if (cartItems.length === 0) {
@@ -702,24 +722,53 @@ export const Cart = () => {
                 </div>
 
                 {/* Checkout Action Button */}
+
+                {/* Credit verification banner — shown when installment selected but not approved */}
+                {installmentBlocked && (
+                  <div className="flex gap-3 p-3 rounded-md border border-amber-300 bg-amber-50 text-xs">
+                    <svg className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                      <line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" />
+                    </svg>
+                    <div className="space-y-1">
+                      <p className="font-semibold text-amber-900">Credit verification required</p>
+                      <p className="text-amber-800 leading-relaxed">
+                        {creditStatus === "none" && "You haven't submitted your documents yet."}
+                        {creditStatus === "pending" && "Your documents are under admin review."}
+                        {creditStatus === "rejected" && "Your verification was not approved."}
+                        {" "}Installment financing requires an approved credit verification.
+                      </p>
+                      <Link
+                        to="/profile/verification"
+                        className="inline-flex items-center gap-1 font-semibold text-amber-900 hover:underline"
+                      >
+                        Go to Credit Verification
+                        <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
+                      </Link>
+                    </div>
+                  </div>
+                )}
+
                 <Button
                   variant="contained"
                   fullWidth
-                  disabled={!someSelected}
+                  disabled={!someSelected || installmentBlocked}
                   onClick={handleProceedToCheckout}
                   sx={{
-                    bgcolor: "#059669",
+                    bgcolor: installmentBlocked ? undefined : "#059669",
                     textTransform: "none",
                     fontWeight: 700,
                     fontSize: "0.88rem",
                     py: 1.3,
                     borderRadius: "8px",
-                    boxShadow: "0 2px 8px rgba(5, 150, 105, 0.25)",
-                    "&:hover": { bgcolor: "#047857" },
+                    boxShadow: installmentBlocked ? "none" : "0 2px 8px rgba(5, 150, 105, 0.25)",
+                    "&:hover": { bgcolor: installmentBlocked ? undefined : "#047857" },
                     "&:disabled": { bgcolor: "#e4e4e7", color: "#a1a1aa" },
                   }}
                 >
-                  {someSelected
+                  {installmentBlocked
+                    ? "Verification required to proceed"
+                    : someSelected
                     ? `Proceed to checkout (${selectedItems.length})`
                     : "Select items to checkout"}
                 </Button>
