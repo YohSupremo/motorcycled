@@ -421,7 +421,9 @@ export const newCheckout = async (req, res) => {
         });
       }
 
-      // ── 6. Create InstallmentApplications (no stock deduction) ─────────────
+      // ── 6. Create InstallmentApplications (no stock deduction, no payment collected) ──
+      // IMPORTANT: downpayment is NOT collected at checkout.
+      // The customer will be prompted to pay ONLY after admin approves the application.
       for (const ii of motorcycleInstallmentItems) {
         const financing = computeFinancing(ii.product.price, ii.termMonths);
 
@@ -443,9 +445,9 @@ export const newCheckout = async (req, res) => {
           processingFee: PROCESSING_FEE,
           totalRepayment: financing.totalRepayment,
           shippingInfo: motorcycleShippingInfo,
-          downPaymentMethod: paymentMethod || "cash_on_releasing",
-          downPaymentSettled: !isCashOnDeliveryMethod(paymentMethod), // online = auto-settled
-          downPaymentSettledAt: !isCashOnDeliveryMethod(paymentMethod) ? new Date() : undefined,
+          // Downpayment details are NOT set at checkout — collected after approval only
+          downPaymentMethod: null,
+          downPaymentSettled: false,
           documentUploads: {
             verificationMethod,
             idCard: documentUploads.idCard || null,
@@ -902,74 +904,7 @@ export const approveApplication = async (req, res) => {
     application.approvedAt = new Date();
     application.confirmedTerms = confirmedTerms;
 
-    // ── Auto-settle downpayment for online payment methods ───────────────────
-    // If the customer already paid the downpayment online (gcash/maya/bank),
-    // mark it settled immediately. Cash-on-releasing requires admin to physically
-    // collect and confirm the downpayment at the branch.
-    if (!isCashOnDeliveryMethod(application.downPaymentMethod) && !application.downPaymentSettled) {
-      application.downPaymentSettled = true;
-      application.downPaymentSettledAt = new Date();
-    }
-
-    await application.save();
-
-    // ── If downpayment is already settled, auto-create the linked order ───────
-    if (application.downPaymentSettled && !application.linkedOrderId) {
-      try {
-        const { order } = await runInTransaction(async (session) => {
-          const updatedProduct = await Product.findOneAndUpdate(
-            { _id: application.product, stock: { $gt: 0 } },
-            { $inc: { stock: -1 } },
-            { new: true, session },
-          );
-          if (!updatedProduct) throw new Error("Out of stock");
-
-          const terms = application.confirmedTerms || application;
-          const order = new Order({
-            checkoutSessionId: application.checkoutSessionId,
-            user: application.user,
-            orderItems: [{
-              product: application.product,
-              name: application.productName,
-              quantity: 1,
-              price: application.productPrice,
-              costPrice: Number(updatedProduct.costPrice || 0),
-              image: application.productImage || "",
-              itemType: "motorcycle",
-            }],
-            shippingInfo: application.shippingInfo,
-            paymentMethod: application.downPaymentMethod || "bank_deposit",
-            paymentStatus: "processing",
-            itemsPrice: application.productPrice,
-            shippingPrice: 0,
-            totalPrice: terms.totalRepayment || application.productPrice,
-            orderStatus: "pending",
-          });
-          await order.save({ session });
-
-          application.linkedOrderId = order._id;
-          await application.save({ session });
-
-          await InventoryTransaction.create([{
-            transactionRef: makeTransactionRef("TXN-SALE"),
-            product: application.product,
-            productName: application.productName,
-            type: "sale",
-            quantityChange: -1,
-            orderRef: order.orderNumber,
-            unitCost: Number(updatedProduct.costPrice || 0),
-            performedBy: req.user._id,
-            performedByName: performedByName(req.user),
-            note: `Installment order auto-confirmed (online downpayment, ${application.applicationRef})`,
-          }], { session });
-
-          return { order };
-        });
-      } catch (autoConfirmErr) {
-        console.error("Auto-confirm order error after approval:", autoConfirmErr.message);
-        // Non-fatal: application is still approved; admin can manually confirm
-      }
-    }
+    // ── Purge uploaded verification documents (DPA compliance) ──────────────
     if (application.documentUploads) {
       if (application.documentUploads.idCard?.publicId) {
         try {
@@ -993,6 +928,10 @@ export const approveApplication = async (req, res) => {
 
     await application.save();
 
+    // ── Notify applicant to proceed with downpayment ─────────────────────────
+    // NOTE: No money is collected here. The customer must visit Orders page and
+    // submit their downpayment method. The order is created only after admin
+    // calls confirmInstallmentOrder (PUT /admin/application/:id/confirm-order).
     const applicant = await User.findById(application.user);
     if (applicant) {
       notifyInstallmentUpdate(application, applicant, "approved");
@@ -1000,7 +939,7 @@ export const approveApplication = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: "Installment application approved and sensitive documents securely purged",
+      message: "Installment application approved. Customer notified to submit downpayment.",
       data: { application },
     });
   } catch (error) {
@@ -1079,6 +1018,81 @@ export const rejectApplication = async (req, res) => {
     return res
       .status(500)
       .json({ success: false, message: "Server error rejecting application" });
+  }
+};
+
+// ─── submitDownpayment ─────────────────────────────────────────────────────────
+
+/**
+ * PUT /api/v1/application/:id/submit-downpayment
+ * Customer submits their chosen downpayment method and optional reference number
+ * AFTER their application has been approved by admin.
+ * Does NOT settle the downpayment — admin must call confirm-order to finalize.
+ */
+export const submitDownpayment = async (req, res) => {
+  try {
+    const { downPaymentMethod, referenceNumber } = req.body;
+
+    const validMethods = ["cash_on_releasing", "gcash", "maya", "bank_deposit"];
+    if (!downPaymentMethod || !validMethods.includes(downPaymentMethod)) {
+      return res.status(400).json({
+        success: false,
+        message: `downPaymentMethod must be one of: ${validMethods.join(", ")}.`,
+      });
+    }
+
+    const application = await InstallmentApplication.findById(req.params.id);
+    if (!application) {
+      return res.status(404).json({ success: false, message: "Installment application not found" });
+    }
+
+    // Only the owning customer may submit a downpayment
+    if (application.user.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ success: false, message: "Access denied" });
+    }
+
+    // Guard: application must be approved first
+    if (application.applicationStatus !== "approved") {
+      return res.status(400).json({
+        success: false,
+        message: `Downpayment can only be submitted for approved applications (current status: '${application.applicationStatus}').`,
+      });
+    }
+
+    // Guard: cannot re-submit once downpayment is already settled
+    if (application.downPaymentSettled) {
+      return res.status(409).json({
+        success: false,
+        message: "Downpayment has already been confirmed. No further action needed.",
+      });
+    }
+
+    application.downPaymentMethod = downPaymentMethod;
+    // Store reference number for online payments so admin can verify
+    if (referenceNumber && downPaymentMethod !== "cash_on_releasing") {
+      application.downPaymentReference = referenceNumber.trim();
+    }
+
+    await application.save();
+
+    // Log the submission for admin visibility; the admin will see the updated
+    // downPaymentMethod and downPaymentReference in the AdminOrders panel.
+    console.log(
+      `[submitDownpayment] ${req.user.firstName || "Customer"} submitted downpayment ` +
+      `(${downPaymentMethod}) for ${application.applicationRef}` +
+      (referenceNumber ? ` Ref: ${referenceNumber}` : "")
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: downPaymentMethod === "cash_on_releasing"
+        ? "Noted! Please bring your downpayment to the branch. The admin will confirm receipt and activate your loan."
+        : "Downpayment submission received. The admin will verify your reference number and activate your loan shortly.",
+      data: { application },
+    });
+  } catch (error) {
+    console.error("submitDownpayment error:", error);
+    return res.status(500).json({ success: false, message: "Server error submitting downpayment" });
   }
 };
 
@@ -1524,6 +1538,16 @@ export const getDashboardStats = async (req, res) => {
     const totalOrderSales = completedOrders.reduce((sum, o) => sum + (o.totalPrice || 0), 0);
 
     const approvedApps = allApps.filter((a) => a.applicationStatus === "approved");
+
+    // "Active Loan" = approved + downpayment confirmed (linkedOrderId exists) + not fully paid
+    // This matches the exact logic used in the Orders & Finance module's displayStatus computation
+    const activeLoanApps = allApps.filter((a) => {
+      if (a.applicationStatus !== "approved") return false;
+      if (!a.linkedOrderId) return false; // still awaiting downpayment
+      const paid = a.installmentsPaid || 0;
+      const total = a.termMonths || 0;
+      return !(total > 0 && paid >= total); // exclude fully paid
+    });
     const downpaymentCollections = approvedApps.reduce(
       (sum, a) => sum + (a.downPayment || 0),
       0
@@ -1695,11 +1719,16 @@ export const getDashboardStats = async (req, res) => {
         metrics: {
           totalRevenue,
           totalOrders: allOrders.length,
-          activeInstallmentsCount: approvedApps.length,
-          activeInstallmentsValue: approvedApps.reduce(
-            (acc, a) => acc + (a.totalRepayment || a.productPrice || 0),
-            0
-          ),
+          activeInstallmentsCount: activeLoanApps.length,
+          activeInstallmentsValue: activeLoanApps.reduce((acc, a) => {
+            const totalRepayment = a.totalRepayment || a.productPrice || 0;
+            const dpPaid = a.downPaymentSettled ? (a.downPayment || 0) : 0;
+            const installmentsPaid = a.installmentsPaid || 0;
+            const monthlyPayment = a.monthlyPayment || 0;
+            const amortizationPaid = installmentsPaid * monthlyPayment;
+            const outstanding = Math.max(0, totalRepayment - dpPaid - amortizationPaid);
+            return acc + outstanding;
+          }, 0),
           pendingScreeningCount: pendingApps.length,
           lowStockCount: lowStockProducts.length,
         },

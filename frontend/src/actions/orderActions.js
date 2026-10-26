@@ -253,3 +253,21 @@ export const cancelOrder = (orderId) => async (dispatch) => {
     return { success: false, message: getErrorMessage(error) };
   }
 };
+
+/**
+ * Customer submits their downpayment method + optional reference after application approval.
+ * Returns the result directly so the component can toast feedback.
+ */
+export const submitDownpayment = (applicationId, payload) => async (dispatch) => {
+  try {
+    const { data } = await axios.put(
+      `${api}/application/${applicationId}/submit-downpayment`,
+      payload,
+      { withCredentials: true }
+    );
+    dispatch(getMyOrders()); // refresh applications list
+    return { success: true, data };
+  } catch (error) {
+    return { success: false, message: getErrorMessage(error) };
+  }
+};

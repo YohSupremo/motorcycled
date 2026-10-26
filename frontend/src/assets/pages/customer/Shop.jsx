@@ -74,6 +74,13 @@ export const Shop = ({ onNavigate }) => {
     dispatch(getBrands());
   }, [dispatch]);
 
+  // Re-sync keyword when the URL changes externally (e.g. navbar search)
+  useEffect(() => {
+    const urlKeyword = searchParams.get("keyword") || searchParams.get("search") || "";
+    setSearchQuery(urlKeyword);
+  }, [searchParams]);
+
+
   // Sync initial Redux products with infiniteProducts on filter change
   useEffect(() => {
     const timer = setTimeout(() => {

@@ -14,6 +14,8 @@ import { adminDataGridSx } from "../../../utils/adminDataGridTheme";
 const STATUS_STYLES = {
   "For Approval": { badge: "bg-amber-50 text-amber-700 border-amber-200", dot: "bg-amber-500" },
   "Awaiting Downpayment": { badge: "bg-amber-50 text-amber-700 border-amber-200", dot: "bg-amber-500" },
+  "Active Loan": { badge: "bg-indigo-50 text-indigo-700 border-indigo-200", dot: "bg-indigo-500" },
+  "Fully Paid": { badge: "bg-emerald-50 text-emerald-700 border-emerald-200", dot: "bg-emerald-500" },
   Processing: { badge: "bg-indigo-50 text-indigo-700 border-indigo-200", dot: "bg-indigo-500" },
   Pending: { badge: "bg-orange-50 text-orange-700 border-orange-200", dot: "bg-orange-500" },
   Shipped: { badge: "bg-sky-50 text-sky-700 border-sky-200", dot: "bg-sky-500" },
@@ -25,6 +27,7 @@ const statusStyle = (status) => STATUS_STYLES[status] || STATUS_STYLES.Pending;
 
 export const AdminOrders = () => {
   const dispatch = useDispatch();
+  const [activeSection, setActiveSection] = useState("orders"); // "orders" | "finance"
   const [activeStatusTab, setActiveStatusTab] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedOrder, setSelectedOrder] = useState(null);
@@ -106,7 +109,13 @@ export const AdminOrders = () => {
 
       let displayStatus = "For Approval";
       if (app.applicationStatus === "approved") {
-        displayStatus = app.linkedOrderId ? "Processing" : "Awaiting Downpayment";
+        if (app.linkedOrderId) {
+          const paid = app.installmentsPaid || 0;
+          const total = app.termMonths || 0;
+          displayStatus = total > 0 && paid >= total ? "Fully Paid" : "Active Loan";
+        } else {
+          displayStatus = "Awaiting Downpayment";
+        }
       } else if (app.applicationStatus === "rejected" || app.applicationStatus === "canceled") {
         displayStatus = "Cancelled";
       }
@@ -152,7 +161,12 @@ export const AdminOrders = () => {
           minDownpaymentPercent: 20,
           processingFee: app.processingFee || 1500,
           downpayment: app.downPayment,
-          downPaymentMethod: app.downPaymentMethod || "cash_on_releasing",
+          monthlyPayment: app.monthlyPayment,
+          totalRepayment: app.totalRepayment,
+          installmentsPaid: app.installmentsPaid || 0,
+          paymentHistory: app.paymentHistory || [],
+          downPaymentMethod: app.downPaymentMethod || null,
+          downPaymentReference: app.downPaymentReference || null,
           downPaymentSettled: app.downPaymentSettled || false,
           downpaymentConfirmedAt: app.linkedOrderId ? new Date(app.updatedAt).toLocaleDateString() : null,
           validId: app.user?.validId || "Government ID",
@@ -163,16 +177,6 @@ export const AdminOrders = () => {
     }),
   ];
 
-  const statusTabs = [
-    "All",
-    "Pending",
-    "For Approval",
-    "Awaiting Downpayment",
-    "Processing",
-    "Shipped",
-    "Delivered",
-    "Cancelled",
-  ];
 
   const computeTotal = (order) => {
     if (order.totalPrice !== undefined) return order.totalPrice;
@@ -181,17 +185,15 @@ export const AdminOrders = () => {
     return itemsPrice + order.shippingPrice + tax;
   };
 
-  const filteredOrders = unifiedOrders.filter((o) => {
-    if (activeStatusTab !== "All" && o.status !== activeStatusTab) return false;
-    if (searchQuery.trim() !== "") {
-      const q = searchQuery.toLowerCase();
-      const matchId = o.id.toLowerCase().includes(q);
-      const matchCust = o.customer.toLowerCase().includes(q);
-      const matchItem = o.items.some((i) => i.name.toLowerCase().includes(q));
-      if (!matchId && !matchCust && !matchItem) return false;
-    }
-    return true;
-  });
+  // Section-split: pure cash orders vs installment applications
+  const cashOrders = unifiedOrders.filter((o) => !o.isApplication);
+  const financeOrders = unifiedOrders.filter((o) => o.isApplication);
+  const activePool = activeSection === "orders" ? cashOrders : financeOrders;
+
+  // Sub-status tabs per section
+  const orderStatusTabs = ["All", "Pending", "Processing", "Shipped", "Delivered", "Cancelled"];
+  const financeStatusTabs = ["All", "For Approval", "Awaiting Downpayment", "Active Loan", "Fully Paid", "Cancelled"];
+  const statusTabs = activeSection === "orders" ? orderStatusTabs : financeStatusTabs;
 
   const handleApproveApplication = async (appId) => {
     const selected = unifiedOrders.find((o) => o._id === appId || o.id === appId);
@@ -245,6 +247,24 @@ export const AdminOrders = () => {
     setTimeout(() => setActionSuccess(""), 4500);
     reloadData();
     setSelectedOrder(null);
+  };
+
+  const filteredOrders = activePool.filter((o) => {
+    if (activeStatusTab !== "All" && o.status !== activeStatusTab) return false;
+    if (searchQuery.trim() !== "") {
+      const q = searchQuery.toLowerCase();
+      const matchId = o.id.toLowerCase().includes(q);
+      const matchCust = o.customer.toLowerCase().includes(q);
+      const matchItem = o.items.some((i) => i.name.toLowerCase().includes(q));
+      if (!matchId && !matchCust && !matchItem) return false;
+    }
+    return true;
+  });
+
+  const switchSection = (section) => {
+    setActiveSection(section);
+    setActiveStatusTab("All");
+    setSearchQuery("");
   };
 
   const handleSearchChange = (event) => setSearchQuery(event.target.value);
@@ -408,14 +428,16 @@ export const AdminOrders = () => {
 
   return (
     <div className="space-y-6">
-      {/* Title row */}
+      {/* ── Title + Refresh ── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-zinc-200">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-zinc-900 text-balance">
-            Orders and applications
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-zinc-900">
+            {activeSection === "orders" ? "Orders" : "Financing & Loans"}
           </h1>
           <p className="text-xs text-zinc-500 mt-0.5">
-            Review credit applications, confirm downpayments, and advance fulfillment.
+            {activeSection === "orders"
+              ? "Track and advance fulfillment for all cash and standard orders."
+              : "Review credit applications, confirm downpayments, and monitor active loan repayments."}
           </p>
         </div>
         <button
@@ -441,45 +463,113 @@ export const AdminOrders = () => {
         </div>
       )}
 
-      {/* Filters and search */}
+      {/* ── PRIMARY SECTION TABS ── */}
+      <div className="flex items-stretch gap-3">
+        {/* Orders tab */}
+        <button
+          type="button"
+          onClick={() => switchSection("orders")}
+          className={`flex-1 flex items-center gap-3 px-4 py-3 rounded-xl border text-left transition-all cursor-pointer ${
+            activeSection === "orders"
+              ? "bg-emerald-600 border-emerald-600 text-white shadow-sm"
+              : "bg-white border-zinc-200 text-zinc-700 hover:border-emerald-200 hover:bg-emerald-50/20"
+          }`}
+        >
+          <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+            activeSection === "orders" ? "bg-white/15" : "bg-zinc-100"
+          }`}>
+            <svg className={`w-4 h-4 ${activeSection === "orders" ? "text-white" : "text-zinc-500"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+            </svg>
+          </div>
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <span className={`text-sm font-bold ${activeSection === "orders" ? "text-white" : "text-zinc-900"}`}>Orders</span>
+              <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded ${
+                activeSection === "orders" ? "bg-white/20 text-white" : "bg-zinc-100 text-zinc-500"
+              }`}>{cashOrders.length}</span>
+            </div>
+            <span className={`text-[11px] block truncate mt-0.5 ${
+              activeSection === "orders" ? "text-emerald-100" : "text-zinc-400"
+            }`}>Cash & standard purchases</span>
+          </div>
+        </button>
+
+        {/* Financing tab */}
+        <button
+          type="button"
+          onClick={() => switchSection("finance")}
+          className={`flex-1 flex items-center gap-3 px-4 py-3 rounded-xl border text-left transition-all cursor-pointer ${
+            activeSection === "finance"
+              ? "bg-emerald-600 border-emerald-600 text-white shadow-sm"
+              : "bg-white border-zinc-200 text-zinc-700 hover:border-emerald-200 hover:bg-emerald-50/20"
+          }`}
+        >
+          <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+            activeSection === "finance" ? "bg-white/15" : "bg-amber-50"
+          }`}>
+            <svg className={`w-4 h-4 ${activeSection === "finance" ? "text-white" : "text-amber-600"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <span className={`text-sm font-bold ${activeSection === "finance" ? "text-white" : "text-zinc-900"}`}>Financing & Loans</span>
+              <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded ${
+                activeSection === "finance" ? "bg-white/20 text-white" : "bg-amber-50 text-amber-700"
+              }`}>{financeOrders.length}</span>
+              {financeOrders.filter(o => o.status === "For Approval").length > 0 && (
+                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded font-mono ${
+                  activeSection === "finance" ? "bg-rose-500 text-white" : "bg-rose-100 text-rose-700"
+                }`}>
+                  {financeOrders.filter(o => o.status === "For Approval").length} pending
+                </span>
+              )}
+            </div>
+            <span className={`text-[11px] block truncate mt-0.5 ${
+              activeSection === "finance" ? "text-emerald-100" : "text-zinc-400"
+            }`}>Applications, downpayments & repayments</span>
+          </div>
+        </button>
+      </div>
+
+      {/* ── SUB-STATUS FILTER + SEARCH ── */}
       <div className="space-y-3">
-        {/* Status tabs */}
         <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs">
           {statusTabs.map((tab) => {
-            const count = tab === "All" ? unifiedOrders.length : unifiedOrders.filter((o) => o.status === tab).length;
+            const count = tab === "All" ? activePool.length : activePool.filter((o) => o.status === tab).length;
             const isActive = activeStatusTab === tab;
             return (
               <button
                 key={tab}
                 type="button"
                 onClick={() => setActiveStatusTab(tab)}
-                className={`px-3 py-2 rounded font-medium whitespace-nowrap transition-colors cursor-pointer border ${
+                className={`px-3 py-1.5 rounded-lg font-medium whitespace-nowrap transition-all cursor-pointer border ${
                   isActive
-                    ? "bg-zinc-900 text-white border-zinc-900 font-semibold"
-                    : "bg-white border-zinc-200 text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900"
+                    ? "bg-emerald-600 text-white border-emerald-600 shadow-xs"
+                    : "bg-white border-zinc-200 text-zinc-500 hover:bg-zinc-50 hover:text-zinc-800"
                 }`}
               >
                 <span>{tab}</span>
-                <span className={`ml-2 font-mono text-[11px] ${isActive ? "text-zinc-300" : "text-zinc-400"}`}>
-                  {count}
-                </span>
+                <span className={`ml-1.5 font-mono text-[10px] ${
+                  isActive ? "text-emerald-100" : "text-zinc-400"
+                }`}>{count}</span>
               </button>
             );
           })}
         </div>
 
-        {/* Search */}
         <div className="max-w-md">
           <label htmlFor="orders-search" className="sr-only">
-            Search orders and applications
+            {activeSection === "orders" ? "Search orders" : "Search financing applications"}
           </label>
           <input
             id="orders-search"
             type="text"
             value={searchQuery}
             onChange={handleSearchChange}
-            placeholder="Search by reference, customer, or item"
-            className="w-full h-9 px-3 text-xs bg-white border border-zinc-300 rounded focus:border-emerald-700 focus:outline-2 focus:outline-emerald-700 focus:outline-offset-1 transition-colors"
+            placeholder={activeSection === "orders" ? "Search by order ref, customer, or item" : "Search by application ref, customer, or motorcycle"}
+            className="w-full h-9 px-3 text-xs bg-white border border-zinc-300 rounded-lg focus:border-zinc-700 focus:outline-2 focus:outline-zinc-700 focus:outline-offset-1 transition-colors"
           />
         </div>
       </div>
@@ -691,18 +781,20 @@ export const AdminOrders = () => {
                     </div>
                   )}
 
-                  {/* Confirm downpayment — only for COD/cash-on-releasing, not for pre-paid online */}
+                  {/* Confirm downpayment section — shows once application is approved */}
                   {selectedOrder.status === "Awaiting Downpayment" && !selectedOrder.installment?.downPaymentSettled && (
                     <div className="pt-2 border-t border-zinc-200 space-y-2">
-                      {selectedOrder.installment?.downPaymentMethod && selectedOrder.installment.downPaymentMethod !== "cash_on_releasing" ? (
-                        <div className="flex items-center gap-2 p-2.5 rounded bg-emerald-50 border border-emerald-200 text-xs text-emerald-800">
-                          <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></svg>
-                          Downpayment paid via {selectedOrder.installment.downPaymentMethod.replace(/_/g, " ").toUpperCase()} — auto-confirmed.
+                      {!selectedOrder.installment?.downPaymentMethod ? (
+                        /* Customer hasn't submitted their payment method yet */
+                        <div className="flex items-center gap-2 p-2.5 rounded bg-zinc-50 border border-zinc-200 text-xs text-zinc-600">
+                          <svg className="w-3.5 h-3.5 shrink-0 text-zinc-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
+                          Waiting for customer to submit their downpayment method. They will be prompted on their Orders page.
                         </div>
-                      ) : (
+                      ) : selectedOrder.installment.downPaymentMethod === "cash_on_releasing" ? (
+                        /* Cash on releasing — admin needs to physically collect */
                         <div className="flex items-center justify-between gap-3">
                           <p className="text-[11px] text-zinc-600">
-                            Customer will pay the downpayment in cash at the branch. Collect and verify before confirming.
+                            Customer will pay the downpayment <strong>in cash at the branch</strong>. Collect and verify before confirming.
                           </p>
                           <button
                             type="button"
@@ -712,9 +804,134 @@ export const AdminOrders = () => {
                             Confirm downpayment received
                           </button>
                         </div>
+                      ) : (
+                        /* Online payment submitted — show method + reference for admin to verify */
+                        <div className="space-y-2">
+                          <div className="flex items-start gap-2 p-2.5 rounded bg-blue-50 border border-blue-200 text-xs text-blue-800">
+                            <svg className="w-3.5 h-3.5 shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></svg>
+                            <div className="space-y-0.5">
+                              <p className="font-semibold">Customer submitted payment via <span className="uppercase">{selectedOrder.installment.downPaymentMethod.replace(/_/g, " ")}</span></p>
+                              {selectedOrder.installment.downPaymentReference && (
+                                <p className="font-mono text-[11px]">Reference: <strong>{selectedOrder.installment.downPaymentReference}</strong></p>
+                              )}
+                              <p className="text-[11px] text-blue-600">Verify this payment in your {selectedOrder.installment.downPaymentMethod.replace(/_/g, " ")} account before confirming.</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleConfirmDownpayment(selectedOrder._id)}
+                              className="h-8 px-4 rounded bg-emerald-700 hover:bg-emerald-800 active:bg-emerald-900 text-white font-semibold cursor-pointer transition-colors whitespace-nowrap"
+                            >
+                              Verify &amp; Confirm downpayment
+                            </button>
+                          </div>
+                        </div>
                       )}
                     </div>
                   )}
+
+                  {/* ── Amortization Progress (Active Loan & Fully Paid) ── */}
+                  {(selectedOrder.status === "Active Loan" || selectedOrder.status === "Fully Paid") && selectedOrder.installment && (() => {
+                    const inst = selectedOrder.installment;
+                    const paid = inst.installmentsPaid || 0;
+                    const total = inst.termMonths || 0;
+                    const remaining = total - paid;
+                    const pct = total > 0 ? Math.round((paid / total) * 100) : 0;
+                    const collected = (paid * (inst.monthlyPayment || 0));
+                    const outstanding = (inst.totalRepayment || 0) - collected - (inst.downpayment || 0);
+                    const fmt = (n) => `₱${Number(n || 0).toLocaleString("en-US", { minimumFractionDigits: 2 })}`;
+                    const isFullyPaid = paid >= total;
+
+                    return (
+                      <div className="pt-3 border-t border-zinc-200 space-y-3">
+                        {/* Header */}
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-zinc-900 uppercase tracking-wide">Amortization Progress</span>
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border font-mono ${
+                            isFullyPaid ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-indigo-50 text-indigo-700 border-indigo-200"
+                          }`}>
+                            {isFullyPaid ? "FULLY PAID" : `${paid}/${total} months paid`}
+                          </span>
+                        </div>
+
+                        {/* Progress bar */}
+                        <div className="space-y-1">
+                          <div className="w-full h-3 bg-zinc-100 rounded-full overflow-hidden border border-zinc-200">
+                            <div
+                              className={`h-full rounded-full transition-all duration-500 ${
+                                isFullyPaid ? "bg-emerald-500" : "bg-indigo-500"
+                              }`}
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                          <div className="flex justify-between text-[10px] text-zinc-400 font-mono">
+                            <span>{pct}% complete</span>
+                            <span>{remaining} month{remaining !== 1 ? "s" : ""} remaining</span>
+                          </div>
+                        </div>
+
+                        {/* Stats grid */}
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                          <div className="bg-zinc-50 rounded-lg p-2.5 border border-zinc-200 space-y-0.5">
+                            <span className="text-[10px] text-zinc-400 uppercase font-medium block">Monthly</span>
+                            <span className="font-mono font-bold text-zinc-900">{fmt(inst.monthlyPayment)}</span>
+                          </div>
+                          <div className="bg-emerald-50 rounded-lg p-2.5 border border-emerald-200 space-y-0.5">
+                            <span className="text-[10px] text-emerald-700 uppercase font-medium block">Collected</span>
+                            <span className="font-mono font-bold text-emerald-900">{fmt(collected)}</span>
+                          </div>
+                          <div className="bg-amber-50 rounded-lg p-2.5 border border-amber-200 space-y-0.5">
+                            <span className="text-[10px] text-amber-700 uppercase font-medium block">Outstanding</span>
+                            <span className="font-mono font-bold text-amber-900">{fmt(outstanding)}</span>
+                          </div>
+                          <div className="bg-zinc-50 rounded-lg p-2.5 border border-zinc-200 space-y-0.5">
+                            <span className="text-[10px] text-zinc-400 uppercase font-medium block">Total Repay</span>
+                            <span className="font-mono font-bold text-zinc-900">{fmt(inst.totalRepayment)}</span>
+                          </div>
+                        </div>
+
+                        {/* Payment ledger */}
+                        <div className="space-y-1.5">
+                          <span className="text-[10px] font-bold uppercase tracking-wide text-zinc-500 block">Payment Ledger</span>
+                          {inst.paymentHistory && inst.paymentHistory.length > 0 ? (
+                            <div className="border border-zinc-200 rounded-lg overflow-hidden max-h-60 overflow-y-auto">
+                              <table className="w-full text-[11px]">
+                                <thead>
+                                  <tr className="bg-zinc-50 border-b border-zinc-200">
+                                    <th className="px-3 py-2 text-left font-semibold text-zinc-600">#</th>
+                                    <th className="px-3 py-2 text-left font-semibold text-zinc-600">Date</th>
+                                    <th className="px-3 py-2 text-left font-semibold text-zinc-600">Method</th>
+                                    <th className="px-3 py-2 text-left font-semibold text-zinc-600">Reference</th>
+                                    <th className="px-3 py-2 text-right font-semibold text-zinc-600">Amount</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-zinc-100">
+                                  {inst.paymentHistory.map((h, i) => (
+                                    <tr key={i} className="hover:bg-zinc-50">
+                                      <td className="px-3 py-2 font-mono text-zinc-500">{h.installmentNumber || i + 1}</td>
+                                      <td className="px-3 py-2 text-zinc-700">
+                                        {new Date(h.paidAt).toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" })}
+                                      </td>
+                                      <td className="px-3 py-2">
+                                        <span className="uppercase font-medium text-zinc-900">{(h.paymentMethod || "-").replace(/_/g, " ")}</span>
+                                      </td>
+                                      <td className="px-3 py-2 font-mono text-zinc-500">{h.referenceNumber || "—"}</td>
+                                      <td className="px-3 py-2 text-right font-mono font-bold text-zinc-900">{fmt(h.amount)}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          ) : (
+                            <div className="text-[11px] text-zinc-400 italic p-2.5 bg-zinc-50 rounded border border-zinc-200">
+                              No amortization payments recorded yet.
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
               )}
 

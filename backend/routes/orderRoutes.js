@@ -16,6 +16,7 @@ import {
   payInstallment,
   getDashboardStats,
   cancelMyOrder,
+  submitDownpayment,
 } from "../controllers/orderController.js";
 
 const router = express.Router();
@@ -29,6 +30,7 @@ router.get("/order/:id/receipt", auth, getOrderReceipt);
 router.put("/order/:id/cancel", auth, cancelMyOrder);
 router.get("/application/:id", auth, getApplicationDetails);
 router.post("/application/:id/pay-installment", auth, payInstallment);
+router.put("/application/:id/submit-downpayment", auth, submitDownpayment);
 
 // ── Admin routes ─────────────────────────────────────────────────────────────
 router.get("/admin/dashboard-stats", auth, authorizeRoles("admin"), getDashboardStats);

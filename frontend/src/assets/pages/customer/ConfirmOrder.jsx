@@ -155,8 +155,9 @@ export const ConfirmOrder = () => {
       (!selectedMotorcycles.length && shippingInfo?.fulfillmentMethod === "delivery"));
 
   const shippingFee = isPartsDelivery ? 350 : 0;
-  const grandTotal =
-    partsCashTotal + motoCashTotal + installmentDownpaymentsTotal + shippingFee;
+  // Grand total = only cash items + shipping. Installment downpayments are NOT
+  // collected at checkout — they are due after admin approves the application.
+  const grandTotal = partsCashTotal + motoCashTotal + shippingFee;
 
   const placeOrder = (data) => {
     if (!agreedTerms) {
@@ -453,241 +454,258 @@ export const ConfirmOrder = () => {
               </div>
             </div>
 
-            {/* 2. Payment Method Selector & Inputs */}
-            <div className="p-6 space-y-4">
-              <div>
-                <h2 className="text-base font-bold text-zinc-900">
-                  Select Payment Method
-                </h2>
-                <p className="text-xs text-zinc-500 mt-0.5">
-                  Choose how you want to settle your transaction.
-                </p>
-              </div>
+            {/* 2. Payment Method Selector & Inputs — only for cash items */}
+            {grandTotal > 0 ? (
+              <div className="p-6 space-y-4">
+                <div>
+                  <h2 className="text-base font-bold text-zinc-900">
+                    Select Payment Method
+                  </h2>
+                  <p className="text-xs text-zinc-500 mt-0.5">
+                    Choose how you want to settle your transaction.
+                  </p>
+                </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {PAYMENT_METHODS.map((pm) => {
-                  const isSelected = paymentMethod === pm.value;
-                  return (
-                    <label
-                      key={pm.value}
-                      className={`relative flex items-start gap-3 p-3.5 border rounded-lg cursor-pointer transition-all ${
-                        isSelected
-                          ? "border-zinc-900 bg-zinc-50/80 ring-1 ring-zinc-900"
-                          : "border-zinc-200 hover:border-zinc-300"
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name="paymentMethod"
-                        value={pm.value}
-                        checked={isSelected}
-                        onChange={() => {
-                          setPaymentMethod(pm.value);
-                          clearErrors();
-                        }}
-                        className="mt-1 accent-zinc-900 cursor-pointer"
-                      />
-                      <div className="flex-1 text-xs">
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-bold text-zinc-900">{pm.label}</span>
-                          {pm.badge && (
-                            <span className="text-[10px] font-semibold bg-emerald-50 text-emerald-700 px-1.5 py-0.2 rounded border border-emerald-200">
-                              {pm.badge}
-                            </span>
-                          )}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {PAYMENT_METHODS.map((pm) => {
+                    const isSelected = paymentMethod === pm.value;
+                    return (
+                      <label
+                        key={pm.value}
+                        className={`relative flex items-start gap-3 p-3.5 border rounded-lg cursor-pointer transition-all ${
+                          isSelected
+                            ? "border-zinc-900 bg-zinc-50/80 ring-1 ring-zinc-900"
+                            : "border-zinc-200 hover:border-zinc-300"
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="paymentMethod"
+                          value={pm.value}
+                          checked={isSelected}
+                          onChange={() => {
+                            setPaymentMethod(pm.value);
+                            clearErrors();
+                          }}
+                          className="mt-1 accent-zinc-900 cursor-pointer"
+                        />
+                        <div className="flex-1 text-xs">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-bold text-zinc-900">{pm.label}</span>
+                            {pm.badge && (
+                              <span className="text-[10px] font-semibold bg-emerald-50 text-emerald-700 px-1.5 py-0.2 rounded border border-emerald-200">
+                                {pm.badge}
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-zinc-500 block mt-0.5 text-[11px] leading-tight">
+                            {pm.subtitle}
+                          </span>
                         </div>
-                        <span className="text-zinc-500 block mt-0.5 text-[11px] leading-tight">
-                          {pm.subtitle}
-                        </span>
-                      </div>
-                    </label>
-                  );
-                })}
-              </div>
-
-              {/* DYNAMIC PAYMENT INPUT FIELDS */}
-              {paymentMethod === "gcash" && (
-                <div className="mt-4 p-4.5 bg-blue-50/40 border border-blue-200 rounded-lg space-y-3.5 text-xs">
-                  <div className="pb-2 border-b border-blue-100">
-                    <span className="font-bold text-blue-900 text-xs block">
-                      GCash Account Details
-                    </span>
-                    <p className="text-blue-700 text-[11px] mt-0.5">
-                      Enter your registered GCash account name and mobile number to authorize payment.
-                    </p>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-medium text-zinc-700 mb-1">
-                        GCash Account Name <span className="text-red-500">*</span>
                       </label>
-                      <input
-                        type="text"
-                        {...register("accountName")}
-                        placeholder="e.g. Juan Dela Cruz"
-                        className={`w-full px-3 py-2 text-sm bg-white border rounded-lg focus:outline-none focus:ring-1 ${
-                          paymentErrors.accountName ? "border-red-500" : "border-zinc-300 focus:border-zinc-900"
-                        }`}
-                      />
-                      {paymentErrors.accountName && (
-                        <p className="text-[11px] text-red-600 mt-1">{paymentErrors.accountName.message}</p>
-                      )}
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-medium text-zinc-700 mb-1">
-                        GCash Mobile Number <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="tel"
-                        {...register("accountNumber")}
-                        placeholder="0917 123 4567"
-                        className={`w-full px-3 py-2 text-sm bg-white border rounded-lg focus:outline-none focus:ring-1 ${
-                          paymentErrors.accountNumber ? "border-red-500" : "border-zinc-300 focus:border-zinc-900"
-                        }`}
-                      />
-                      {paymentErrors.accountNumber && (
-                        <p className="text-[11px] text-red-600 mt-1">{paymentErrors.accountNumber.message}</p>
-                      )}
-                    </div>
-                  </div>
+                    );
+                  })}
                 </div>
-              )}
 
-              {paymentMethod === "maya" && (
-                <div className="mt-4 p-4.5 bg-emerald-50/40 border border-emerald-200 rounded-lg space-y-3.5 text-xs">
-                  <div className="pb-2 border-b border-emerald-100">
-                    <span className="font-bold text-emerald-950 text-xs block">
-                      Maya (PayMaya) Account Details
-                    </span>
-                    <p className="text-emerald-800 text-[11px] mt-0.5">
-                      Enter your registered Maya account name and mobile number to authorize payment.
-                    </p>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-medium text-zinc-700 mb-1">
-                        Maya Registered Name <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        {...register("accountName")}
-                        placeholder="e.g. Juan Dela Cruz"
-                        className={`w-full px-3 py-2 text-sm bg-white border rounded-lg focus:outline-none focus:ring-1 ${
-                          paymentErrors.accountName ? "border-red-500" : "border-zinc-300 focus:border-zinc-900"
-                        }`}
-                      />
-                      {paymentErrors.accountName && (
-                        <p className="text-[11px] text-red-600 mt-1">{paymentErrors.accountName.message}</p>
-                      )}
+                {/* DYNAMIC PAYMENT INPUT FIELDS */}
+                {paymentMethod === "gcash" && (
+                  <div className="mt-4 p-4.5 bg-blue-50/40 border border-blue-200 rounded-lg space-y-3.5 text-xs">
+                    <div className="pb-2 border-b border-blue-100">
+                      <span className="font-bold text-blue-900 text-xs block">
+                        GCash Account Details
+                      </span>
+                      <p className="text-blue-700 text-[11px] mt-0.5">
+                        Enter your registered GCash account name and mobile number to authorize payment.
+                      </p>
                     </div>
 
-                    <div>
-                      <label className="block text-xs font-medium text-zinc-700 mb-1">
-                        Maya Mobile Number <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="tel"
-                        {...register("accountNumber")}
-                        placeholder="0918 902 1145"
-                        className={`w-full px-3 py-2 text-sm bg-white border rounded-lg focus:outline-none focus:ring-1 ${
-                          paymentErrors.accountNumber ? "border-red-500" : "border-zinc-300 focus:border-zinc-900"
-                        }`}
-                      />
-                      {paymentErrors.accountNumber && (
-                        <p className="text-[11px] text-red-600 mt-1">{paymentErrors.accountNumber.message}</p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {paymentMethod === "bank_deposit" && (
-                <div className="mt-4 p-4.5 bg-zinc-50 border border-zinc-200 rounded-lg space-y-3.5 text-xs">
-                  <div className="pb-2 border-b border-zinc-200">
-                    <span className="font-bold text-zinc-900 text-xs block">
-                      Link Bank Account
-                    </span>
-                    <p className="text-zinc-500 text-[11px] mt-0.5">
-                      Select your bank and enter your account information to link and authorize payment.
-                    </p>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-medium text-zinc-700 mb-1">
-                      Select Your Bank <span className="text-red-500">*</span>
-                    </label>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                      {BANK_OPTIONS.map((bk) => (
-                        <button
-                          type="button"
-                          key={bk.code}
-                          onClick={() => setValue("bankName", bk.code, { shouldValidate: true })}
-                          className={`p-2.5 rounded-lg border text-center transition-all cursor-pointer ${
-                            paymentForm.bankName === bk.code
-                              ? "bg-white border-zinc-900 ring-1 ring-zinc-900 font-bold text-zinc-900 shadow-xs"
-                              : "bg-white/60 border-zinc-200 text-zinc-600 hover:border-zinc-300"
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-medium text-zinc-700 mb-1">
+                          GCash Account Name <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          {...register("accountName")}
+                          placeholder="e.g. Juan Dela Cruz"
+                          className={`w-full px-3 py-2 text-sm bg-white border rounded-lg focus:outline-none focus:ring-1 ${
+                            paymentErrors.accountName ? "border-red-500" : "border-zinc-300 focus:border-zinc-900"
                           }`}
-                        >
-                          <span className="block text-xs font-bold">{bk.code}</span>
-                          <span className="block text-[10px] text-zinc-500 truncate mt-0.5">{bk.name}</span>
-                        </button>
-                      ))}
+                        />
+                        {paymentErrors.accountName && (
+                          <p className="text-[11px] text-red-600 mt-1">{paymentErrors.accountName.message}</p>
+                        )}
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-medium text-zinc-700 mb-1">
+                          GCash Mobile Number <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="tel"
+                          {...register("accountNumber")}
+                          placeholder="0917 123 4567"
+                          className={`w-full px-3 py-2 text-sm bg-white border rounded-lg focus:outline-none focus:ring-1 ${
+                            paymentErrors.accountNumber ? "border-red-500" : "border-zinc-300 focus:border-zinc-900"
+                          }`}
+                        />
+                        {paymentErrors.accountNumber && (
+                          <p className="text-[11px] text-red-600 mt-1">{paymentErrors.accountNumber.message}</p>
+                        )}
+                      </div>
                     </div>
                   </div>
+                )}
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-medium text-zinc-700 mb-1">
-                        Account Holder Name <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        {...register("accountName")}
-                        placeholder="Full name on bank account"
-                        className={`w-full px-3 py-2 text-sm bg-white border rounded-lg focus:outline-none focus:ring-1 ${
-                          paymentErrors.accountName ? "border-red-500" : "border-zinc-300 focus:border-zinc-900"
-                        }`}
-                      />
-                      {paymentErrors.accountName && (
-                        <p className="text-[11px] text-red-600 mt-1">{paymentErrors.accountName.message}</p>
-                      )}
+                {paymentMethod === "maya" && (
+                  <div className="mt-4 p-4.5 bg-emerald-50/40 border border-emerald-200 rounded-lg space-y-3.5 text-xs">
+                    <div className="pb-2 border-b border-emerald-100">
+                      <span className="font-bold text-emerald-950 text-xs block">
+                        Maya (PayMaya) Account Details
+                      </span>
+                      <p className="text-emerald-800 text-[11px] mt-0.5">
+                        Enter your registered Maya account name and mobile number to authorize payment.
+                      </p>
                     </div>
 
-                    <div>
-                      <label className="block text-xs font-medium text-zinc-700 mb-1">
-                        Sender Bank Account Number <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        {...register("accountNumber")}
-                        placeholder="e.g. 0012 3456 7890"
-                        className={`w-full px-3 py-2 text-sm bg-white border rounded-lg focus:outline-none focus:ring-1 font-mono ${
-                          paymentErrors.accountNumber ? "border-red-500" : "border-zinc-300 focus:border-zinc-900"
-                        }`}
-                      />
-                      {paymentErrors.accountNumber && (
-                        <p className="text-[11px] text-red-600 mt-1">{paymentErrors.accountNumber.message}</p>
-                      )}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-medium text-zinc-700 mb-1">
+                          Maya Registered Name <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          {...register("accountName")}
+                          placeholder="e.g. Juan Dela Cruz"
+                          className={`w-full px-3 py-2 text-sm bg-white border rounded-lg focus:outline-none focus:ring-1 ${
+                            paymentErrors.accountName ? "border-red-500" : "border-zinc-300 focus:border-zinc-900"
+                          }`}
+                        />
+                        {paymentErrors.accountName && (
+                          <p className="text-[11px] text-red-600 mt-1">{paymentErrors.accountName.message}</p>
+                        )}
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-medium text-zinc-700 mb-1">
+                          Maya Mobile Number <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="tel"
+                          {...register("accountNumber")}
+                          placeholder="0918 902 1145"
+                          className={`w-full px-3 py-2 text-sm bg-white border rounded-lg focus:outline-none focus:ring-1 ${
+                            paymentErrors.accountNumber ? "border-red-500" : "border-zinc-300 focus:border-zinc-900"
+                          }`}
+                        />
+                        {paymentErrors.accountNumber && (
+                          <p className="text-[11px] text-red-600 mt-1">{paymentErrors.accountNumber.message}</p>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              {paymentMethod === "cash_on_releasing" && (
-                <div className="mt-4 p-4 bg-zinc-50 border border-zinc-200 rounded-lg text-xs space-y-1">
-                  <p className="font-semibold text-zinc-900">
-                    Pay at Dealership Cashier or Upon Delivery
-                  </p>
-                  <p className="text-zinc-500">
-                    No advance payment required today. Your order status will be marked as{" "}
-                    <span className="font-semibold text-amber-800">Pending Payment</span> until you complete settlement in cash or debit card during unit turnover.
-                  </p>
+                {paymentMethod === "bank_deposit" && (
+                  <div className="mt-4 p-4.5 bg-zinc-50 border border-zinc-200 rounded-lg space-y-3.5 text-xs">
+                    <div className="pb-2 border-b border-zinc-200">
+                      <span className="font-bold text-zinc-900 text-xs block">
+                        Link Bank Account
+                      </span>
+                      <p className="text-zinc-500 text-[11px] mt-0.5">
+                        Select your bank and enter your account information to link and authorize payment.
+                      </p>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-medium text-zinc-700 mb-1">
+                        Select Your Bank <span className="text-red-500">*</span>
+                      </label>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        {BANK_OPTIONS.map((bk) => (
+                          <button
+                            type="button"
+                            key={bk.code}
+                            onClick={() => setValue("bankName", bk.code, { shouldValidate: true })}
+                            className={`p-2.5 rounded-lg border text-center transition-all cursor-pointer ${
+                              paymentForm.bankName === bk.code
+                                ? "bg-white border-zinc-900 ring-1 ring-zinc-900 font-bold text-zinc-900 shadow-xs"
+                                : "bg-white/60 border-zinc-200 text-zinc-600 hover:border-zinc-300"
+                            }`}
+                          >
+                            <span className="block text-xs font-bold">{bk.code}</span>
+                            <span className="block text-[10px] text-zinc-500 truncate mt-0.5">{bk.name}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-medium text-zinc-700 mb-1">
+                          Account Holder Name <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          {...register("accountName")}
+                          placeholder="Full name on bank account"
+                          className={`w-full px-3 py-2 text-sm bg-white border rounded-lg focus:outline-none focus:ring-1 ${
+                            paymentErrors.accountName ? "border-red-500" : "border-zinc-300 focus:border-zinc-900"
+                          }`}
+                        />
+                        {paymentErrors.accountName && (
+                          <p className="text-[11px] text-red-600 mt-1">{paymentErrors.accountName.message}</p>
+                        )}
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-medium text-zinc-700 mb-1">
+                          Sender Bank Account Number <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          {...register("accountNumber")}
+                          placeholder="e.g. 0012 3456 7890"
+                          className={`w-full px-3 py-2 text-sm bg-white border rounded-lg focus:outline-none focus:ring-1 font-mono ${
+                            paymentErrors.accountNumber ? "border-red-500" : "border-zinc-300 focus:border-zinc-900"
+                          }`}
+                        />
+                        {paymentErrors.accountNumber && (
+                          <p className="text-[11px] text-red-600 mt-1">{paymentErrors.accountNumber.message}</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {paymentMethod === "cash_on_releasing" && (
+                  <div className="mt-4 p-4 bg-zinc-50 border border-zinc-200 rounded-lg text-xs space-y-1">
+                    <p className="font-semibold text-zinc-900">
+                      Pay at Dealership Cashier or Upon Delivery
+                    </p>
+                    <p className="text-zinc-500">
+                      No advance payment required today. Your order status will be marked as{" "}
+                      <span className="font-semibold text-amber-800">Pending Payment</span> until you complete settlement in cash or debit card during unit turnover.
+                    </p>
+                  </div>
+                )}
+              </div>
+            ) : (
+              /* Installment-only cart — no payment needed at checkout */
+              <div className="p-6">
+                <div className="flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900">
+                  <svg className="w-5 h-5 shrink-0 mt-0.5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                    <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
+                  </svg>
+                  <div className="space-y-1">
+                    <p className="font-bold text-sm text-amber-950">No Payment Required at Checkout</p>
+                    <p className="text-[11px] leading-relaxed text-amber-800">
+                      Your application will be submitted for credit review. Once admin approves it, you will be prompted on your <strong>Orders &amp; Applications</strong> page to choose how you'll pay the downpayment (GCash, Maya, bank transfer, or cash at branch). No money is collected today.
+                    </p>
+                  </div>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
 
             {/* 3. In-House Financing Summary (if installment item exists) */}
             {hasInstallment && (
@@ -750,7 +768,11 @@ export const ConfirmOrder = () => {
                   disabled={loading}
                   className="w-full sm:flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 disabled:bg-zinc-400 text-white font-bold text-sm rounded-lg transition-colors cursor-pointer shadow-xs text-center"
                 >
-                  {loading ? "Processing Order..." : `Place Order • ${fmt(grandTotal)}`}
+                  {loading
+                    ? "Processing..."
+                    : grandTotal > 0
+                    ? `Place Order • ${fmt(grandTotal)}`
+                    : "Submit Application →"}
                 </button>
               </div>
             </div>
@@ -827,9 +849,14 @@ export const ConfirmOrder = () => {
 
                 {installmentDownpaymentsTotal > 0 && (
                   <div className="flex justify-between text-amber-800 font-medium">
-                    <span>Financing Downpayment Due</span>
+                    <span>Financing Downpayment</span>
                     <span className="font-mono">{fmt(installmentDownpaymentsTotal)}</span>
                   </div>
+                )}
+                {installmentDownpaymentsTotal > 0 && (
+                  <p className="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1">
+                    ⚠️ Downpayment is <strong>not due today</strong>. You will be prompted to submit payment after admin reviews and approves your application.
+                  </p>
                 )}
 
                 <div className="flex justify-between text-zinc-600">
@@ -841,8 +868,15 @@ export const ConfirmOrder = () => {
 
                 <div className="flex justify-between text-sm font-bold text-zinc-900 pt-2 border-t border-zinc-100">
                   <span>Total Due Today</span>
-                  <span className="font-mono text-emerald-700">{fmt(grandTotal)}</span>
+                  <span className="font-mono text-emerald-700">
+                    {grandTotal > 0 ? fmt(grandTotal) : hasInstallment && grandTotal === 0 ? "₱0.00" : fmt(grandTotal)}
+                  </span>
                 </div>
+                {hasInstallment && grandTotal === 0 && (
+                  <p className="text-[10px] text-zinc-500 text-center">
+                    No payment due now — downpayment collected after approval.
+                  </p>
+                )}
               </div>
 
               {/* Guarantees */}

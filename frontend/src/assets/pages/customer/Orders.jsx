@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { useForm, useWatch } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
-import { getMyOrders, payInstallmentAmortization, cancelOrder } from "../../../actions/orderActions";
+import { getMyOrders, payInstallmentAmortization, cancelOrder, submitDownpayment } from "../../../actions/orderActions";
 import { installmentPaymentSchema } from "../../schema/installmentPaymentSchema.js";
 import { ProductImagePlaceholder } from "../../components/ProductImagePlaceholder";
 import { toast } from "react-toastify";
@@ -98,6 +98,22 @@ export const Orders = () => {
   const [payingApp, setPayingApp] = useState(null);
   const [submittingPay, setSubmittingPay] = useState(false);
 
+  // Downpayment Submission Modal State
+  const [downpaymentApp, setDownpaymentApp] = useState(null);
+  const [dpMethod, setDpMethod] = useState("gcash");
+  const [dpRef, setDpRef] = useState("");
+  const [submittingDp, setSubmittingDp] = useState(false);
+
+  // Collapsible Payment Ledger Accordion State
+  const [expandedLedgers, setExpandedLedgers] = useState({});
+
+  const toggleLedger = (appId) => {
+    setExpandedLedgers((prev) => ({
+      ...prev,
+      [appId]: !prev[appId],
+    }));
+  };
+
   const {
     register,
     handleSubmit: handlePaymentFormSubmit,
@@ -179,6 +195,29 @@ export const Orders = () => {
       dispatch(getMyOrders());
     } else {
       toast.error(res?.message || "Failed to cancel order");
+    }
+  };
+
+  const handleOpenDownpayment = (app) => {
+    setDownpaymentApp(app);
+    setDpMethod("gcash");
+    setDpRef("");
+  };
+
+  const handleSubmitDownpayment = async () => {
+    if (!downpaymentApp) return;
+    setSubmittingDp(true);
+    const payload = { downPaymentMethod: dpMethod };
+    if (dpMethod !== "cash_on_releasing" && dpRef.trim()) {
+      payload.referenceNumber = dpRef.trim();
+    }
+    const res = await dispatch(submitDownpayment(downpaymentApp._id, payload));
+    setSubmittingDp(false);
+    if (res?.success) {
+      toast.success(res?.data?.message || "Downpayment submitted successfully!");
+      setDownpaymentApp(null);
+    } else {
+      toast.error(res?.message || "Failed to submit downpayment");
     }
   };
 
@@ -691,16 +730,44 @@ export const Orders = () => {
 
                               {!isFullyPaid && (
                                 app.downPaymentSettled === false ? (
-                                  /* Downpayment not yet settled — block amortization */
-                                  <div className="flex items-start gap-2 p-2.5 rounded-lg border border-amber-200 bg-amber-50 text-xs text-amber-900 max-w-xs">
+                                  /* Downpayment not yet settled — show relevant guidance */
+                                  <div className="flex items-start gap-2 p-2.5 rounded-lg border border-amber-200 bg-amber-50 text-xs text-amber-900 max-w-sm">
                                     <svg className="w-3.5 h-3.5 shrink-0 mt-0.5 text-amber-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                       <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
                                     </svg>
-                                    <span className="leading-snug">
-                                      {!app.downPaymentMethod || app.downPaymentMethod === "cash_on_releasing"
-                                        ? `Please bring your downpayment (${fmt(app.downPayment)}) to the branch. Monthly installment payments will unlock once admin confirms receipt.`
-                                        : "Your online downpayment is being verified by the admin. Monthly installments will unlock once confirmed."}
-                                    </span>
+                                    <div className="space-y-1.5">
+                                      {!app.downPaymentMethod ? (
+                                        // Method not yet chosen — prompt customer to submit
+                                        <>
+                                          <span className="leading-snug block font-semibold">
+                                            Action required: Submit your downpayment
+                                          </span>
+                                          <span className="leading-snug block text-[11px]">
+                                            Your application is approved! Please choose how you will pay the downpayment of <strong className="font-mono">{fmt(app.downPayment)}</strong> to unlock your monthly installment schedule.
+                                          </span>
+                                          <button
+                                            type="button"
+                                            onClick={() => handleOpenDownpayment(app)}
+                                            className="mt-1 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-bold text-[11px] transition-colors cursor-pointer"
+                                          >
+                                            Submit Downpayment Info →
+                                          </button>
+                                        </>
+                                      ) : app.downPaymentMethod === "cash_on_releasing" ? (
+                                        // Cash — awaiting admin to collect physically
+                                        <span className="leading-snug">
+                                          Please bring your downpayment of <strong className="font-mono">{fmt(app.downPayment)}</strong> to the branch. Monthly installments will unlock once admin confirms receipt.
+                                        </span>
+                                      ) : (
+                                        // Online method submitted — awaiting admin verification
+                                        <span className="leading-snug">
+                                          Your <strong className="uppercase">{app.downPaymentMethod.replace(/_/g, " ")}</strong> downpayment submission is being verified by the admin. Monthly installments will unlock once confirmed.
+                                          {app.downPaymentReference && (
+                                            <span className="block mt-0.5 font-mono text-[10px] text-amber-800">Ref: {app.downPaymentReference}</span>
+                                          )}
+                                        </span>
+                                      )}
+                                    </div>
                                   </div>
                                 ) : (
                                   <button
@@ -761,27 +828,61 @@ export const Orders = () => {
                     )}
 
                     {/* Payment History Accordion */}
-                    {app.paymentHistory && app.paymentHistory.length > 0 && (
-                      <div className="px-5 py-3 border-t border-zinc-100 bg-zinc-50/40 text-xs space-y-1.5">
-                        <span className="font-bold text-zinc-800 text-[11px] block uppercase tracking-wide">
-                          Payment Ledger History:
-                        </span>
-                        <div className="space-y-1">
-                          {app.paymentHistory.map((hist, hIdx) => (
-                            <div
-                              key={hIdx}
-                              className="flex items-center justify-between py-1 border-b border-zinc-200/60 text-[11px] text-zinc-600"
-                            >
-                              <span>
-                                Installment #{hist.installmentNumber} via{" "}
-                                <strong className="text-zinc-900 uppercase">{hist.paymentMethod}</strong> (Ref: {hist.referenceNumber})
+                    {app.paymentHistory && app.paymentHistory.length > 0 && (() => {
+                      const isExpanded = !!expandedLedgers[app._id];
+                      return (
+                        <div className="border-t border-zinc-100 bg-zinc-50/40 text-xs">
+                          <button
+                            type="button"
+                            onClick={() => toggleLedger(app._id)}
+                            className="w-full px-5 py-3 flex items-center justify-between text-left hover:bg-zinc-100/70 transition-colors cursor-pointer select-none group"
+                            aria-expanded={isExpanded}
+                          >
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-zinc-800 text-[11px] uppercase tracking-wide group-hover:text-zinc-950 transition-colors">
+                                Payment Ledger History
                               </span>
-                              <span className="font-mono font-bold text-zinc-900">{fmt(hist.amount)}</span>
+                              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-zinc-200/80 text-zinc-700 font-mono">
+                                {app.paymentHistory.length} {app.paymentHistory.length === 1 ? "Payment" : "Payments"}
+                              </span>
                             </div>
-                          ))}
+                            <div className="flex items-center gap-1.5 text-xs text-zinc-500 group-hover:text-zinc-800 transition-colors font-medium">
+                              <span className="text-[11px]">
+                                {isExpanded ? "Hide Details" : "Show Details"}
+                              </span>
+                              <svg
+                                className={`w-4 h-4 text-zinc-500 transition-transform duration-200 ${
+                                  isExpanded ? "rotate-180" : ""
+                                }`}
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                              >
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                              </svg>
+                            </div>
+                          </button>
+
+                          {isExpanded && (
+                            <div className="px-5 pb-3 pt-1 space-y-1 border-t border-zinc-200/50">
+                              {app.paymentHistory.map((hist, hIdx) => (
+                                <div
+                                  key={hIdx}
+                                  className="flex items-center justify-between py-1 border-b border-zinc-200/60 last:border-b-0 text-[11px] text-zinc-600"
+                                >
+                                  <span>
+                                    Installment #{hist.installmentNumber} via{" "}
+                                    <strong className="text-zinc-900 uppercase">{hist.paymentMethod}</strong> (Ref: {hist.referenceNumber})
+                                  </span>
+                                  <span className="font-mono font-bold text-zinc-900">{fmt(hist.amount)}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
-                      </div>
-                    )}
+                      );
+                    })()}
                   </div>
                 );
               })}
@@ -929,6 +1030,136 @@ export const Orders = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ────────────────────────────────────────────────────────────── */}
+      {/* MODAL: SUBMIT DOWNPAYMENT METHOD (after approval)              */}
+      {/* ────────────────────────────────────────────────────────────── */}
+      {downpaymentApp && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl space-y-5 animate-in fade-in zoom-in-95 duration-150">
+            {/* Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-zinc-100">
+              <div>
+                <span className="text-[10px] font-mono font-bold text-amber-800 bg-amber-50 px-2 py-0.5 rounded uppercase">
+                  Loan Approved
+                </span>
+                <h3 className="text-base font-extrabold text-zinc-900 mt-1">
+                  Submit Downpayment
+                </h3>
+                <p className="text-[11px] text-zinc-500 mt-0.5">
+                  {downpaymentApp.productName}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDownpaymentApp(null)}
+                className="w-6 h-6 rounded flex items-center justify-center text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 cursor-pointer"
+              >
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+              </button>
+            </div>
+
+            {/* Amount summary */}
+            <div className="bg-amber-50 rounded-xl p-3.5 border border-amber-200 space-y-1 text-xs">
+              <div className="flex justify-between">
+                <span className="text-amber-800">Downpayment Due (20%):</span>
+                <span className="font-mono font-extrabold text-amber-900 text-sm">{fmt(downpaymentApp.downPayment)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-amber-800">Processing Fee:</span>
+                <span className="font-mono text-amber-900">{fmt(downpaymentApp.processingFee || 1500)}</span>
+              </div>
+              <p className="text-[10px] text-amber-700 pt-1 border-t border-amber-200">
+                Your monthly installments of <strong className="font-mono">{fmt(downpaymentApp.monthlyPayment)}/mo</strong> will begin once admin confirms your downpayment.
+              </p>
+            </div>
+
+            {/* Payment method selector */}
+            <div>
+              <label className="text-xs font-bold text-zinc-800 block mb-1.5 uppercase tracking-wide">
+                How will you pay the downpayment?
+              </label>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                {[
+                  { id: "gcash", label: "GCash", code: "GC" },
+                  { id: "maya", label: "Maya", code: "MY" },
+                  { id: "bank_deposit", label: "Bank Transfer", code: "BNK" },
+                  { id: "cash_on_releasing", label: "Cash at Branch", code: "CASH" },
+                ].map((ch) => (
+                  <button
+                    key={ch.id}
+                    type="button"
+                    onClick={() => { setDpMethod(ch.id); setDpRef(""); }}
+                    className={`p-2.5 rounded-xl border text-left flex items-center gap-2 transition-all cursor-pointer ${
+                      dpMethod === ch.id
+                        ? "border-amber-500 bg-amber-50 text-amber-900 font-bold ring-1 ring-amber-500"
+                        : "border-zinc-200 bg-white hover:border-zinc-300 text-zinc-700"
+                    }`}
+                  >
+                    <span className="font-mono text-[9px] font-bold bg-zinc-100 text-zinc-700 px-1 py-0.5 rounded border border-zinc-200">{ch.code}</span>
+                    <span>{ch.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Reference number (only for online methods) */}
+            {dpMethod !== "cash_on_releasing" && (
+              <div>
+                <label className="text-xs font-semibold text-zinc-700 block mb-1">
+                  Transaction / Reference Number <span className="text-zinc-400">(optional but recommended)</span>
+                </label>
+                <input
+                  type="text"
+                  value={dpRef}
+                  onChange={(e) => setDpRef(e.target.value)}
+                  placeholder={
+                    dpMethod === "gcash"
+                      ? "e.g. GCash Ref: 1234567890"
+                      : dpMethod === "maya"
+                      ? "e.g. Maya Ref: 9876543210"
+                      : "e.g. Bank Ref No. / Trace No."
+                  }
+                  className="w-full h-11 px-3.5 border border-zinc-300 focus:border-zinc-900 rounded-xl text-xs text-zinc-900 font-mono focus:outline-none"
+                />
+                <p className="text-[11px] text-zinc-400 mt-1">
+                  Admin will use this to verify your payment before confirming.
+                </p>
+              </div>
+            )}
+
+            {dpMethod === "cash_on_releasing" && (
+              <div className="bg-zinc-50 border border-zinc-200 rounded-xl p-3 text-xs text-zinc-600 space-y-1">
+                <p className="font-semibold text-zinc-800">What to do next:</p>
+                <ul className="list-disc list-inside space-y-0.5 text-[11px]">
+                  <li>Bring <strong className="font-mono">{fmt(downpaymentApp.downPayment)}</strong> in cash to the branch.</li>
+                  <li>Bring a valid government ID.</li>
+                  <li>Admin will confirm receipt and activate your loan.</li>
+                </ul>
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setDownpaymentApp(null)}
+                className="px-4 py-2.5 text-xs text-zinc-600 hover:text-zinc-900 font-semibold cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={submittingDp}
+                onClick={handleSubmitDownpayment}
+                className="bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs px-5 py-2.5 rounded-xl shadow-sm transition-all cursor-pointer disabled:bg-zinc-300"
+              >
+                {submittingDp ? "Submitting..." : "Confirm Submission →"}
+              </button>
+            </div>
           </div>
         </div>
       )}

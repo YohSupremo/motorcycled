@@ -81,6 +81,13 @@ h1, h2, h3, h4, .font-heading, .font-display {
   input::-ms-clear {
     display: none;
   }
+
+  /* Hide native browser search cancel button — we use a custom clear button */
+  input[type="search"]::-webkit-search-cancel-button,
+  input[type="search"]::-webkit-search-decoration {
+    -webkit-appearance: none;
+    appearance: none;
+  }
 }
 
 @utility center-xy {

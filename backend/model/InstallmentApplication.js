@@ -108,6 +108,7 @@ const installmentApplicationSchema = new mongoose.Schema(
     },
     downPaymentSettled: { type: Boolean, default: false },
     downPaymentSettledAt: { type: Date },
+    downPaymentReference: { type: String, trim: true }, // ref number submitted by customer for online payments
     paymentHistory: [
       {
         paidAt: { type: Date, default: Date.now },

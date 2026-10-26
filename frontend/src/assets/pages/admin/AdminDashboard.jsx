@@ -518,15 +518,15 @@ export const AdminDashboard = ({ onSelectOrder }) => {
       <div className="border-y border-zinc-200 bg-white grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-zinc-200 py-3">
         <div className="px-4 py-2 space-y-1">
           <span className="block font-mono uppercase text-[10px] tracking-wider text-zinc-500">
-            Active installments
+            Active loans
           </span>
           <p className="text-2xl font-bold tracking-tight text-zinc-900 font-mono">
             {loading ? "..." : `${metrics.activeInstallmentsCount} active`}
           </p>
           <p className="text-[11px] text-zinc-500">
             {loading
-              ? "Financed contracts in progress"
-              : `${fmtCurrency(metrics.activeInstallmentsValue)} financed`}
+              ? "Loans currently being repaid"
+              : `${fmtCurrency(metrics.activeInstallmentsValue)} outstanding balance`}
           </p>
         </div>
 

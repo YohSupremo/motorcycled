@@ -4,6 +4,9 @@ import Category from "../model/Category.js";
 import Brand from "../model/Brand.js";
 import { cloudConf } from "../config/cloudinary.js";
 import InventoryTransaction from "../model/InventoryTransaction.js";
+// Helper: Escape special regex characters in user search inputs
+const escapeRegex = (value) =>
+  typeof value === "string" ? value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") : "";
 
 // Helper: Upload a single Base64 data URL to Cloudinary.
 // Reference: itcp318-s3a-2026/backend/controllers/product.js lines 31-35
@@ -41,7 +44,7 @@ export const newProduct = async (req, res) => {
 
     // Guard against rapid duplicate submissions
     const existing = await Product.findOne({
-      name: { $regex: new RegExp(`^${name.trim()}$`, "i") },
+      name: { $regex: new RegExp(`^${escapeRegex(name.trim())}$`, "i") },
       brand,
     });
     if (existing) {
@@ -355,7 +358,7 @@ export const getProducts = async (req, res) => {
 
   // Keyword search (Reference: apiFeatures.js regex on name, extended to description)
   if (req.query.keyword && req.query.keyword.trim() !== "") {
-    const kw = req.query.keyword.trim();
+    const kw = escapeRegex(req.query.keyword.trim());
     filter.$or = [
       { name: { $regex: kw, $options: "i" } },
       { description: { $regex: kw, $options: "i" } },
@@ -369,7 +372,7 @@ export const getProducts = async (req, res) => {
       filter.category = req.query.category;
     } else {
       const cat = await Category.findOne({
-        name: { $regex: `^${req.query.category}$`, $options: "i" },
+        name: { $regex: `^${escapeRegex(req.query.category)}$`, $options: "i" },
       });
       if (cat) filter.category = cat._id;
     }
@@ -381,7 +384,7 @@ export const getProducts = async (req, res) => {
       filter.brand = req.query.brand;
     } else {
       const b = await Brand.findOne({
-        name: { $regex: `^${req.query.brand}$`, $options: "i" },
+        name: { $regex: `^${escapeRegex(req.query.brand)}$`, $options: "i" },
       });
       if (b) filter.brand = b._id;
     }

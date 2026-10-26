@@ -1,8 +1,258 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { logout } from "../../actions/userActions";
+import axios from "axios";
 
+const API = import.meta.env.VITE_API || "http://localhost:4001/api/v1";
+
+// ── Inline NavSearch component ────────────────────────────────────────────────
+const NavSearch = ({ overDark }) => {
+  const navigate = useNavigate();
+  const [query, setQuery] = useState("");
+  const [suggestions, setSuggestions] = useState([]);
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [activeIdx, setActiveIdx] = useState(-1);
+  const inputRef = useRef(null);
+  const containerRef = useRef(null);
+  const debounceRef = useRef(null);
+
+  // Fetch suggestions debounced
+  const fetchSuggestions = useCallback(async (q) => {
+    if (!q || q.trim().length < 2) {
+      setSuggestions([]);
+      setOpen(false);
+      return;
+    }
+    setLoading(true);
+    try {
+      const { data } = await axios.get(
+        `${API}/products?keyword=${encodeURIComponent(q.trim())}&limit=6&page=1`
+      );
+      const products = data.products || [];
+      setSuggestions(products);
+      setOpen(products.length > 0);
+    } catch {
+      setSuggestions([]);
+      setOpen(false);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const handleChange = (e) => {
+    const val = e.target.value;
+    setQuery(val);
+    setActiveIdx(-1);
+    clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => fetchSuggestions(val), 220);
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!query.trim()) return;
+    setOpen(false);
+    navigate(`/shop?keyword=${encodeURIComponent(query.trim())}`);
+  };
+
+  const handleSelect = (product) => {
+    setQuery(product.name);
+    setOpen(false);
+    navigate(`/shop?keyword=${encodeURIComponent(product.name)}`);
+  };
+
+  const handleKeyDown = (e) => {
+    if (!open) return;
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setActiveIdx((i) => Math.min(i + 1, suggestions.length - 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActiveIdx((i) => Math.max(i - 1, -1));
+    } else if (e.key === "Enter" && activeIdx >= 0) {
+      e.preventDefault();
+      handleSelect(suggestions[activeIdx]);
+    } else if (e.key === "Escape") {
+      setOpen(false);
+      setActiveIdx(-1);
+    }
+  };
+
+  // Close on outside click
+  useEffect(() => {
+    const handler = (e) => {
+      if (containerRef.current && !containerRef.current.contains(e.target)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const inputBase = overDark
+    ? "bg-white/10 border-white/20 text-white placeholder-white/50 focus:border-white/60 focus:bg-white/15"
+    : "bg-zinc-50 border-zinc-200 text-zinc-900 placeholder-zinc-400 focus:border-emerald-400 focus:bg-white";
+
+  return (
+    <div ref={containerRef} className="relative flex-1 max-w-xs hidden md:block">
+      <form onSubmit={handleSubmit} role="search" aria-label="Search shop catalog">
+        <div className="relative flex items-center">
+          {/* Search icon */}
+          <svg
+            className={`absolute left-2.5 w-3.5 h-3.5 pointer-events-none ${
+              overDark ? "text-white/50" : "text-zinc-400"
+            }`}
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth="2"
+            aria-hidden="true"
+          >
+            <circle cx="11" cy="11" r="8" />
+            <path strokeLinecap="round" d="M21 21l-4.35-4.35" />
+          </svg>
+
+          <input
+            ref={inputRef}
+            id="navbar-search"
+            type="search"
+            autoComplete="off"
+            value={query}
+            onChange={handleChange}
+            onKeyDown={handleKeyDown}
+            onFocus={() => query.trim().length >= 2 && suggestions.length > 0 && setOpen(true)}
+            placeholder="Search motorcycles & parts…"
+            className={`w-full h-8 pl-8 pr-8 text-xs rounded-lg border transition-all duration-150 outline-none ${inputBase}`}
+            aria-label="Search shop"
+            aria-autocomplete="list"
+            aria-controls={open ? "navbar-search-suggestions" : undefined}
+            aria-activedescendant={
+              activeIdx >= 0 ? `suggestion-${activeIdx}` : undefined
+            }
+          />
+
+          {/* Clear button */}
+          {query && (
+            <button
+              type="button"
+              onClick={() => { setQuery(""); setSuggestions([]); setOpen(false); inputRef.current?.focus(); }}
+              className={`absolute right-2.5 w-3.5 h-3.5 flex items-center justify-center rounded-full transition-colors ${
+                overDark ? "text-white/50 hover:text-white/80" : "text-zinc-400 hover:text-zinc-600"
+              }`}
+              aria-label="Clear search"
+              tabIndex={-1}
+            >
+              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          )}
+
+          {/* Spinner */}
+          {loading && !query === "" && (
+            <div className="absolute right-2.5">
+              <svg className="w-3 h-3 animate-spin text-zinc-400" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+            </div>
+          )}
+        </div>
+      </form>
+
+      {/* Autocomplete Dropdown */}
+      {open && suggestions.length > 0 && (
+        <div
+          id="navbar-search-suggestions"
+          role="listbox"
+          aria-label="Search suggestions"
+          className="absolute top-full left-0 right-0 mt-1.5 z-50 bg-white border border-zinc-200 rounded-xl shadow-xl overflow-hidden"
+        >
+          {suggestions.map((product, idx) => {
+            const isActive = idx === activeIdx;
+            const imgSrc = product.images?.[0]?.url;
+            const price = `₱${Number(product.price || 0).toLocaleString("en-US")}`;
+
+            return (
+              <button
+                key={product._id}
+                id={`suggestion-${idx}`}
+                role="option"
+                aria-selected={isActive}
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => handleSelect(product)}
+                className={`w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors cursor-pointer text-xs border-b border-zinc-100 last:border-b-0 ${
+                  isActive ? "bg-emerald-50" : "hover:bg-zinc-50"
+                }`}
+              >
+                {/* Product thumbnail */}
+                <div className="w-8 h-8 rounded-lg overflow-hidden border border-zinc-200 bg-zinc-100 shrink-0 flex items-center justify-center">
+                  {imgSrc ? (
+                    <img src={imgSrc} alt={product.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <svg className="w-4 h-4 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
+                      <rect x="3" y="3" width="18" height="18" rx="2" />
+                      <path d="M3 9l4-4 4 4 4-4 4 4" />
+                    </svg>
+                  )}
+                </div>
+
+                {/* Name + price */}
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold text-zinc-900 truncate">{product.name}</p>
+                  <p className="text-zinc-500 text-[11px] truncate">
+                    {product.category?.name || product.itemType || "Product"}
+                    {" · "}
+                    <span className="font-mono font-semibold text-emerald-700">{price}</span>
+                    {product.installmentEligible && (
+                      <span className="ml-1.5 text-[10px] font-semibold text-indigo-600 bg-indigo-50 border border-indigo-100 px-1 py-0.5 rounded">
+                        Installment
+                      </span>
+                    )}
+                  </p>
+                </div>
+
+                {/* Arrow */}
+                <svg
+                  className={`w-3.5 h-3.5 shrink-0 transition-colors ${
+                    isActive ? "text-emerald-600" : "text-zinc-300"
+                  }`}
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <polyline points="9 18 15 12 9 6" />
+                </svg>
+              </button>
+            );
+          })}
+
+          {/* View all results footer */}
+          <button
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => {
+              setOpen(false);
+              navigate(`/shop?keyword=${encodeURIComponent(query.trim())}`);
+            }}
+            className="w-full flex items-center justify-between px-3 py-2 bg-zinc-50/80 text-[11px] font-semibold text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800 transition-colors border-t border-zinc-200 cursor-pointer"
+          >
+            <span>View all results for "{query}"</span>
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+            </svg>
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ── Main Navbar ───────────────────────────────────────────────────────────────
 export const Navbar = ({ currentPage }) => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
@@ -30,7 +280,6 @@ export const Navbar = ({ currentPage }) => {
   const { cartItems } = useSelector((state) => state.cart || { cartItems: [] });
   const cartCount = cartItems?.length || 0;
 
-
   const displayName = user
     ? `${user.firstName || ""} ${user.lastName || ""}`.trim()
     : "";
@@ -41,15 +290,12 @@ export const Navbar = ({ currentPage }) => {
     ? location.pathname.split("/")[2] || "personal-info"
     : null;
 
-  // Pages whose first section is a dark full-bleed hero. The bar blends into
-  // the hero (dark, light text) at the top and turns into a flat translucent
-  // light bar once the hero has scrolled past.
+  // Show search bar on every page EXCEPT home
+  const showSearch = activePage !== "home";
+
   const darkHeroPage = activePage === "home" || activePage === "about";
   const overDark = darkHeroPage && !isScrolled;
 
-  // Dark-hero pages (home, about) place their hero directly under the bar, so
-  // the bar goes fully transparent there and the hero shows through. Other
-  // dark-hero pages keep a flat dark scrim so text stays legible.
   const headerTone = !overDark
     ? "bg-white/90 border-zinc-200"
     : activePage === "home" || activePage === "about"
@@ -74,18 +320,15 @@ export const Navbar = ({ currentPage }) => {
     ? "bg-emerald-500/20 text-emerald-200 border-emerald-500/30 font-semibold"
     : "bg-emerald-50 text-emerald-900 border-emerald-300 font-semibold shadow-2xs";
 
-  // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
         setIsDropdownOpen(false);
       }
     };
-
     const handleKeyDown = (event) => {
       if (event.key === "Escape") setIsDropdownOpen(false);
     };
-
     document.addEventListener("mousedown", handleClickOutside);
     document.addEventListener("keydown", handleKeyDown);
     return () => {
@@ -94,7 +337,6 @@ export const Navbar = ({ currentPage }) => {
     };
   }, []);
 
-  // Track how far the page hero has scrolled under the bar.
   useEffect(() => {
     const handleScroll = () => {
       const hero =
@@ -131,9 +373,9 @@ export const Navbar = ({ currentPage }) => {
       ref={headerRef}
       className={`sticky top-0 z-30 border-b transition-colors duration-300 ${headerTone}`}
     >
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
-        {/* Brand & Main Navigation */}
-        <div className="flex items-center gap-6">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center gap-3">
+        {/* Brand */}
+        <div className="flex items-center gap-6 shrink-0">
           <Link
             to="/"
             className="flex items-center gap-2.5 cursor-pointer focus:outline-none group"
@@ -154,7 +396,7 @@ export const Navbar = ({ currentPage }) => {
             </span>
           </Link>
 
-          {/* Navigation Links (Profile moved to user dropdown as requested) */}
+          {/* Navigation Links */}
           <nav className="hidden md:flex items-center gap-1 text-xs font-medium">
             <Link
               to="/"
@@ -178,7 +420,7 @@ export const Navbar = ({ currentPage }) => {
                 activePage === "orders" ? navActive : navIdle
               }`}
             >
-              My Installments & Orders
+              My Installments &amp; Orders
             </Link>
             <Link
               to="/about"
@@ -191,8 +433,14 @@ export const Navbar = ({ currentPage }) => {
           </nav>
         </div>
 
-        {/* Right Section: Cart Button & User Account Menu */}
-        <div className="flex items-center gap-2.5">
+        {/* ── Search Bar (hidden on homepage) ── */}
+        {showSearch && <NavSearch overDark={overDark} />}
+
+        {/* Spacer when search is hidden */}
+        {!showSearch && <div className="flex-1" />}
+
+        {/* Right Section */}
+        <div className="flex items-center gap-2.5 shrink-0">
           {/* Cart Nav Button */}
           <Link
             to="/cart"
@@ -226,26 +474,9 @@ export const Navbar = ({ currentPage }) => {
             )}
           </Link>
 
-          {/* Dealership Operations Quick Access (Admins Only) */}
-          {isAuthenticated && user?.role === "admin" && (
-            <Link
-              to="/admin/dashboard"
-              className={`hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors cursor-pointer border ${
-                currentPage === "admin" ? chipActive : chipIdle
-              }`}
-              title="Dealership Operations (Admin Dashboard)"
-            >
-              <span
-                className={`w-1.5 h-1.5 rounded-full ${
-                  overDark ? "bg-emerald-400" : "bg-emerald-600"
-                }`}
-              />
-              <span>Operations</span>
-            </Link>
-          )}
 
           {isAuthenticated && user ? (
-            /* User Account Menu with Avatar, Name & Separated Dropdown */
+            /* User Account Menu */
             <div className="relative" ref={dropdownRef}>
               <button
                 id="account-menu-button"
@@ -257,7 +488,6 @@ export const Navbar = ({ currentPage }) => {
                 aria-expanded={isDropdownOpen}
                 aria-controls={isDropdownOpen ? "account-menu" : undefined}
               >
-                {/* Profile Picture / Avatar */}
                 <div className="relative shrink-0">
                   <div
                     className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs shadow-2xs ring-1 overflow-hidden ${
@@ -276,7 +506,6 @@ export const Navbar = ({ currentPage }) => {
                       <span className="tracking-tighter">{initials}</span>
                     )}
                   </div>
-                  {/* Active indicator dot placed outside circular photo, uncropped */}
                   <span
                     className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-600 ring-2 z-10 pointer-events-none ${
                       overDark ? "ring-zinc-950" : "ring-white"
@@ -284,7 +513,6 @@ export const Navbar = ({ currentPage }) => {
                   />
                 </div>
 
-                {/* User Name & Status */}
                 <div className="text-left hidden sm:block">
                   <div className="flex items-center gap-1.5">
                     <span
@@ -304,7 +532,6 @@ export const Navbar = ({ currentPage }) => {
                   </span>
                 </div>
 
-                {/* Dropdown Chevron */}
                 <svg
                   className={`w-3.5 h-3.5 transition-transform duration-200 ${
                     isDropdownOpen
@@ -326,7 +553,7 @@ export const Navbar = ({ currentPage }) => {
                 </svg>
               </button>
 
-              {/* Account menu */}
+              {/* Account menu dropdown */}
               {isDropdownOpen && (
                 <div
                   id="account-menu"
@@ -509,7 +736,7 @@ export const Navbar = ({ currentPage }) => {
               )}
             </div>
           ) : (
-            /* Signed-out state: login / register links */
+            /* Signed-out state */
             <div className="flex items-center gap-2">
               <Link
                 to="/register"
@@ -597,7 +824,7 @@ export const Navbar = ({ currentPage }) => {
               : "text-zinc-600"
           }`}
         >
-          Installments & Orders
+          Installments &amp; Orders
         </Link>
         <Link
           to="/about"
