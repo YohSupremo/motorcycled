@@ -73,7 +73,7 @@ const LEGAL_DOCUMENTS = {
       {
         heading: "Cancellation and refunds",
         body: [
-          "Orders may be cancelled before release. The downpayment is forfeited unless the dealership approves a refund after review. Approved refunds are issued to the original payment method after the unit or item is returned and inspected. Full details are in the Refunds Policy.",
+          "All sales are final. Orders cannot be cancelled after payment, and Motorcycled does not offer refunds, returns, or exchanges. Please review the product details, payment information, and order summary carefully before placing an order.",
         ],
       },
       {
@@ -183,37 +183,31 @@ const LEGAL_DOCUMENTS = {
     ],
   },
   refunds: {
-    title: "Cancellations and Refunds",
-    summary: "How cancellations, returns, and refunds are handled.",
+    title: "No-Refund Policy",
+    summary: "All sales are final. Please review your order carefully before payment.",
     sections: [
       {
-        heading: "Cancelling an order",
+        heading: "All sales are final",
         body: [
-          "Cancel from your account or call the hotline before the unit is released. The downpayment is forfeited unless the dealership approves a refund after review. Amounts paid in full are returned to the original payment method.",
+          "Once payment has been made, orders cannot be cancelled. Motorcycled does not provide refunds, returns, or exchanges for motorcycles, parts, riding gear, or other purchases.",
         ],
       },
       {
-        heading: "Returning parts and gear",
+        heading: "Before you place an order",
         body: [
-          "Returns are accepted when the item is unused, undamaged, and complete with original packaging, tags, and manuals. Bring the order reference or receipt. Installed, filled, or used items cannot be returned.",
+          "Review the product description, specifications, fit, availability, delivery details, payment method, and order total carefully before confirming your purchase.",
         ],
       },
       {
         heading: "Wrong or damaged items",
         body: [
-          "Report the issue as soon as the delivery arrives and include photos of the item and packaging. We arrange a replacement or refund after the item is checked.",
+          "Contact the service desk as soon as possible if your order arrives damaged or differs from the confirmed order. We will investigate and coordinate the appropriate remedy under the applicable warranty and consumer protection requirements. This policy does not create a right to a cash refund.",
         ],
       },
       {
         heading: "Warranty claims",
         body: [
           "Defects covered by the manufacturer warranty are repaired or replaced under the Warranty Policy at no charge. Warranty claims are not refunds.",
-        ],
-      },
-      {
-        heading: "How refunds are issued",
-        body: [
-          "Refunds go to the original payment method or, for cash purchases, by bank transfer or showroom pickup. Processing starts after inspection. Wallet and bank reversals appear once the provider posts them.",
         ],
       },
     ],

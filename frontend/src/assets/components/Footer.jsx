@@ -24,7 +24,7 @@ const FINANCING_LINKS = [
 const SUPPORT_LINKS = [
   { label: "Order Tracking and Delivery", to: "/orders" },
   { label: "Warranty and Maintenance Policy", document: "warranty" },
-  { label: "Cancellations and Refunds", document: "refunds" },
+  { label: "No-Refund Policy", document: "refunds" },
   { label: "Frequently Asked Questions", to: "/about#faq" },
   { label: "Privacy Policy", document: "privacy" },
   { label: "Terms and Conditions", document: "terms" },
