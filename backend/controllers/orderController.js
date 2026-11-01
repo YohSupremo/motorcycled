@@ -5,6 +5,7 @@ import InstallmentApplication from "../model/InstallmentApplication.js";
 import Category from "../model/Category.js";
 import User from "../model/User.js";
 import InventoryTransaction from "../model/InventoryTransaction.js";
+import StoreSettings from "../model/StoreSettings.js";
 import CreditVerification from "../model/CreditVerification.js";
 import { cloudConf } from "../config/cloudinary.js";
 import { notifyOrderPlaced, notifyInstallmentUpdate, sendNotification } from "../services/notificationService.js";
@@ -15,7 +16,6 @@ import { runInTransaction } from "../utils/transaction.js";
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
 const PROCESSING_FEE = 1500;
-const SHIPPING_DELIVERY = 350;
 const INTEREST_RATES = { 12: 0.07, 24: 0.08, 36: 0.09 };
 
 class HttpError extends Error {
@@ -257,8 +257,11 @@ export const newCheckout = async (req, res) => {
       branch: partsFulfillmentMethod === "pickup" ? shippingInfo.branch : undefined,
     };
 
+    const storeSettings = await StoreSettings.findOne({ key: "primary" }).lean();
     const shippingPrice =
-      partsFulfillmentMethod === "delivery" ? SHIPPING_DELIVERY : 0;
+      partsFulfillmentMethod === "delivery"
+        ? Number(storeSettings?.globalShippingFee ?? 350)
+        : 0;
 
     const { createdOrders, transactionResults } = await runInTransaction(async (session) => {
       const orders = [];
@@ -779,7 +782,6 @@ export const updateOrderStatus = async (req, res) => {
       }
       const previousStatus = order.orderStatus;
       order.orderStatus = orderStatus;
-
       // When cancelling an order that was pending or processing, restore inventory stock
       if (orderStatus === "canceled" && ["pending", "processing"].includes(previousStatus)) {
         const adminName = performedByName(req.user);
@@ -1829,4 +1831,3 @@ export const cancelMyOrder = async (req, res) => {
     return res.status(500).json({ success: false, message: "Server error canceling order" });
   }
 };
-

@@ -9,7 +9,9 @@ import { ProductImagePlaceholder } from "../../components/ProductImagePlaceholde
 import { CheckoutStepper } from "../../components/CheckoutStepper";
 import { buildPaymentSchema } from "../../schema/paymentSchema.js";
 import { toast } from "react-toastify";
+import axios from "axios";
 
+const API = import.meta.env.VITE_API;
 const generateSessionId = () =>
   typeof crypto !== "undefined" && crypto.randomUUID
     ? crypto.randomUUID()
@@ -55,6 +57,18 @@ const BANK_OPTIONS = [
 export const ConfirmOrder = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const [globalShippingFee, setGlobalShippingFee] = useState(350);
+
+  useEffect(() => {
+    axios
+      .get(`${API}/settings`)
+      .then(({ data }) => {
+        setGlobalShippingFee(Number(data.settings?.globalShippingFee ?? 350));
+      })
+      .catch(() => {
+        // The checkout API uses the same default when settings are unavailable.
+      });
+  }, []);
 
   const { cartItems = [], shippingInfo } = useSelector((state) => state.cart);
   const { user } = useSelector((state) => state.auth);
@@ -154,7 +168,7 @@ export const ConfirmOrder = () => {
     (shippingInfo?.partsFulfillmentMethod === "delivery" ||
       (!selectedMotorcycles.length && shippingInfo?.fulfillmentMethod === "delivery"));
 
-  const shippingFee = isPartsDelivery ? 350 : 0;
+  const shippingFee = isPartsDelivery ? globalShippingFee : 0;
   // Grand total = only cash items + shipping. Installment downpayments are NOT
   // collected at checkout — they are due after admin approves the application.
   const grandTotal = partsCashTotal + motoCashTotal + shippingFee;

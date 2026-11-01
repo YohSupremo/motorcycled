@@ -8,6 +8,14 @@ const storeSettingsSchema = new mongoose.Schema(
       unique: true,
       default: "primary",
     },
+    taxRate: { type: Number, min: 0, default: 12 },
+    defaultLowStockThreshold: { type: Number, min: 1, default: 5 },
+    downpaymentRefundable: {
+      type: String,
+      enum: ["forfeited", "refundable"],
+      default: "forfeited",
+    },
+    globalShippingFee: { type: Number, min: 0, default: 350 },
   },
   { timestamps: true },
 );

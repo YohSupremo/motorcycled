@@ -18,7 +18,9 @@ import {
 import { ProductImagePlaceholder } from "../../components/ProductImagePlaceholder";
 import { CheckoutStepper } from "../../components/CheckoutStepper";
 import { toast } from "react-toastify";
+import axios from "axios";
 
+const API = import.meta.env.VITE_API;
 const BRANCHES = [
   {
     id: "pasig",
@@ -61,6 +63,7 @@ const fmt = (n) =>
 export const Shipping = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const [globalShippingFee, setGlobalShippingFee] = useState(350);
 
   const { cartItems = [], shippingInfo } = useSelector((state) => state.cart);
   const { user } = useSelector((state) => state.auth);
@@ -69,6 +72,17 @@ export const Shipping = () => {
     addressesLoading = false,
     addressesUpdating = false,
   } = useSelector((state) => state.profile);
+
+  useEffect(() => {
+    axios
+      .get(`${API}/settings`)
+      .then(({ data }) => {
+        setGlobalShippingFee(Number(data.settings?.globalShippingFee ?? 350));
+      })
+      .catch(() => {
+        // The checkout API uses the same default when settings are unavailable.
+      });
+  }, []);
 
   const selectedItems = useMemo(
     () => cartItems.filter((i) => i.selected),
@@ -298,7 +312,7 @@ export const Shipping = () => {
     .reduce((sum, m) => sum + Math.round(m.price * 0.2) + 1500, 0);
 
   const shippingFee =
-    hasParts && form.partsFulfillmentMethod === "delivery" ? 350 : 0;
+    hasParts && form.partsFulfillmentMethod === "delivery" ? globalShippingFee : 0;
   const grandTotal =
     partsTotal + motoCashTotal + installmentDownpayments + shippingFee;
 
@@ -533,7 +547,9 @@ export const Shipping = () => {
                         />
                         <div className="text-xs">
                           <span className="font-semibold text-zinc-900 block">Courier Delivery</span>
-                          <span className="text-zinc-500 block mt-0.5">Door-to-door (₱350 fee)</span>
+                          <span className="text-zinc-500 block mt-0.5">
+                            Door-to-door (₱{globalShippingFee.toLocaleString()} fee)
+                          </span>
                         </div>
                       </label>
 

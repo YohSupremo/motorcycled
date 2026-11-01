@@ -835,7 +835,7 @@ export const Homepage = ({ onNavigate }) => {
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                 <span>
                   Already an active installment account holder? Track your
-                  monthly amortization and penalty dues.
+                  monthly amortization.
                 </span>
               </div>
               <button

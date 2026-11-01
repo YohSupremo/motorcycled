@@ -73,7 +73,6 @@ export const AdminPayments = () => {
       totalTerms: 12,
       dueDate: "2026-10-15",
       amountDue: 10792,
-      penalty: 0,
       status: "Unpaid",
       defaultedAt: null,
     },
@@ -85,7 +84,6 @@ export const AdminPayments = () => {
       totalTerms: 24,
       dueDate: "2026-10-10",
       amountDue: 3950,
-      penalty: 0,
       status: "Unpaid",
       defaultedAt: null,
     },
@@ -97,7 +95,6 @@ export const AdminPayments = () => {
       totalTerms: 12,
       dueDate: "2026-09-25",
       amountDue: 8450,
-      penalty: 250,
       status: "Overdue",
       defaultedAt: null,
     },
@@ -109,7 +106,6 @@ export const AdminPayments = () => {
       totalTerms: 12,
       dueDate: "2026-09-28",
       amountDue: 5900,
-      penalty: 250,
       status: "Overdue",
       defaultedAt: null,
     },
@@ -121,7 +117,6 @@ export const AdminPayments = () => {
       totalTerms: 24,
       dueDate: "2026-08-15",
       amountDue: 7200,
-      penalty: 500,
       status: "Defaulted",
       defaultedAt: "2026-09-18",
     },
@@ -133,7 +128,6 @@ export const AdminPayments = () => {
       totalTerms: 36,
       dueDate: "2026-09-30",
       amountDue: 9850,
-      penalty: 0,
       status: "Paid",
       defaultedAt: null,
     },
@@ -194,7 +188,7 @@ export const AdminPayments = () => {
     setSchedules((prev) =>
       prev.map((s) => {
         if (s.orderId === data.orderId && s.status !== "Paid") {
-          return { ...s, status: "Paid", penalty: 0 };
+          return { ...s, status: "Paid" };
         }
         return s;
       })
@@ -293,11 +287,6 @@ export const AdminPayments = () => {
               <span className="font-mono font-bold text-zinc-900 text-xs">
                 ₱{s.amountDue.toLocaleString()}
               </span>
-              {s.penalty > 0 ? (
-                <span className="text-[10px] text-rose-600 font-mono font-medium mt-0.5">
-                  +₱{s.penalty} penalty
-                </span>
-              ) : null}
             </div>
           );
         },
@@ -505,7 +494,7 @@ export const AdminPayments = () => {
             Payments and schedules
           </h1>
           <p className="text-xs text-zinc-500 mt-0.5">
-            Record cash and bank collections, track installment schedules, and apply penalties to overdue accounts.
+            Record cash and bank collections and track installment schedules.
           </p>
         </div>
 
